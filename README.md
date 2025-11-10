@@ -74,6 +74,33 @@ npm run build
 npm start
 ```
 
+## Deploy to Vercel
+
+### Option 1: Deploy with data files hosted externally
+
+1. **Upload data files** to a public hosting service (GitHub raw URLs, CDN, etc.)
+   - `provinces.geojson`
+   - `route-segments-all.ndjson`
+   - `pleiades-places-filtered-expanded.json`
+
+2. **Deploy to Vercel**:
+   ```bash
+   npm install -g vercel
+   vercel
+   ```
+
+3. **Set environment variables** in Vercel dashboard:
+   - `NEXT_PUBLIC_CESIUM_ION_TOKEN` - Your Cesium Ion token
+   - `NEXT_PUBLIC_PROVINCES_URL` - URL to provinces.geojson
+   - `NEXT_PUBLIC_ROUTES_URL` - URL to route-segments-all.ndjson
+   - `NEXT_PUBLIC_PLACES_URL` - URL to pleiades-places-filtered-expanded.json
+
+### Option 2: One-click deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/junjun7613/roman_atlas)
+
+**Note:** You'll need to set the environment variables after deployment.
+
 ## Project Structure
 
 ```

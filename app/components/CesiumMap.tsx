@@ -58,7 +58,8 @@ export default function CesiumMap() {
         elevationLayer.show = false
 
         // Provincesデータの読み込み
-        fetch('/provinces.geojson')
+        const provincesUrl = process.env.NEXT_PUBLIC_PROVINCES_URL || '/provinces.geojson'
+        fetch(provincesUrl)
           .then(response => response.json())
           .then(geojsonData => {
             Cesium.GeoJsonDataSource.load(geojsonData, {
@@ -182,7 +183,8 @@ export default function CesiumMap() {
 }
 
 function loadRoutes(Cesium: any, viewer: any) {
-  fetch('/route-segments-all.ndjson')
+  const routesUrl = process.env.NEXT_PUBLIC_ROUTES_URL || '/route-segments-all.ndjson'
+  fetch(routesUrl)
     .then(response => response.text())
     .then(ndjsonText => {
       const lines = ndjsonText.trim().split('\n')
@@ -340,7 +342,8 @@ function setupRouteEntity(entity: any, Cesium: any) {
 }
 
 function loadPleiadesPlaces(Cesium: any, viewer: any) {
-  fetch('/pleiades-places-filtered-expanded.json')
+  const placesUrl = process.env.NEXT_PUBLIC_PLACES_URL || '/pleiades-places-filtered-expanded.json'
+  fetch(placesUrl)
     .then(response => response.json())
     .then(data => {
       const places = data['@graph']
