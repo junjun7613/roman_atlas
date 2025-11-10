@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Cesiumのインフォボックスの位置調整 */
+.cesium-infoBox {
+  top: 10px !important;
+  left: 10px !important;
+  right: auto !important;
+}
+
+.cesium-infoBox-iframe {
+  max-width: 350px;
+}
