@@ -374,7 +374,7 @@ function loadPleiadesPlaces(Cesium: any, viewer: any) {
             title: place.title || 'Unnamed',
             description: place.description || '',
             placeTypes: placeTypes,
-            uri: place.id || ''
+            uri: "https://pleiades.stoa.org/places/" + place.id || ''
           }
         }
 
