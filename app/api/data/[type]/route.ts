@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { type: string } }
+  { params }: { params: Promise<{ type: string }> }
 ) {
-  const { type } = params
+  const { type } = await params
 
   // 環境変数からURLを取得
   const urlMap: Record<string, string | undefined> = {
