@@ -17,7 +17,7 @@ export default function ControlPanel() {
   }
 
   return (
-    <div className="absolute top-2.5 right-2.5 bg-white/95 px-[18px] py-3 rounded-md shadow-[0_2px_20px_rgba(0,0,0,0.3)] font-sans z-[1000] max-w-[250px] max-h-[90vh] overflow-y-auto">
+    <div className="absolute top-[60px] right-2.5 bg-white/95 px-[18px] py-3 rounded-md shadow-[0_2px_20px_rgba(0,0,0,0.3)] font-sans z-[1000] max-w-[250px] max-h-[90vh] overflow-y-auto">
       <h4 className="m-0 mb-2.5 text-[#333] text-[15px] border-b-2 border-[#6688ff] pb-1.5">表示設定</h4>
 
       {/* 基本レイヤー */}
