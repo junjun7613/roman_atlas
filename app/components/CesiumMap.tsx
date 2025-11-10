@@ -58,7 +58,10 @@ export default function CesiumMap() {
         elevationLayer.show = false
 
         // Provincesデータの読み込み
-        const provincesUrl = process.env.NEXT_PUBLIC_PROVINCES_URL || '/provinces.geojson'
+        // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル
+        const provincesUrl = process.env.NEXT_PUBLIC_PROVINCES_URL
+          ? '/api/data/provinces'
+          : '/provinces.geojson'
         fetch(provincesUrl)
           .then(response => response.json())
           .then(geojsonData => {
@@ -183,7 +186,10 @@ export default function CesiumMap() {
 }
 
 function loadRoutes(Cesium: any, viewer: any) {
-  const routesUrl = process.env.NEXT_PUBLIC_ROUTES_URL || '/route-segments-all.ndjson'
+  // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル
+  const routesUrl = process.env.NEXT_PUBLIC_ROUTES_URL
+    ? '/api/data/routes'
+    : '/route-segments-all.ndjson'
   fetch(routesUrl)
     .then(response => response.text())
     .then(ndjsonText => {
@@ -342,7 +348,10 @@ function setupRouteEntity(entity: any, Cesium: any) {
 }
 
 function loadPleiadesPlaces(Cesium: any, viewer: any) {
-  const placesUrl = process.env.NEXT_PUBLIC_PLACES_URL || '/pleiades-places-filtered-expanded.json'
+  // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル
+  const placesUrl = process.env.NEXT_PUBLIC_PLACES_URL
+    ? '/api/data/places'
+    : '/pleiades-places-filtered-expanded.json'
   fetch(placesUrl)
     .then(response => response.json())
     .then(data => {

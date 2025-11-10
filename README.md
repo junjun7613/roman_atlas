@@ -91,9 +91,11 @@ npm start
 
 3. **Set environment variables** in Vercel dashboard:
    - `NEXT_PUBLIC_CESIUM_ION_TOKEN` - Your Cesium Ion token
-   - `NEXT_PUBLIC_PROVINCES_URL` - URL to provinces.geojson
+   - `NEXT_PUBLIC_PROVINCES_URL` - URL to provinces.geojson (e.g., Dropbox direct link with `dl=1`)
    - `NEXT_PUBLIC_ROUTES_URL` - URL to route-segments-all.ndjson
    - `NEXT_PUBLIC_PLACES_URL` - URL to pleiades-places-filtered-expanded.json
+
+**Note:** The app uses Next.js API Routes as a proxy to avoid CORS issues when loading external data files.
 
 ### Option 2: One-click deploy
 
