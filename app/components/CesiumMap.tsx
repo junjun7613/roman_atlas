@@ -190,7 +190,7 @@ export default function CesiumMap() {
     }
   }, [])
 
-  return <div ref={cesiumContainerRef} className="w-screen h-screen" />
+  return <div ref={cesiumContainerRef} className="w-full h-full" />
 }
 
 function loadRoutes(Cesium: any, viewer: any) {

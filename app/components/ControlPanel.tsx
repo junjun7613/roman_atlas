@@ -17,18 +17,18 @@ export default function ControlPanel() {
   }
 
   return (
-    <div className="absolute top-[60px] right-2.5 bg-white/95 px-[18px] py-3 rounded-md shadow-[0_2px_20px_rgba(0,0,0,0.3)] font-sans z-[1000] max-w-[250px] max-h-[90vh] overflow-y-auto">
-      <h4 className="m-0 mb-2.5 text-[#333] text-[15px] border-b-2 border-[#6688ff] pb-1.5">表示設定</h4>
+    <div className="w-full h-full bg-white px-6 py-6 font-sans overflow-y-auto">
+      <h2 className="m-0 mb-6 text-[#333] text-[24px] font-bold border-b-2 border-[#6688ff] pb-3">表示設定</h2>
 
       {/* 基本レイヤー */}
-      <div className="mb-4">
-        <div className="flex justify-between items-center mb-1.5">
-          <h5
-            className="m-0 text-[#555] text-[13px] cursor-pointer"
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-2">
+          <h3
+            className="m-0 text-[#555] text-[18px] font-semibold cursor-pointer"
             onClick={() => toggleSection('baseLayersContent')}
           >
             ▼ 基本レイヤー
-          </h5>
+          </h3>
           <div className="text-[10px]">
             <a
               href="#"
@@ -47,21 +47,21 @@ export default function ControlPanel() {
           </div>
         </div>
 
-        <div id="baseLayersContent" className="pl-2.5">
-          <label className="flex items-center cursor-pointer mb-1.5">
-            <input type="checkbox" id="toggleProvinces" defaultChecked className="mr-2 cursor-pointer" />
-            <span className="text-[12px] text-[#555]">Province</span>
+        <div id="baseLayersContent" className="pl-4">
+          <label className="flex items-center cursor-pointer mb-2">
+            <input type="checkbox" id="toggleProvinces" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
+            <span className="text-[14px] text-[#555]">Province</span>
           </label>
 
           {/* 道路・河川サブセクション */}
-          <div className="mb-2">
-            <div className="flex justify-between items-center mb-[3px]">
-              <h6
-                className="m-0 text-[#666] text-[12px] cursor-pointer"
+          <div className="mb-3">
+            <div className="flex justify-between items-center mb-2">
+              <h4
+                className="m-0 text-[#666] text-[15px] font-medium cursor-pointer"
                 onClick={() => toggleSection('routesContent')}
               >
                 ▼ 道路・河川
-              </h6>
+              </h4>
               <div className="text-[10px]">
                 <a
                   href="#"
@@ -80,45 +80,45 @@ export default function ControlPanel() {
               </div>
             </div>
 
-            <div id="routesContent" className="pl-[15px]">
-              <label className="flex items-center cursor-pointer mb-1">
-                <input type="checkbox" id="toggleMainRoad" defaultChecked className="mr-2 cursor-pointer" />
-                <span className="text-[11px] text-[#666]">Main Road (5,929)</span>
+            <div id="routesContent" className="pl-5">
+              <label className="flex items-center cursor-pointer mb-2">
+                <input type="checkbox" id="toggleMainRoad" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
+                <span className="text-[13px] text-[#666]">Main Road (5,929)</span>
               </label>
 
-              <label className="flex items-center cursor-pointer mb-1">
-                <input type="checkbox" id="toggleSecondaryRoad" defaultChecked className="mr-2 cursor-pointer" />
-                <span className="text-[11px] text-[#666]">Secondary Road (9,267)</span>
+              <label className="flex items-center cursor-pointer mb-2">
+                <input type="checkbox" id="toggleSecondaryRoad" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
+                <span className="text-[13px] text-[#666]">Secondary Road (9,267)</span>
               </label>
 
-              <label className="flex items-center cursor-pointer mb-1">
-                <input type="checkbox" id="toggleSeaLane" defaultChecked className="mr-2 cursor-pointer" />
-                <span className="text-[11px] text-[#666]">Sea Lane (524)</span>
+              <label className="flex items-center cursor-pointer mb-2">
+                <input type="checkbox" id="toggleSeaLane" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
+                <span className="text-[13px] text-[#666]">Sea Lane (524)</span>
               </label>
 
-              <label className="flex items-center cursor-pointer mb-1">
-                <input type="checkbox" id="toggleRiver" defaultChecked className="mr-2 cursor-pointer" />
-                <span className="text-[11px] text-[#666]">River (834)</span>
+              <label className="flex items-center cursor-pointer mb-2">
+                <input type="checkbox" id="toggleRiver" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
+                <span className="text-[13px] text-[#666]">River (834)</span>
               </label>
             </div>
           </div>
 
-          <label className="flex items-center cursor-pointer mb-1.5">
-            <input type="checkbox" id="toggleElevation" className="mr-2 cursor-pointer" />
-            <span className="text-[12px] text-[#555]">標高マップ</span>
+          <label className="flex items-center cursor-pointer mb-2">
+            <input type="checkbox" id="toggleElevation" className="mr-3 cursor-pointer w-4 h-4" />
+            <span className="text-[14px] text-[#555]">標高マップ</span>
           </label>
         </div>
       </div>
 
       {/* Pleiades Places */}
-      <div>
-        <div className="flex justify-between items-center mb-1.5">
-          <h5
-            className="m-0 text-[#555] text-[13px] cursor-pointer"
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-2">
+          <h3
+            className="m-0 text-[#555] text-[18px] font-semibold cursor-pointer"
             onClick={() => toggleSection('pleiadesContent')}
           >
-            ▼ Pleiades Places
-          </h5>
+            ▼ Places
+          </h3>
           <div className="text-[10px]">
             <a
               href="#"
@@ -137,25 +137,25 @@ export default function ControlPanel() {
           </div>
         </div>
 
-        <div id="pleiadesContent" className="pl-2.5">
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleSettlements" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">都市・集落</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleVillas" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">ヴィラ</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleForts" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">要塞</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleTemples" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">神殿</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleStations" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">駅</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleArchaeological" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">遺跡</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleCemetery" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">墓地</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleSanctuary" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">聖域</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleBridge" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">橋</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleAqueduct" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">水道橋</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleChurch" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">教会</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleBath" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">浴場</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleQuarry" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">採石場</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="togglePort" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">港</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleTheater" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">劇場</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleAmphitheatre" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">円形闘技場</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleResidence" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">住居</span></label>
-          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleForum" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">フォルム</span></label>
+        <div id="pleiadesContent" className="pl-4">
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleSettlements" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">都市・集落</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleVillas" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">ヴィラ</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleForts" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">要塞</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleTemples" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">神殿</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleStations" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">駅</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleArchaeological" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">遺跡</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleCemetery" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">墓地</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleSanctuary" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">聖域</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleBridge" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">橋</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleAqueduct" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">水道橋</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleChurch" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">教会</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleBath" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">浴場</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleQuarry" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">採石場</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="togglePort" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">港</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleTheater" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">劇場</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleAmphitheatre" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">円形闘技場</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleResidence" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">住居</span></label>
+          <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleForum" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">フォルム</span></label>
         </div>
       </div>
     </div>
