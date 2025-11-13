@@ -1,5 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// OPTIONSリクエストの処理（Chromeのプリフライトリクエスト対応）
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400',
+    },
+  })
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ type: string }> }
@@ -28,6 +41,9 @@ export async function GET(
     // 外部URLからデータを取得
     const response = await fetch(dataUrl, {
       cache: 'force-cache', // データをキャッシュ
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; NextJS/16.0)',
+      },
     })
 
     console.log(`Response status for ${type}:`, response.status, response.statusText)
@@ -37,17 +53,20 @@ export async function GET(
     }
 
     const data = await response.text()
-    const contentType = type === 'routes' ? 'text/plain' : 'application/json'
+    const contentType = type === 'routes' ? 'text/plain; charset=utf-8' : 'application/json; charset=utf-8'
 
     console.log(`Successfully fetched ${type} data, size:`, data.length)
 
-    // CORSヘッダーを設定して返す
+    // CORSヘッダーを設定して返す（Chromeに対応）
     return new NextResponse(data, {
       status: 200,
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400', // 24時間キャッシュ
         'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'X-Content-Type-Options': 'nosniff',
       },
     })
   } catch (error) {
