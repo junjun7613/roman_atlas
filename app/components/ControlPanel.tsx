@@ -154,6 +154,8 @@ export default function ControlPanel() {
           <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="togglePort" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">港</span></label>
           <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleTheater" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">劇場</span></label>
           <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleAmphitheatre" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">円形闘技場</span></label>
+          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleResidence" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">住居</span></label>
+          <label className="flex items-center cursor-pointer mb-1.5"><input type="checkbox" id="toggleForum" className="mr-2 cursor-pointer" /><span className="text-[12px] text-[#555]">フォルム</span></label>
         </div>
       </div>
     </div>

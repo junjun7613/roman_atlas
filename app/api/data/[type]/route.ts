@@ -24,6 +24,7 @@ export async function GET(
     provinces: process.env.NEXT_PUBLIC_PROVINCES_URL,
     routes: process.env.NEXT_PUBLIC_ROUTES_URL,
     places: process.env.NEXT_PUBLIC_PLACES_URL,
+    originalPlaces: process.env.NEXT_PUBLIC_ORIGINAL_PLACES_URL,
   }
 
   const dataUrl = urlMap[type]
@@ -53,7 +54,12 @@ export async function GET(
     }
 
     const data = await response.text()
-    const contentType = type === 'routes' ? 'text/plain; charset=utf-8' : 'application/json; charset=utf-8'
+    let contentType = 'application/json; charset=utf-8'
+    if (type === 'routes') {
+      contentType = 'text/plain; charset=utf-8'
+    } else if (type === 'originalPlaces') {
+      contentType = 'text/csv; charset=utf-8'
+    }
 
     console.log(`Successfully fetched ${type} data, size:`, data.length)
 

@@ -150,6 +150,9 @@ export default function CesiumMap() {
         // Pleiades Placesの読み込み
         loadPleiadesPlaces(Cesium, viewer)
 
+        // カスタムプレイス（CSV）の読み込み
+        loadCustomPlaces(Cesium, viewer)
+
         // 標高マップの表示/非表示の切り替え
         document.getElementById('toggleElevation')?.addEventListener('change', (e: any) => {
           elevationLayer.show = e.target.checked
@@ -486,4 +489,170 @@ function loadPleiadesPlaces(Cesium: any, viewer: any) {
       })
     })
     .catch(error => console.error('Pleiades Places loading error:', error))
+}
+
+function parseCSV(csvText: string): any[] {
+  const lines = csvText.trim().split('\n')
+  if (lines.length < 2) return []
+
+  const headers = lines[0].split(',').map(h => h.trim())
+  const data: any[] = []
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',').map(v => v.trim())
+    const row: any = {}
+    headers.forEach((header, index) => {
+      row[header] = values[index] || ''
+    })
+    data.push(row)
+  }
+
+  return data
+}
+
+function loadCustomPlaces(Cesium: any, viewer: any) {
+  // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル
+  const customPlacesUrl = process.env.NEXT_PUBLIC_ORIGINAL_PLACES_URL
+    ? '/api/data/originalPlaces'
+    : '/original_places.csv'
+
+  fetch(customPlacesUrl)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      return response.text()
+    })
+    .then(csvText => {
+      const places = parseCSV(csvText)
+      const placesByType: any = {
+        settlement: [], villa: [], fort: [], temple: [], station: [], archaeological: [],
+        cemetery: [], sanctuary: [], bridge: [], aqueduct: [], church: [], bath: [],
+        quarry: [], port: [], theater: [], amphitheatre: [], residence: [], forum: []
+      }
+
+      places.forEach((place: any) => {
+        const lat = parseFloat(place.latitude)
+        const lon = parseFloat(place.longitude)
+        if (isNaN(lat) || isNaN(lon)) return
+
+        const placeTypes = place.placeTypes ? place.placeTypes.split(';').map((t: string) => t.trim()) : []
+
+        const feature = {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: [lon, lat] },
+          properties: {
+            title: place.title || 'Unnamed',
+            description: place.description || '',
+            placeTypes: placeTypes,
+            uri: place.uri || '',
+            modernName: place.modernName || '',
+            period: place.period || '',
+            source: place.source || ''
+          }
+        }
+
+        // 各タイプに分類
+        placeTypes.forEach((type: string) => {
+          if (placesByType[type]) {
+            placesByType[type].push(feature)
+          }
+        })
+      })
+
+      const typeConfigs = [
+        { key: 'settlement', color: Cesium.Color.GOLD, name: '都市・集落', toggle: 'toggleSettlements' },
+        { key: 'villa', color: Cesium.Color.LIGHTGREEN, name: 'ヴィラ', toggle: 'toggleVillas' },
+        { key: 'fort', color: Cesium.Color.RED, name: '要塞', toggle: 'toggleForts' },
+        { key: 'temple', color: Cesium.Color.PURPLE, name: '神殿', toggle: 'toggleTemples' },
+        { key: 'station', color: Cesium.Color.ORANGE, name: '駅', toggle: 'toggleStations' },
+        { key: 'archaeological', color: Cesium.Color.BROWN, name: '遺跡', toggle: 'toggleArchaeological' },
+        { key: 'cemetery', color: Cesium.Color.GRAY, name: '墓地', toggle: 'toggleCemetery' },
+        { key: 'sanctuary', color: Cesium.Color.VIOLET, name: '聖域', toggle: 'toggleSanctuary' },
+        { key: 'bridge', color: Cesium.Color.SILVER, name: '橋', toggle: 'toggleBridge' },
+        { key: 'aqueduct', color: Cesium.Color.CYAN, name: '水道橋', toggle: 'toggleAqueduct' },
+        { key: 'church', color: Cesium.Color.PINK, name: '教会', toggle: 'toggleChurch' },
+        { key: 'bath', color: Cesium.Color.AQUA, name: '浴場', toggle: 'toggleBath' },
+        { key: 'quarry', color: Cesium.Color.SANDYBROWN, name: '採石場', toggle: 'toggleQuarry' },
+        { key: 'port', color: Cesium.Color.NAVY, name: '港', toggle: 'togglePort' },
+        { key: 'theater', color: Cesium.Color.CORAL, name: '劇場', toggle: 'toggleTheater' },
+        { key: 'amphitheatre', color: Cesium.Color.CRIMSON, name: '円形闘技場', toggle: 'toggleAmphitheatre' },
+        { key: 'residence', color: Cesium.Color.YELLOW, name: '住居', toggle: 'toggleResidence' },
+        { key: 'forum', color: Cesium.Color.MAGENTA, name: 'フォルム', toggle: 'toggleForum' }
+      ]
+
+      typeConfigs.forEach(config => {
+        const geojson = { type: 'FeatureCollection', features: placesByType[config.key] }
+        if (geojson.features.length === 0) return
+
+        Cesium.GeoJsonDataSource.load(geojson, {
+          markerColor: config.color,
+          markerSize: 24,
+          clampToGround: true
+        }).then((dataSource: any) => {
+          // Pleiadesと同じデータソース管理を使用
+          // @ts-ignore
+          window[`pleiades${config.key}DataSource`] = dataSource
+          // カスタムプレイスもデフォルトでは非表示（Pleiades Placesと同じ）
+          dataSource.show = false
+          viewer.dataSources.add(dataSource)
+
+          const entities = dataSource.entities.values
+          for (let i = 0; i < entities.length; i++) {
+            const entity = entities[i]
+            if (entity.billboard) {
+              entity.billboard.color = config.color.withAlpha(0.9)
+              entity.billboard.scale = 0.6
+              entity.billboard.heightReference = Cesium.HeightReference.CLAMP_TO_GROUND
+            }
+
+            if (entity.properties) {
+              const title = entity.properties.title ? entity.properties.title.getValue() : 'Unnamed'
+              const description = entity.properties.description ? entity.properties.description.getValue() : ''
+              const uri = entity.properties.uri ? entity.properties.uri.getValue() : ''
+              const modernName = entity.properties.modernName ? entity.properties.modernName.getValue() : ''
+              const period = entity.properties.period ? entity.properties.period.getValue() : ''
+              const source = entity.properties.source ? entity.properties.source.getValue() : ''
+              const placeTypesArray = entity.properties.placeTypes ? entity.properties.placeTypes.getValue() : []
+
+              entity.name = title
+              let descriptionHtml = `<div style="padding: 10px;">
+                <h3 style="margin: 0 0 10px 0; color: #333;">${title}</h3>
+                <p style="margin: 5px 0; color: #666;">Type: ${config.name} (${placeTypesArray.join(', ')})</p>`
+
+              if (modernName) {
+                descriptionHtml += `<p style="margin: 5px 0; color: #666;">Modern: ${modernName}</p>`
+              }
+              if (period) {
+                descriptionHtml += `<p style="margin: 5px 0; color: #666;">Period: ${period}</p>`
+              }
+              if (description) {
+                descriptionHtml += `<p style="margin: 5px 0; color: #666;">${description}</p>`
+              }
+              if (source) {
+                descriptionHtml += `<p style="margin: 5px 0; color: #666; font-size: 0.9em;">Source: ${source}</p>`
+              }
+              if (uri) {
+                descriptionHtml += `<p style="margin: 5px 0;">
+                  <a href="${uri}" target="_blank" style="color: #6688ff; text-decoration: none;">
+                    More Info →
+                  </a>
+                </p>`
+              }
+              descriptionHtml += `</div>`
+              entity.description = descriptionHtml
+            }
+          }
+
+          // トグルボタンがあれば接続（新しいタイプの場合はまだないかもしれない）
+          const toggleElement = document.getElementById(config.toggle)
+          if (toggleElement) {
+            toggleElement.addEventListener('change', (e: any) => {
+              dataSource.show = e.target.checked
+            })
+          }
+        })
+      })
+    })
+    .catch(error => console.error('Custom Places loading error:', error))
 }
