@@ -23,17 +23,23 @@ export async function GET(
   }
 
   try {
+    console.log(`Fetching ${type} data from:`, dataUrl)
+
     // 外部URLからデータを取得
     const response = await fetch(dataUrl, {
       cache: 'force-cache', // データをキャッシュ
     })
 
+    console.log(`Response status for ${type}:`, response.status, response.statusText)
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch: ${response.statusText}`)
+      throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.text()
     const contentType = type === 'routes' ? 'text/plain' : 'application/json'
+
+    console.log(`Successfully fetched ${type} data, size:`, data.length)
 
     // CORSヘッダーを設定して返す
     return new NextResponse(data, {
@@ -47,7 +53,7 @@ export async function GET(
   } catch (error) {
     console.error(`Error fetching ${type} data:`, error)
     return NextResponse.json(
-      { error: `Failed to fetch ${type} data` },
+      { error: `Failed to fetch ${type} data`, details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

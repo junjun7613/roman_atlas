@@ -63,7 +63,12 @@ export default function CesiumMap() {
           ? '/api/data/provinces'
           : '/provinces.geojson'
         fetch(provincesUrl)
-          .then(response => response.json())
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`)
+            }
+            return response.json()
+          })
           .then(geojsonData => {
             Cesium.GeoJsonDataSource.load(geojsonData, {
               stroke: Cesium.Color.WHITE,
@@ -191,7 +196,12 @@ function loadRoutes(Cesium: any, viewer: any) {
     ? '/api/data/routes'
     : '/route-segments-all.ndjson'
   fetch(routesUrl)
-    .then(response => response.text())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      return response.text()
+    })
     .then(ndjsonText => {
       const lines = ndjsonText.trim().split('\n')
       const features = lines.map(line => {
@@ -353,7 +363,12 @@ function loadPleiadesPlaces(Cesium: any, viewer: any) {
     ? '/api/data/places'
     : '/pleiades-places-filtered-expanded.json'
   fetch(placesUrl)
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      return response.json()
+    })
     .then(data => {
       const places = data['@graph']
       const placesByType: any = {
