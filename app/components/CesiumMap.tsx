@@ -21,12 +21,6 @@ export default function CesiumMap() {
       // Cesiumの静的アセットへのパスを設定
       ;(window as any).CESIUM_BASE_URL = '/cesium/'
 
-      // Web Workerを無効化してサンドボックスエラーを回避
-      ;(Cesium as any).buildModuleUrl.setBaseUrl('/cesium/')
-      if ((window as any).CESIUM_BASE_URL) {
-        ;(Cesium as any).buildModuleUrl.setBaseUrl((window as any).CESIUM_BASE_URL)
-      }
-
       // Cesium Ion トークンの設定
       const cesiumToken = process.env.NEXT_PUBLIC_CESIUM_ION_TOKEN
       if (!cesiumToken) {
@@ -48,10 +42,7 @@ export default function CesiumMap() {
           navigationHelpButton: false,
           animation: false,
           timeline: false,
-          fullscreenButton: true,
-          // Web Workerを無効化してサンドボックスエラーを回避
-          requestRenderMode: true,
-          maximumRenderTimeChange: Infinity
+          fullscreenButton: true
         })
 
         viewerRef.current = viewer
