@@ -5,8 +5,16 @@ import { useEffect, useRef } from 'react'
 export default function CesiumMap() {
   const cesiumContainerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<any>(null)
+  const eventListenersRef = useRef<Array<{element: HTMLElement, event: string, handler: EventListener}>>([])
 
   useEffect(() => {
+    const addEventListenerTracked = (elementId: string, eventType: string, handler: EventListener) => {
+      const element = document.getElementById(elementId)
+      if (element) {
+        element.addEventListener(eventType, handler)
+        eventListenersRef.current.push({ element, event: eventType, handler })
+      }
+    }
     // Cesium CSSを動的に読み込み
     const link = document.createElement('link')
     link.rel = 'stylesheet'
@@ -128,7 +136,7 @@ export default function CesiumMap() {
                 }
               }
 
-              document.getElementById('toggleProvinces')?.addEventListener('change', (e: any) => {
+              addEventListenerTracked('toggleProvinces', 'change', (e: any) => {
                 dataSource.show = e.target.checked
               })
 
@@ -145,16 +153,16 @@ export default function CesiumMap() {
           })
 
         // ルートデータの読み込み
-        loadRoutes(Cesium, viewer)
+        loadRoutes(Cesium, viewer, addEventListenerTracked)
 
         // Pleiades Placesの読み込み
-        loadPleiadesPlaces(Cesium, viewer)
+        loadPleiadesPlaces(Cesium, viewer, addEventListenerTracked)
 
         // カスタムプレイス（CSV）の読み込み
-        loadCustomPlaces(Cesium, viewer)
+        loadCustomPlaces(Cesium, viewer, addEventListenerTracked)
 
         // 標高マップの表示/非表示の切り替え
-        document.getElementById('toggleElevation')?.addEventListener('change', (e: any) => {
+        addEventListenerTracked('toggleElevation', 'change', (e: any) => {
           elevationLayer.show = e.target.checked
         })
 
@@ -184,8 +192,16 @@ export default function CesiumMap() {
     loadCesium()
 
     return () => {
+      // Remove all tracked event listeners
+      eventListenersRef.current.forEach(({ element, event, handler }) => {
+        element.removeEventListener(event, handler)
+      })
+      eventListenersRef.current = []
+
+      // Destroy viewer
       if (viewerRef.current) {
         viewerRef.current.destroy()
+        viewerRef.current = null
       }
     }
   }, [])
@@ -193,7 +209,7 @@ export default function CesiumMap() {
   return <div ref={cesiumContainerRef} className="w-full h-full" />
 }
 
-function loadRoutes(Cesium: any, viewer: any) {
+function loadRoutes(Cesium: any, viewer: any, addEventListenerTracked: (elementId: string, eventType: string, handler: EventListener) => void) {
   // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル
   const routesUrl = process.env.NEXT_PUBLIC_ROUTES_URL
     ? '/api/data/routes'
@@ -242,7 +258,7 @@ function loadRoutes(Cesium: any, viewer: any) {
           setupRouteEntity(entity, Cesium)
         }
 
-        document.getElementById('toggleMainRoad')?.addEventListener('change', (e: any) => {
+        addEventListenerTracked('toggleMainRoad', 'change', (e: any) => {
           dataSource.show = e.target.checked
         })
       })
@@ -269,7 +285,7 @@ function loadRoutes(Cesium: any, viewer: any) {
           setupRouteEntity(entity, Cesium)
         }
 
-        document.getElementById('toggleSecondaryRoad')?.addEventListener('change', (e: any) => {
+        addEventListenerTracked('toggleSecondaryRoad', 'change', (e: any) => {
           dataSource.show = e.target.checked
         })
       })
@@ -296,7 +312,7 @@ function loadRoutes(Cesium: any, viewer: any) {
           setupRouteEntity(entity, Cesium)
         }
 
-        document.getElementById('toggleSeaLane')?.addEventListener('change', (e: any) => {
+        addEventListenerTracked('toggleSeaLane', 'change', (e: any) => {
           dataSource.show = e.target.checked
         })
       })
@@ -323,7 +339,7 @@ function loadRoutes(Cesium: any, viewer: any) {
           setupRouteEntity(entity, Cesium)
         }
 
-        document.getElementById('toggleRiver')?.addEventListener('change', (e: any) => {
+        addEventListenerTracked('toggleRiver', 'change', (e: any) => {
           dataSource.show = e.target.checked
         })
       })
@@ -360,7 +376,7 @@ function setupRouteEntity(entity: any, Cesium: any) {
   }
 }
 
-function loadPleiadesPlaces(Cesium: any, viewer: any) {
+function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (elementId: string, eventType: string, handler: EventListener) => void) {
   // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル
   const placesUrl = process.env.NEXT_PUBLIC_PLACES_URL
     ? '/api/data/places'
@@ -482,7 +498,7 @@ function loadPleiadesPlaces(Cesium: any, viewer: any) {
             }
           }
 
-          document.getElementById(config.toggle)?.addEventListener('change', (e: any) => {
+          addEventListenerTracked(config.toggle, 'change', (e: any) => {
             dataSource.show = e.target.checked
           })
         })
@@ -510,7 +526,7 @@ function parseCSV(csvText: string): any[] {
   return data
 }
 
-function loadCustomPlaces(Cesium: any, viewer: any) {
+function loadCustomPlaces(Cesium: any, viewer: any, addEventListenerTracked: (elementId: string, eventType: string, handler: EventListener) => void) {
   // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル
   const customPlacesUrl = process.env.NEXT_PUBLIC_ORIGINAL_PLACES_URL
     ? '/api/data/originalPlaces'
@@ -647,7 +663,7 @@ function loadCustomPlaces(Cesium: any, viewer: any) {
           // トグルボタンがあれば接続（新しいタイプの場合はまだないかもしれない）
           const toggleElement = document.getElementById(config.toggle)
           if (toggleElement) {
-            toggleElement.addEventListener('change', (e: any) => {
+            addEventListenerTracked(config.toggle, 'change', (e: any) => {
               dataSource.show = e.target.checked
             })
           }
