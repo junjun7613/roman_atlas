@@ -2,8 +2,37 @@
 
 import { useState } from 'react'
 
-export default function ControlPanel() {
+interface PlaceDetail {
+  placeName: string
+  placeId: string
+  count: number
+}
+
+interface InscriptionDetailData {
+  edcsId: string
+  description: string
+  dating: string
+  edcsUrl: string
+}
+
+interface InscriptionData {
+  type: 'single' | 'multiple'
+  placeName?: string
+  placeId?: string
+  customLocationId?: string
+  count: number
+  loading: boolean
+  places?: PlaceDetail[]
+  inscriptions?: InscriptionDetailData[]
+}
+
+interface ControlPanelProps {
+  inscriptionData?: InscriptionData | null
+}
+
+export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState<'settings' | 'info'>('settings')
+  const [selectedPlaceIndex, setSelectedPlaceIndex] = useState<number>(0)
 
   const toggleSection = (sectionId: string) => {
     const section = document.getElementById(sectionId)
@@ -48,10 +77,9 @@ export default function ControlPanel() {
 
       {/* タブコンテンツ */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        {activeTab === 'settings' ? (
-          <div>
-            {/* 基本レイヤー */}
-            <div className="mb-6">
+        <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
+          {/* 基本レイヤー */}
+          <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <h3
                   className="m-0 text-[#555] text-[18px] font-semibold cursor-pointer"
@@ -140,8 +168,8 @@ export default function ControlPanel() {
               </div>
             </div>
 
-            {/* Pleiades Places */}
-            <div className="mb-6">
+          {/* Pleiades Places */}
+          <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <h3
                   className="m-0 text-[#555] text-[18px] font-semibold cursor-pointer"
@@ -187,13 +215,169 @@ export default function ControlPanel() {
                 <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleResidence" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">住居</span></label>
                 <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleForum" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">フォルム</span></label>
               </div>
-            </div>
           </div>
-        ) : (
+        </div>
+        <div style={{ display: activeTab === 'info' ? 'block' : 'none' }}>
           <div className="text-[16px] text-[#555]">
-            ここに情報が表示されます
+            {inscriptionData ? (
+              <div>
+                {inscriptionData.type === 'single' ? (
+                  <div>
+                    <h3 className="text-[18px] font-semibold mb-4 text-[#333]">
+                      {inscriptionData.placeName}
+                    </h3>
+                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                      <p className="text-[14px] text-[#666] mb-2">
+                        <strong>PLACE ID:</strong> {inscriptionData.placeId}
+                      </p>
+                      {inscriptionData.loading ? (
+                        <p className="text-[14px] text-[#666]">
+                          碑文データを読み込み中...
+                        </p>
+                      ) : (
+                        <p className="text-[14px] text-[#666] mb-4">
+                          <strong>碑文数:</strong> {inscriptionData.count}件
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Display inscription details */}
+                    {!inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="text-[16px] font-semibold mb-3 text-[#333]">碑文一覧</h4>
+                        <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
+                          {inscriptionData.inscriptions.map((inscription, index) => (
+                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="mb-2">
+                                <a
+                                  href={inscription.edcsUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[13px] font-semibold text-blue-600 hover:text-blue-800 no-underline"
+                                >
+                                  {inscription.edcsId}
+                                </a>
+                              </div>
+                              {inscription.description && inscription.description.trim() !== '' && (
+                                <p className="text-[12px] text-[#666] mb-2" style={{
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 3,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}>
+                                  {inscription.description}
+                                </p>
+                              )}
+                              {inscription.dating && inscription.dating.trim() !== '' && (
+                                <p className="text-[11px] text-[#888]">
+                                  <strong>年代:</strong> {inscription.dating}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-[18px] font-semibold mb-4 text-[#333]">
+                      選択された領域
+                    </h3>
+                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                      {inscriptionData.loading ? (
+                        <p className="text-[14px] text-[#666]">
+                          碑文データを読み込み中...
+                        </p>
+                      ) : (
+                        <>
+                          <p className="text-[14px] text-[#666] mb-4">
+                            <strong>合計碑文数:</strong> {inscriptionData.count}件
+                          </p>
+                          <p className="text-[14px] text-[#666] mb-2">
+                            <strong>選択され��地点:</strong> {inscriptionData.places?.length || 0}箇所
+                          </p>
+
+                          {/* Place selector for multiple places */}
+                          {inscriptionData.places && inscriptionData.places.length > 0 && (
+                            <div className="mt-4">
+                              <label className="block text-[14px] font-semibold mb-2 text-[#333]">
+                                地点を選択:
+                              </label>
+                              <select
+                                value={selectedPlaceIndex}
+                                onChange={(e) => {
+                                  const index = parseInt(e.target.value, 10)
+                                  setSelectedPlaceIndex(index)
+                                  // Trigger loading of inscriptions for selected place
+                                  const selectedPlace = inscriptionData.places![index]
+                                  if (window && (window as any).loadInscriptionsForPlace) {
+                                    (window as any).loadInscriptionsForPlace(selectedPlace.placeId, selectedPlace.placeName)
+                                  }
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-[14px] text-[#555] bg-white"
+                              >
+                                {inscriptionData.places.map((place, index) => (
+                                  <option key={index} value={index}>
+                                    {place.placeName} ({place.count}件)
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {/* Display inscription details for selected place */}
+                    {!inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="text-[16px] font-semibold mb-3 text-[#333]">碑文一覧</h4>
+                        <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
+                          {inscriptionData.inscriptions.map((inscription, index) => (
+                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                              <div className="mb-2">
+                                <a
+                                  href={inscription.edcsUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[13px] font-semibold text-blue-600 hover:text-blue-800 no-underline"
+                                >
+                                  {inscription.edcsId}
+                                </a>
+                              </div>
+                              {inscription.description && inscription.description.trim() !== '' && (
+                                <p className="text-[12px] text-[#666] mb-2" style={{
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 3,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}>
+                                  {inscription.description}
+                                </p>
+                              )}
+                              {inscription.dating && inscription.dating.trim() !== '' && (
+                                <p className="text-[11px] text-[#888]">
+                                  <strong>年代:</strong> {inscription.dating}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-[14px] text-[#666]">
+                地名をクリック、または矩形選択で領域を指定すると、関連する碑文情報が表示されます
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   )

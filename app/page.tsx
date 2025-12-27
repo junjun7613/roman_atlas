@@ -16,54 +16,43 @@ const LeafletMap = dynamic(() => import('./components/LeafletMap'), {
 
 type MapType = '2D' | '3D'
 
+interface PlaceDetail {
+  placeName: string
+  placeId: string
+  count: number
+}
+
+interface InscriptionDetailData {
+  edcsId: string
+  description: string
+  dating: string
+  edcsUrl: string
+}
+
+interface InscriptionData {
+  type: 'single' | 'multiple'
+  placeName?: string
+  placeId?: string
+  customLocationId?: string
+  count: number
+  loading: boolean
+  places?: PlaceDetail[]
+  inscriptions?: InscriptionDetailData[]
+}
+
 export default function Home() {
   const [mapType, setMapType] = useState<MapType>('2D')
-  const [mapKey, setMapKey] = useState(0)
+  const [inscriptionData, setInscriptionData] = useState<InscriptionData | null>(null)
+
+  // Expose setInscriptionData to window for map components to use
+  if (typeof window !== 'undefined') {
+    (window as any).setInscriptionData = setInscriptionData
+  }
 
   const handleMapTypeChange = (newType: MapType) => {
     setMapType(newType)
-    setMapKey(prev => prev + 1)
-
-    // ControlPanelのチェックボックスをすべてリセット
-    setTimeout(() => {
-      resetControlPanel()
-    }, 100)
-  }
-
-  const resetControlPanel = () => {
-    // 基本レイヤー
-    const provinceToggle = document.getElementById('toggleProvinces') as HTMLInputElement
-    if (provinceToggle) provinceToggle.checked = true
-
-    const elevationToggle = document.getElementById('toggleElevation') as HTMLInputElement
-    if (elevationToggle) elevationToggle.checked = false
-
-    // 道路・河川
-    const mainRoadToggle = document.getElementById('toggleMainRoad') as HTMLInputElement
-    if (mainRoadToggle) mainRoadToggle.checked = true
-
-    const secondaryRoadToggle = document.getElementById('toggleSecondaryRoad') as HTMLInputElement
-    if (secondaryRoadToggle) secondaryRoadToggle.checked = true
-
-    const seaLaneToggle = document.getElementById('toggleSeaLane') as HTMLInputElement
-    if (seaLaneToggle) seaLaneToggle.checked = true
-
-    const riverToggle = document.getElementById('toggleRiver') as HTMLInputElement
-    if (riverToggle) riverToggle.checked = true
-
-    // Placesは全てオフ
-    const placeToggles = [
-      'toggleSettlements', 'toggleVillas', 'toggleForts', 'toggleTemples',
-      'toggleStations', 'toggleArchaeological', 'toggleCemetery', 'toggleSanctuary',
-      'toggleBridge', 'toggleAqueduct', 'toggleChurch', 'toggleBath',
-      'toggleQuarry', 'togglePort', 'toggleTheater', 'toggleAmphitheatre',
-      'toggleResidence', 'toggleForum'
-    ]
-
-    placeToggles.forEach(id => {
-      const toggle = document.getElementById(id) as HTMLInputElement
-      if (toggle) toggle.checked = false
-    })
+    // Reset inscription data when switching maps
+    setInscriptionData(null)
   }
 
   return (
@@ -97,12 +86,12 @@ export default function Home() {
         </div>
 
         {/* マップ表示 */}
-        {mapType === '2D' ? <LeafletMap key={`leaflet-${mapKey}`} /> : <CesiumMap key={`cesium-${mapKey}`} />}
+        {mapType === '2D' ? <LeafletMap key="leaflet" /> : <CesiumMap key="cesium" />}
       </div>
 
       {/* 右半分: インターフェイス */}
       <div className="w-1/2 h-screen bg-gray-50 overflow-y-auto">
-        <ControlPanel />
+        <ControlPanel inscriptionData={inscriptionData} />
       </div>
     </main>
   )

@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import 'leaflet.markercluster'
+import { queryInscriptionsByPlaceId, queryInscriptionsByPlaceIds, queryCustomPlaces, queryInscriptionDetails } from '../utils/sparql'
 
 // Leafletのデフォルトマーカーアイコンの修正
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -27,6 +28,11 @@ export default function LeafletMap() {
     river?: L.LayerGroup
     [key: string]: L.LayerGroup | undefined
   }>({})
+
+  // Rectangle selection state
+  const [isDrawingMode, setIsDrawingMode] = useState(false)
+  const rectangleLayerRef = useRef<L.Rectangle | null>(null)
+  const drawingStartRef = useRef<L.LatLng | null>(null)
 
   // イベントリスナーを保存するref
   const eventListenersRef = useRef<Array<{element: HTMLElement, event: string, handler: EventListener}>>([])
@@ -144,7 +150,13 @@ export default function LeafletMap() {
         })
 
         if (isMountedRef.current && mapRef.current) {
-          provincesLayer.addTo(mapRef.current)
+          // Check initial checkbox state
+          const provinceToggle = document.getElementById('toggleProvinces') as HTMLInputElement
+          const isChecked = provinceToggle ? provinceToggle.checked : true
+
+          if (isChecked) {
+            provincesLayer.addTo(mapRef.current)
+          }
 
           layersRef.current.provinces = provincesLayer
           ;(window as any).provincesLayer = provincesLayer
@@ -201,7 +213,12 @@ export default function LeafletMap() {
             setupRoutePopup(feature, layer)
           }
         })
-        if (isMountedRef.current && mapRef.current) mainRoadLayer.addTo(mapRef.current)
+        if (isMountedRef.current && mapRef.current) {
+          const mainRoadToggle = document.getElementById('toggleMainRoad') as HTMLInputElement
+          if (!mainRoadToggle || mainRoadToggle.checked) {
+            mainRoadLayer.addTo(mapRef.current)
+          }
+        }
         layersRef.current.mainRoad = mainRoadLayer
         ;(window as any).mainRoadLayer = mainRoadLayer
 
@@ -226,7 +243,12 @@ export default function LeafletMap() {
             setupRoutePopup(feature, layer)
           }
         })
-        if (isMountedRef.current && mapRef.current) secondaryRoadLayer.addTo(mapRef.current)
+        if (isMountedRef.current && mapRef.current) {
+          const secondaryRoadToggle = document.getElementById('toggleSecondaryRoad') as HTMLInputElement
+          if (!secondaryRoadToggle || secondaryRoadToggle.checked) {
+            secondaryRoadLayer.addTo(mapRef.current)
+          }
+        }
         layersRef.current.secondaryRoad = secondaryRoadLayer
         ;(window as any).secondaryRoadLayer = secondaryRoadLayer
 
@@ -251,7 +273,12 @@ export default function LeafletMap() {
             setupRoutePopup(feature, layer)
           }
         })
-        if (isMountedRef.current && mapRef.current) seaLaneLayer.addTo(mapRef.current)
+        if (isMountedRef.current && mapRef.current) {
+          const seaLaneToggle = document.getElementById('toggleSeaLane') as HTMLInputElement
+          if (!seaLaneToggle || seaLaneToggle.checked) {
+            seaLaneLayer.addTo(mapRef.current)
+          }
+        }
         layersRef.current.seaLane = seaLaneLayer
         ;(window as any).seaLaneLayer = seaLaneLayer
 
@@ -276,7 +303,12 @@ export default function LeafletMap() {
             setupRoutePopup(feature, layer)
           }
         })
-        if (isMountedRef.current && mapRef.current) riverLayer.addTo(mapRef.current)
+        if (isMountedRef.current && mapRef.current) {
+          const riverToggle = document.getElementById('toggleRiver') as HTMLInputElement
+          if (!riverToggle || riverToggle.checked) {
+            riverLayer.addTo(mapRef.current)
+          }
+        }
         layersRef.current.river = riverLayer
         ;(window as any).riverLayer = riverLayer
 
@@ -417,10 +449,22 @@ export default function LeafletMap() {
                 const uri = feature.properties.uri || ''
                 const placeTypesArray = feature.properties.placeTypes || []
 
+                // Extract Pleiades ID from URI
+                let placeId = ''
+                if (uri) {
+                  const match = uri.match(/\/places\/(\d+)/)
+                  if (match) {
+                    placeId = match[1]
+                  }
+                }
+
                 let popupHtml = `<div style="padding: 10px;">
                   <h3 style="margin: 0 0 10px 0; color: #333;">${title}</h3>
                   <p style="margin: 5px 0; color: #666;">Type: ${config.name} (${placeTypesArray.join(', ')})</p>`
 
+                if (placeId) {
+                  popupHtml += `<p style="margin: 5px 0; color: #666;">Pleiades ID: ${placeId}</p>`
+                }
                 if (description) {
                   popupHtml += `<p style="margin: 5px 0; color: #666;">${description}</p>`
                 }
@@ -433,6 +477,37 @@ export default function LeafletMap() {
                 }
                 popupHtml += `</div>`
                 layer.bindPopup(popupHtml)
+
+                // Add click handler to fetch inscription data
+                if (placeId) {
+                  layer.on('click', async () => {
+                    const setInscriptionData = (window as any).setInscriptionData
+                    if (setInscriptionData) {
+                      // Set loading state
+                      setInscriptionData({
+                        type: 'single',
+                        placeName: title,
+                        placeId: placeId,
+                        count: 0,
+                        loading: true
+                      })
+
+                      // Query SPARQL endpoint for count and details
+                      const count = await queryInscriptionsByPlaceId(placeId)
+                      const inscriptions = await queryInscriptionDetails(placeId)
+
+                      // Update with results
+                      setInscriptionData({
+                        type: 'single',
+                        placeName: title,
+                        placeId: placeId,
+                        count: count,
+                        loading: false,
+                        inscriptions: inscriptions
+                      })
+                    }
+                  })
+                }
               }
             }
           })
@@ -479,18 +554,17 @@ export default function LeafletMap() {
     return data
   }
 
-  const loadCustomPlaces = (map: L.Map) => {
+  const loadCustomPlaces = async (map: L.Map) => {
     if (!map) return
 
-    const customPlacesUrl = process.env.NEXT_PUBLIC_ORIGINAL_PLACES_URL
-      ? '/api/data/originalPlaces'
-      : '/original_places.csv'
+    try {
+      const places = await queryCustomPlaces()
 
-    fetch(customPlacesUrl)
-      .then(response => response.text())
-      .then(csvText => {
-        if (!isMountedRef.current || !map || !mapRef.current) return
-        const places = parseCSV(csvText)
+      if (!isMountedRef.current || !map || !mapRef.current) return
+      if (places.length === 0) {
+        console.log('No custom places found from SPARQL')
+        return
+      }
         const placesByType: any = {
           settlement: [], villa: [], fort: [], temple: [], station: [], archaeological: [],
           cemetery: [], sanctuary: [], bridge: [], aqueduct: [], church: [], bath: [],
@@ -508,6 +582,7 @@ export default function LeafletMap() {
             type: 'Feature',
             geometry: { type: 'Point', coordinates: [lon, lat] },
             properties: {
+              id: place.id || '',
               title: place.title || 'Unnamed',
               description: place.description || '',
               placeTypes: placeTypes,
@@ -571,6 +646,7 @@ export default function LeafletMap() {
             },
             onEachFeature: (feature, layer) => {
               if (feature.properties) {
+                const id = feature.properties.id || ''
                 const title = feature.properties.title || 'Unnamed'
                 const description = feature.properties.description || ''
                 const uri = feature.properties.uri || ''
@@ -579,10 +655,25 @@ export default function LeafletMap() {
                 const source = feature.properties.source || ''
                 const placeTypesArray = feature.properties.placeTypes || []
 
+                // Try to extract Pleiades ID from URI if available
+                let placeId = ''
+                if (uri) {
+                  const match = uri.match(/pleiades\.stoa\.org\/places\/(\d+)/)
+                  if (match) {
+                    placeId = match[1]
+                  }
+                }
+
                 let popupHtml = `<div style="padding: 10px;">
                   <h3 style="margin: 0 0 10px 0; color: #333;">${title}</h3>
                   <p style="margin: 5px 0; color: #666;">Type: ${config.name} (${placeTypesArray.join(', ')})</p>`
 
+                if (id) {
+                  popupHtml += `<p style="margin: 5px 0; color: #666;">ID: ${id}</p>`
+                }
+                if (placeId) {
+                  popupHtml += `<p style="margin: 5px 0; color: #666;">Pleiades ID: ${placeId}</p>`
+                }
                 if (modernName) {
                   popupHtml += `<p style="margin: 5px 0; color: #666;">Modern: ${modernName}</p>`
                 }
@@ -604,6 +695,51 @@ export default function LeafletMap() {
                 }
                 popupHtml += `</div>`
                 layer.bindPopup(popupHtml)
+
+                // Add click handler to fetch inscription data
+                // Check if either Pleiades ID or custom ID exists
+                if (placeId || id) {
+                  layer.on('click', async () => {
+                    const setInscriptionData = (window as any).setInscriptionData
+                    if (setInscriptionData) {
+                      // Set loading state
+                      setInscriptionData({
+                        type: 'single',
+                        placeName: title,
+                        placeId: placeId || id,
+                        count: 0,
+                        loading: true
+                      })
+
+                      // Query SPARQL endpoint with both Pleiades ID and custom location ID
+                      // For custom places, use the ID as-is (e.g., "315247_002")
+                      let customLocationId: string | undefined = undefined
+                      if (id) {
+                        customLocationId = id
+                      }
+
+                      const count = await queryInscriptionsByPlaceId(
+                        placeId || id,
+                        customLocationId
+                      )
+                      const inscriptions = await queryInscriptionDetails(
+                        placeId || id,
+                        customLocationId
+                      )
+
+                      // Update with results
+                      setInscriptionData({
+                        type: 'single',
+                        placeName: title,
+                        placeId: placeId || id,
+                        customLocationId: customLocationId,
+                        count: count,
+                        loading: false,
+                        inscriptions: inscriptions
+                      })
+                    }
+                  })
+                }
               }
             }
           })
@@ -627,9 +763,252 @@ export default function LeafletMap() {
             }
           })
         })
-      })
-      .catch(error => console.error('Custom Places loading error:', error))
+    } catch (error) {
+      console.error('Custom Places loading error:', error)
+    }
   }
 
-  return <div ref={mapContainerRef} className="w-full h-full" />
+  // Toggle rectangle selection mode
+  const toggleDrawingMode = () => {
+    const newMode = !isDrawingMode
+    setIsDrawingMode(newMode)
+
+    if (!newMode && rectangleLayerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(rectangleLayerRef.current)
+      rectangleLayerRef.current = null
+    }
+  }
+
+  // Handle rectangle selection
+  useEffect(() => {
+    if (!mapRef.current || !isDrawingMode) return
+
+    const map = mapRef.current
+    let isDrawing = false
+    let startLatLng: L.LatLng | null = null
+    let currentRectangle: L.Rectangle | null = null
+
+    const onMouseDown = (e: L.LeafletMouseEvent) => {
+      if (!isDrawingMode) return
+      isDrawing = true
+      startLatLng = e.latlng
+      drawingStartRef.current = e.latlng
+
+      // Remove previous rectangle if exists
+      if (currentRectangle) {
+        map.removeLayer(currentRectangle)
+      }
+      if (rectangleLayerRef.current) {
+        map.removeLayer(rectangleLayerRef.current)
+      }
+    }
+
+    const onMouseMove = (e: L.LeafletMouseEvent) => {
+      if (!isDrawing || !startLatLng) return
+
+      // Remove previous temp rectangle
+      if (currentRectangle) {
+        map.removeLayer(currentRectangle)
+      }
+
+      // Create new rectangle
+      const bounds = L.latLngBounds(startLatLng, e.latlng)
+      currentRectangle = L.rectangle(bounds, {
+        color: '#3388ff',
+        weight: 2,
+        fillOpacity: 0.1
+      })
+      currentRectangle.addTo(map)
+    }
+
+    const onMouseUp = async (e: L.LeafletMouseEvent) => {
+      if (!isDrawing || !startLatLng) return
+      isDrawing = false
+
+      // Create final rectangle
+      const bounds = L.latLngBounds(startLatLng, e.latlng)
+
+      if (currentRectangle) {
+        map.removeLayer(currentRectangle)
+      }
+
+      rectangleLayerRef.current = L.rectangle(bounds, {
+        color: '#3388ff',
+        weight: 2,
+        fillOpacity: 0.2
+      })
+      rectangleLayerRef.current.addTo(map)
+
+      // Find all places within bounds
+      await queryPlacesInBounds(bounds)
+
+      // Exit drawing mode
+      setIsDrawingMode(false)
+    }
+
+    map.on('mousedown', onMouseDown)
+    map.on('mousemove', onMouseMove)
+    map.on('mouseup', onMouseUp)
+
+    // Change cursor when in drawing mode
+    if (mapContainerRef.current) {
+      mapContainerRef.current.style.cursor = 'crosshair'
+    }
+
+    return () => {
+      map.off('mousedown', onMouseDown)
+      map.off('mousemove', onMouseMove)
+      map.off('mouseup', onMouseUp)
+      if (mapContainerRef.current) {
+        mapContainerRef.current.style.cursor = ''
+      }
+    }
+  }, [isDrawingMode])
+
+  // Function to load inscriptions for a selected place
+  const loadInscriptionsForPlace = async (placeId: string, placeName: string, customLocationId?: string) => {
+    const setInscriptionData = (window as any).setInscriptionData
+    if (setInscriptionData) {
+      // Set loading state
+      setInscriptionData({
+        type: 'single',
+        placeName: placeName,
+        placeId: placeId,
+        customLocationId: customLocationId,
+        count: 0,
+        loading: true
+      })
+
+      // Query SPARQL endpoint for inscription details
+      const count = await queryInscriptionsByPlaceId(placeId, customLocationId)
+      const inscriptions = await queryInscriptionDetails(placeId, customLocationId)
+
+      // Update with results
+      setInscriptionData({
+        type: 'single',
+        placeName: placeName,
+        placeId: placeId,
+        customLocationId: customLocationId,
+        count: count,
+        loading: false,
+        inscriptions: inscriptions
+      })
+    }
+  }
+
+  // Expose loadInscriptionsForPlace to window for ControlPanel to use
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).loadInscriptionsForPlace = loadInscriptionsForPlace
+    }
+  }, [])
+
+  // Query all places within bounds
+  const queryPlacesInBounds = async (bounds: L.LatLngBounds) => {
+    const placesInBounds: Array<{ name: string; id: string; latlng: L.LatLng }> = []
+
+    // Check all place layers
+    Object.keys(layersRef.current).forEach(layerKey => {
+      if (!layerKey.startsWith('pleiades')) return
+
+      const layer = layersRef.current[layerKey]
+      if (!layer) return
+
+      // Check if layer is on map (visible)
+      if (!mapRef.current?.hasLayer(layer)) return
+
+      layer.eachLayer((marker: any) => {
+        if (marker instanceof L.Marker) {
+          const markerLatLng = marker.getLatLng()
+          if (bounds.contains(markerLatLng)) {
+            // Extract place info from marker
+            const popup = marker.getPopup()
+            if (popup) {
+              const content = popup.getContent() as string
+              // Extract place name and ID from popup HTML
+              const nameMatch = content.match(/<h3[^>]*>([^<]+)<\/h3>/)
+              const idMatch = content.match(/Pleiades ID:\s*(\d+)/)
+
+              if (nameMatch && idMatch) {
+                placesInBounds.push({
+                  name: nameMatch[1],
+                  id: idMatch[1],
+                  latlng: markerLatLng
+                })
+              }
+            }
+          }
+        }
+      })
+    })
+
+    console.log('Places in bounds:', placesInBounds)
+
+    if (placesInBounds.length === 0) {
+      const setInscriptionData = (window as any).setInscriptionData
+      if (setInscriptionData) {
+        setInscriptionData({
+          type: 'multiple',
+          count: 0,
+          loading: false,
+          places: []
+        })
+      }
+      return
+    }
+
+    // Set loading state
+    const setInscriptionData = (window as any).setInscriptionData
+    if (setInscriptionData) {
+      setInscriptionData({
+        type: 'multiple',
+        count: 0,
+        loading: true,
+        places: []
+      })
+
+      // Query inscriptions for all places
+      const placeIds = placesInBounds.map(p => p.id)
+      const results = await queryInscriptionsByPlaceIds(placeIds)
+
+      // Create place details with counts
+      const placeDetails = placesInBounds.map(place => {
+        const result = results.find(r => r.placeId === place.id)
+        return {
+          placeName: place.name,
+          placeId: place.id,
+          count: result ? result.count : 0
+        }
+      })
+
+      // Calculate total count
+      const totalCount = placeDetails.reduce((sum, place) => sum + place.count, 0)
+
+      // Update with results
+      setInscriptionData({
+        type: 'multiple',
+        count: totalCount,
+        loading: false,
+        places: placeDetails
+      })
+    }
+  }
+
+  return (
+    <>
+      {/* Rectangle selection button */}
+      <button
+        onClick={toggleDrawingMode}
+        className={`absolute top-20 left-4 z-[1000] px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
+          isDrawingMode
+            ? 'bg-blue-500 text-white'
+            : 'bg-white text-gray-700 hover:bg-gray-100'
+        }`}
+        title="矩形選択モード"
+      >
+        {isDrawingMode ? '選択中...' : '矩形選択'}
+      </button>
+      <div ref={mapContainerRef} className="w-full h-full" />
+    </>
+  )
 }

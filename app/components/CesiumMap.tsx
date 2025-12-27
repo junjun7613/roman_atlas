@@ -1,11 +1,19 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { queryInscriptionsByPlaceId, queryInscriptionsByPlaceIds, queryInscriptionDetails } from '../utils/sparql'
 
 export default function CesiumMap() {
   const cesiumContainerRef = useRef<HTMLDivElement>(null)
   const viewerRef = useRef<any>(null)
   const eventListenersRef = useRef<Array<{element: HTMLElement, event: string, handler: EventListener}>>([])
+
+  // Rectangle selection state
+  const [isDrawingMode, setIsDrawingMode] = useState(false)
+  const rectangleEntityRef = useRef<any>(null)
+  const cesiumRef = useRef<any>(null)
+  const clickHandlerRef = useRef<any>(null)
+  const mouseMoveHandlerRef = useRef<any>(null)
 
   useEffect(() => {
     const addEventListenerTracked = (elementId: string, eventType: string, handler: EventListener) => {
@@ -25,6 +33,7 @@ export default function CesiumMap() {
     const loadCesium = async () => {
       // @ts-ignore
       const Cesium = await import('cesium')
+      cesiumRef.current = Cesium
 
       // Cesiumの静的アセットへのパスを設定
       ;(window as any).CESIUM_BASE_URL = '/cesium/'
@@ -136,6 +145,10 @@ export default function CesiumMap() {
                 }
               }
 
+              // Check initial checkbox state
+              const provinceToggle = document.getElementById('toggleProvinces') as HTMLInputElement
+              dataSource.show = provinceToggle ? provinceToggle.checked : true
+
               addEventListenerTracked('toggleProvinces', 'change', (e: any) => {
                 dataSource.show = e.target.checked
               })
@@ -168,21 +181,89 @@ export default function CesiumMap() {
 
         // クリックイベントハンドラー
         const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
-        handler.setInputAction((click: any) => {
+        const clickAction = async (click: any) => {
           const pickedObject = viewer.scene.pick(click.position)
           if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
             viewer.selectedEntity = pickedObject.id
-          }
-        }, Cesium.ScreenSpaceEventType.LEFT_CLICK)
 
-        handler.setInputAction((movement: any) => {
+            // Try to fetch inscription data if entity has properties
+            const entity = pickedObject.id
+            if (entity.properties) {
+              let placeId = ''
+              let customId = ''
+              const title = entity.properties.title ? entity.properties.title.getValue() : entity.name || 'Unnamed'
+
+              // Try to get Pleiades ID from URI
+              if (entity.properties.uri) {
+                const uri = entity.properties.uri.getValue()
+                const match = uri.match(/\/places\/(\d+)/)
+                if (match) {
+                  placeId = match[1]
+                }
+              }
+
+              // Try to get custom place ID
+              if (entity.properties.id) {
+                customId = entity.properties.id.getValue()
+              }
+
+              // Fetch inscription data if Pleiades ID or custom ID exists
+              if (placeId || customId) {
+                const setInscriptionData = (window as any).setInscriptionData
+                if (setInscriptionData) {
+                  // Set loading state
+                  setInscriptionData({
+                    type: 'single',
+                    placeName: title,
+                    placeId: placeId || customId,
+                    count: 0,
+                    loading: true
+                  })
+
+                  // Query SPARQL endpoint with both Pleiades ID and custom location ID
+                  // For custom places, use the ID as-is (e.g., "315247_002")
+                  let customLocationId: string | undefined = undefined
+                  if (customId) {
+                    customLocationId = customId
+                  }
+
+                  const count = await queryInscriptionsByPlaceId(
+                    placeId || customId,
+                    customLocationId
+                  )
+                  const inscriptions = await queryInscriptionDetails(
+                    placeId || customId,
+                    customLocationId
+                  )
+
+                  // Update with results
+                  setInscriptionData({
+                    type: 'single',
+                    placeName: title,
+                    placeId: placeId || customId,
+                    customLocationId: customLocationId,
+                    count: count,
+                    loading: false,
+                    inscriptions: inscriptions
+                  })
+                }
+              }
+            }
+          }
+        }
+        handler.setInputAction(clickAction, Cesium.ScreenSpaceEventType.LEFT_CLICK)
+        clickHandlerRef.current = { handler, clickAction }
+
+        const mouseMoveAction = (movement: any) => {
           const pickedObject = viewer.scene.pick(movement.endPosition)
           if (Cesium.defined(pickedObject) && Cesium.defined(pickedObject.id)) {
             viewer.canvas.style.cursor = 'pointer'
           } else {
             viewer.canvas.style.cursor = 'default'
           }
-        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+        }
+        handler.setInputAction(mouseMoveAction, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+        mouseMoveHandlerRef.current = { handler, mouseMoveAction }
 
       } catch (error) {
         console.error('Cesium initialization error:', error)
@@ -206,7 +287,312 @@ export default function CesiumMap() {
     }
   }, [])
 
-  return <div ref={cesiumContainerRef} className="w-full h-full" />
+  // Toggle rectangle selection mode
+  const toggleDrawingMode = () => {
+    const newMode = !isDrawingMode
+    setIsDrawingMode(newMode)
+
+    if (!newMode && rectangleEntityRef.current && viewerRef.current) {
+      viewerRef.current.entities.remove(rectangleEntityRef.current)
+      rectangleEntityRef.current = null
+    }
+  }
+
+  // Handle rectangle selection in Cesium
+  useEffect(() => {
+    if (!viewerRef.current || !cesiumRef.current || !isDrawingMode) return
+
+    const viewer = viewerRef.current
+    const Cesium = cesiumRef.current
+    let isDrawing = false
+    let startPosition: any = null
+    let currentEntity: any = null
+
+    // Disable the existing click handler during rectangle selection
+    if (clickHandlerRef.current) {
+      clickHandlerRef.current.handler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK)
+    }
+    // Disable the existing mouse move handler during rectangle selection
+    if (mouseMoveHandlerRef.current) {
+      mouseMoveHandlerRef.current.handler.removeInputAction(Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+    }
+
+    const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas)
+
+    // Mouse down - start drawing
+    handler.setInputAction((click: any) => {
+      const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid)
+      if (!cartesian) return
+
+      isDrawing = true
+      startPosition = cartesian
+
+      // Remove previous rectangle if exists
+      if (currentEntity) {
+        viewer.entities.remove(currentEntity)
+      }
+      if (rectangleEntityRef.current) {
+        viewer.entities.remove(rectangleEntityRef.current)
+      }
+    }, Cesium.ScreenSpaceEventType.LEFT_DOWN)
+
+    // Mouse move - update rectangle
+    handler.setInputAction((movement: any) => {
+      if (!isDrawing || !startPosition) return
+
+      const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, viewer.scene.globe.ellipsoid)
+      if (!cartesian) return
+
+      // Calculate rectangle bounds
+      const startCarto = Cesium.Cartographic.fromCartesian(startPosition)
+      const endCarto = Cesium.Cartographic.fromCartesian(cartesian)
+
+      const west = Math.min(startCarto.longitude, endCarto.longitude)
+      const south = Math.min(startCarto.latitude, endCarto.latitude)
+      const east = Math.max(startCarto.longitude, endCarto.longitude)
+      const north = Math.max(startCarto.latitude, endCarto.latitude)
+
+      // Remove previous temp rectangle
+      if (currentEntity) {
+        viewer.entities.remove(currentEntity)
+      }
+
+      // Create new rectangle
+      currentEntity = viewer.entities.add({
+        rectangle: {
+          coordinates: Cesium.Rectangle.fromRadians(west, south, east, north),
+          material: Cesium.Color.BLUE.withAlpha(0.1),
+          outline: true,
+          outlineColor: Cesium.Color.BLUE,
+          outlineWidth: 2
+        }
+      })
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
+
+    // Mouse up - finish drawing
+    handler.setInputAction(async (click: any) => {
+      if (!isDrawing || !startPosition) return
+      isDrawing = false
+
+      const cartesian = viewer.camera.pickEllipsoid(click.position, viewer.scene.globe.ellipsoid)
+      if (!cartesian) return
+
+      // Calculate final rectangle bounds
+      const startCarto = Cesium.Cartographic.fromCartesian(startPosition)
+      const endCarto = Cesium.Cartographic.fromCartesian(cartesian)
+
+      const west = Math.min(startCarto.longitude, endCarto.longitude)
+      const south = Math.min(startCarto.latitude, endCarto.latitude)
+      const east = Math.max(startCarto.longitude, endCarto.longitude)
+      const north = Math.max(startCarto.latitude, endCarto.latitude)
+
+      const rectangle = Cesium.Rectangle.fromRadians(west, south, east, north)
+
+      // Remove temp rectangle
+      if (currentEntity) {
+        viewer.entities.remove(currentEntity)
+      }
+
+      // Create final rectangle
+      rectangleEntityRef.current = viewer.entities.add({
+        rectangle: {
+          coordinates: rectangle,
+          material: Cesium.Color.BLUE.withAlpha(0.2),
+          outline: true,
+          outlineColor: Cesium.Color.BLUE,
+          outlineWidth: 2
+        }
+      })
+
+      // Find all places within bounds
+      await queryPlacesInBounds(rectangle, Cesium)
+
+      // Exit drawing mode
+      setIsDrawingMode(false)
+    }, Cesium.ScreenSpaceEventType.LEFT_UP)
+
+    // Change cursor when in drawing mode
+    if (viewer.canvas) {
+      viewer.canvas.style.cursor = 'crosshair'
+    }
+    // Also set cursor on container
+    if (cesiumContainerRef.current) {
+      cesiumContainerRef.current.style.cursor = 'crosshair'
+    }
+
+    return () => {
+      handler.destroy()
+      if (viewer.canvas) {
+        viewer.canvas.style.cursor = 'default'
+      }
+      if (cesiumContainerRef.current) {
+        cesiumContainerRef.current.style.cursor = 'default'
+      }
+      // Re-enable the click handler when exiting drawing mode
+      if (clickHandlerRef.current) {
+        clickHandlerRef.current.handler.setInputAction(
+          clickHandlerRef.current.clickAction,
+          Cesium.ScreenSpaceEventType.LEFT_CLICK
+        )
+      }
+      // Re-enable the mouse move handler when exiting drawing mode
+      if (mouseMoveHandlerRef.current) {
+        mouseMoveHandlerRef.current.handler.setInputAction(
+          mouseMoveHandlerRef.current.mouseMoveAction,
+          Cesium.ScreenSpaceEventType.MOUSE_MOVE
+        )
+      }
+    }
+  }, [isDrawingMode])
+
+  // Function to load inscriptions for a selected place
+  const loadInscriptionsForPlace = async (placeId: string, placeName: string, customLocationId?: string) => {
+    const setInscriptionData = (window as any).setInscriptionData
+    if (setInscriptionData) {
+      // Set loading state
+      setInscriptionData({
+        type: 'single',
+        placeName: placeName,
+        placeId: placeId,
+        customLocationId: customLocationId,
+        count: 0,
+        loading: true
+      })
+
+      // Query SPARQL endpoint for inscription details
+      const count = await queryInscriptionsByPlaceId(placeId, customLocationId)
+      const inscriptions = await queryInscriptionDetails(placeId, customLocationId)
+
+      // Update with results
+      setInscriptionData({
+        type: 'single',
+        placeName: placeName,
+        placeId: placeId,
+        customLocationId: customLocationId,
+        count: count,
+        loading: false,
+        inscriptions: inscriptions
+      })
+    }
+  }
+
+  // Expose loadInscriptionsForPlace to window for ControlPanel to use
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).loadInscriptionsForPlace = loadInscriptionsForPlace
+    }
+  }, [])
+
+  // Query all places within rectangle bounds
+  const queryPlacesInBounds = async (rectangle: any, Cesium: any) => {
+    const viewer = viewerRef.current
+    if (!viewer) return
+
+    const placesInBounds: Array<{ name: string; id: string }> = []
+
+    // Check all data sources
+    viewer.dataSources._dataSources.forEach((dataSource: any) => {
+      if (!dataSource.show) return // Skip hidden layers
+
+      const entities = dataSource.entities.values
+      for (let i = 0; i < entities.length; i++) {
+        const entity = entities[i]
+
+        if (entity.position) {
+          const position = entity.position.getValue(Cesium.JulianDate.now())
+          if (!position) continue
+
+          const cartographic = Cesium.Cartographic.fromCartesian(position)
+
+          // Check if position is within rectangle
+          if (Cesium.Rectangle.contains(rectangle, cartographic)) {
+            // Extract place info
+            const name = entity.name || 'Unnamed'
+            const description = entity.description ? entity.description.getValue() : ''
+
+            // Extract Pleiades ID from description HTML
+            const idMatch = description.match(/Pleiades ID:\s*(\d+)/)
+
+            if (idMatch) {
+              placesInBounds.push({
+                name: name,
+                id: idMatch[1]
+              })
+            }
+          }
+        }
+      }
+    })
+
+    console.log('Places in bounds:', placesInBounds)
+
+    if (placesInBounds.length === 0) {
+      const setInscriptionData = (window as any).setInscriptionData
+      if (setInscriptionData) {
+        setInscriptionData({
+          type: 'multiple',
+          count: 0,
+          loading: false,
+          places: []
+        })
+      }
+      return
+    }
+
+    // Set loading state
+    const setInscriptionData = (window as any).setInscriptionData
+    if (setInscriptionData) {
+      setInscriptionData({
+        type: 'multiple',
+        count: 0,
+        loading: true,
+        places: []
+      })
+
+      // Query inscriptions for all places
+      const placeIds = placesInBounds.map(p => p.id)
+      const results = await queryInscriptionsByPlaceIds(placeIds)
+
+      // Create place details with counts
+      const placeDetails = placesInBounds.map(place => {
+        const result = results.find(r => r.placeId === place.id)
+        return {
+          placeName: place.name,
+          placeId: place.id,
+          count: result ? result.count : 0
+        }
+      })
+
+      // Calculate total count
+      const totalCount = placeDetails.reduce((sum, place) => sum + place.count, 0)
+
+      // Update with results
+      setInscriptionData({
+        type: 'multiple',
+        count: totalCount,
+        loading: false,
+        places: placeDetails
+      })
+    }
+  }
+
+  return (
+    <>
+      {/* Rectangle selection button */}
+      <button
+        onClick={toggleDrawingMode}
+        className={`absolute top-20 left-4 z-[1000] px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
+          isDrawingMode
+            ? 'bg-blue-500 text-white'
+            : 'bg-white text-gray-700 hover:bg-gray-100'
+        }`}
+        title="矩形選択モード"
+      >
+        {isDrawingMode ? '選択中...' : '矩形選択'}
+      </button>
+      <div ref={cesiumContainerRef} className="w-full h-full" />
+    </>
+  )
 }
 
 function loadRoutes(Cesium: any, viewer: any, addEventListenerTracked: (elementId: string, eventType: string, handler: EventListener) => void) {
@@ -258,6 +644,10 @@ function loadRoutes(Cesium: any, viewer: any, addEventListenerTracked: (elementI
           setupRouteEntity(entity, Cesium)
         }
 
+        // Check initial checkbox state
+        const mainRoadToggle = document.getElementById('toggleMainRoad') as HTMLInputElement
+        dataSource.show = mainRoadToggle ? mainRoadToggle.checked : true
+
         addEventListenerTracked('toggleMainRoad', 'change', (e: any) => {
           dataSource.show = e.target.checked
         })
@@ -284,6 +674,10 @@ function loadRoutes(Cesium: any, viewer: any, addEventListenerTracked: (elementI
           }
           setupRouteEntity(entity, Cesium)
         }
+
+        // Check initial checkbox state
+        const secondaryRoadToggle = document.getElementById('toggleSecondaryRoad') as HTMLInputElement
+        dataSource.show = secondaryRoadToggle ? secondaryRoadToggle.checked : true
 
         addEventListenerTracked('toggleSecondaryRoad', 'change', (e: any) => {
           dataSource.show = e.target.checked
@@ -312,6 +706,10 @@ function loadRoutes(Cesium: any, viewer: any, addEventListenerTracked: (elementI
           setupRouteEntity(entity, Cesium)
         }
 
+        // Check initial checkbox state
+        const seaLaneToggle = document.getElementById('toggleSeaLane') as HTMLInputElement
+        dataSource.show = seaLaneToggle ? seaLaneToggle.checked : true
+
         addEventListenerTracked('toggleSeaLane', 'change', (e: any) => {
           dataSource.show = e.target.checked
         })
@@ -338,6 +736,10 @@ function loadRoutes(Cesium: any, viewer: any, addEventListenerTracked: (elementI
           }
           setupRouteEntity(entity, Cesium)
         }
+
+        // Check initial checkbox state
+        const riverToggle = document.getElementById('toggleRiver') as HTMLInputElement
+        dataSource.show = riverToggle ? riverToggle.checked : true
 
         addEventListenerTracked('toggleRiver', 'change', (e: any) => {
           dataSource.show = e.target.checked
@@ -478,11 +880,23 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
               const uri = entity.properties.uri ? entity.properties.uri.getValue() : ''
               const placeTypesArray = entity.properties.placeTypes ? entity.properties.placeTypes.getValue() : []
 
+              // Extract Pleiades ID from URI
+              let placeId = ''
+              if (uri) {
+                const match = uri.match(/\/places\/(\d+)/)
+                if (match) {
+                  placeId = match[1]
+                }
+              }
+
               entity.name = title
               let descriptionHtml = `<div style="padding: 10px;">
                 <h3 style="margin: 0 0 10px 0; color: #333;">${title}</h3>
                 <p style="margin: 5px 0; color: #666;">Type: ${config.name} (${placeTypesArray.join(', ')})</p>`
 
+              if (placeId) {
+                descriptionHtml += `<p style="margin: 5px 0; color: #666;">Pleiades ID: ${placeId}</p>`
+              }
               if (description) {
                 descriptionHtml += `<p style="margin: 5px 0; color: #666;">${description}</p>`
               }
@@ -527,10 +941,7 @@ function parseCSV(csvText: string): any[] {
 }
 
 function loadCustomPlaces(Cesium: any, viewer: any, addEventListenerTracked: (elementId: string, eventType: string, handler: EventListener) => void) {
-  // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル
-  const customPlacesUrl = process.env.NEXT_PUBLIC_ORIGINAL_PLACES_URL
-    ? '/api/data/originalPlaces'
-    : '/original_places.csv'
+  const customPlacesUrl = '/api/data/custom-places'
 
   fetch(customPlacesUrl)
     .then(response => {
@@ -558,6 +969,7 @@ function loadCustomPlaces(Cesium: any, viewer: any, addEventListenerTracked: (el
           type: 'Feature',
           geometry: { type: 'Point', coordinates: [lon, lat] },
           properties: {
+            id: place.id || '',
             title: place.title || 'Unnamed',
             description: place.description || '',
             placeTypes: placeTypes,
@@ -623,6 +1035,7 @@ function loadCustomPlaces(Cesium: any, viewer: any, addEventListenerTracked: (el
             }
 
             if (entity.properties) {
+              const id = entity.properties.id ? entity.properties.id.getValue() : ''
               const title = entity.properties.title ? entity.properties.title.getValue() : 'Unnamed'
               const description = entity.properties.description ? entity.properties.description.getValue() : ''
               const uri = entity.properties.uri ? entity.properties.uri.getValue() : ''
@@ -636,6 +1049,9 @@ function loadCustomPlaces(Cesium: any, viewer: any, addEventListenerTracked: (el
                 <h3 style="margin: 0 0 10px 0; color: #333;">${title}</h3>
                 <p style="margin: 5px 0; color: #666;">Type: ${config.name} (${placeTypesArray.join(', ')})</p>`
 
+              if (id) {
+                descriptionHtml += `<p style="margin: 5px 0; color: #666;">ID: ${id}</p>`
+              }
               if (modernName) {
                 descriptionHtml += `<p style="margin: 5px 0; color: #666;">Modern: ${modernName}</p>`
               }
