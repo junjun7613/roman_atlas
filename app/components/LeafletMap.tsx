@@ -73,11 +73,21 @@ export default function LeafletMap() {
     }).addTo(map)
 
     // 標高マップレイヤー（オプション）
-    const elevationLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}.png', {
-      attribution: 'Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under ODbL.',
-      opacity: 0.6,
-      maxZoom: 18
-    })
+    // Stadia Maps APIキーが設定されていればStamen Terrainを使用、なければOpenTopoMapにフォールバック
+    const stadiaApiKey = process.env.NEXT_PUBLIC_STADIA_MAPS_API_KEY
+    const useStadiaMaps = stadiaApiKey && stadiaApiKey !== 'your_stadia_maps_api_key_here'
+
+    const elevationLayer = useStadiaMaps
+      ? L.tileLayer(`https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`, {
+          attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, under <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>. Data by <a href="http://openstreetmap.org">OpenStreetMap</a>, under <a href="http://www.openstreetmap.org/copyright">ODbL</a>.',
+          opacity: 0.6,
+          maxZoom: 18
+        })
+      : L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+          attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+          opacity: 0.6,
+          maxZoom: 17
+        })
 
     // 標高マップをデフォルトで追加
     elevationLayer.addTo(map)

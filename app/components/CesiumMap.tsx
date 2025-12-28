@@ -65,12 +65,24 @@ export default function CesiumMap() {
         viewerRef.current = viewer
 
         // 標高カラーマップレイヤーを追加
-        const elevationLayer = viewer.imageryLayers.addImageryProvider(
-          new Cesium.UrlTemplateImageryProvider({
-            url: 'https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}.png',
-            credit: 'Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under ODbL.'
-          })
-        )
+        // Stadia Maps APIキーが設定されていればStamen Terrainを使用、なければOpenTopoMapにフォールバック
+        const stadiaApiKey = process.env.NEXT_PUBLIC_STADIA_MAPS_API_KEY
+        const useStadiaMaps = stadiaApiKey && stadiaApiKey !== 'your_stadia_maps_api_key_here'
+
+        const elevationLayer = useStadiaMaps
+          ? viewer.imageryLayers.addImageryProvider(
+              new Cesium.UrlTemplateImageryProvider({
+                url: `https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}.png?api_key=${stadiaApiKey}`,
+                credit: 'Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under ODbL.'
+              })
+            )
+          : viewer.imageryLayers.addImageryProvider(
+              new Cesium.UrlTemplateImageryProvider({
+                url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                credit: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)',
+                subdomains: ['a', 'b', 'c']
+              })
+            )
         elevationLayer.alpha = 0.6
         elevationLayer.show = true
 
