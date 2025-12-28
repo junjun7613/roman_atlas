@@ -79,6 +79,9 @@ export default function LeafletMap() {
       maxZoom: 18
     })
 
+    // 標高マップをデフォルトで追加
+    elevationLayer.addTo(map)
+
     // 標高マップトグルのイベントリスナー
     addEventListenerTracked('toggleElevation', 'change', (e: any) => {
       const currentMap = mapRef.current

@@ -1,6 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import dynamic from 'next/dynamic'
+import { queryInscriptionNetwork, type InscriptionNetworkData } from '../utils/sparql'
+
+const InscriptionNetwork = dynamic(() => import('./InscriptionNetwork'), {
+  ssr: false
+})
 
 interface PlaceDetail {
   placeName: string
@@ -13,6 +19,10 @@ interface InscriptionDetailData {
   description: string
   dating: string
   edcsUrl: string
+  personCount?: number
+  relationshipCount?: number
+  careerCount?: number
+  benefactionCount?: number
 }
 
 interface InscriptionData {
@@ -33,6 +43,56 @@ interface ControlPanelProps {
 export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState<'settings' | 'info'>('settings')
   const [selectedPlaceIndex, setSelectedPlaceIndex] = useState<number>(0)
+  const [networkEdcsId, setNetworkEdcsId] = useState<string | null>(null)
+  const [networkData, setNetworkData] = useState<InscriptionNetworkData[]>([])
+  const [networkLoading, setNetworkLoading] = useState(false)
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
+  const inscriptionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+
+  const handleShowNetwork = async (edcsId: string) => {
+    console.log('handleShowNetwork called with edcsId:', edcsId)
+    setNetworkLoading(true)
+    setNetworkEdcsId(edcsId)
+    try {
+      const data = await queryInscriptionNetwork(edcsId)
+      console.log('Network data received:', data.length, 'items')
+      setNetworkData(data)
+    } catch (error) {
+      console.error('Error loading network:', error)
+      setNetworkData([])
+    } finally {
+      setNetworkLoading(false)
+      console.log('Network loading complete. EdcsId:', edcsId, 'Data length:', networkData.length)
+    }
+  }
+
+  const handleCloseNetwork = () => {
+    const previousEdcsId = networkEdcsId
+    setNetworkEdcsId(null)
+    setNetworkData([])
+
+    // Scroll to the inscription card after state update
+    if (previousEdcsId) {
+      setTimeout(() => {
+        const element = inscriptionRefs.current[previousEdcsId]
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 100)
+    }
+  }
+
+  const toggleDescription = (edcsId: string) => {
+    setExpandedDescriptions(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(edcsId)) {
+        newSet.delete(edcsId)
+      } else {
+        newSet.add(edcsId)
+      }
+      return newSet
+    })
+  }
 
   const toggleSection = (sectionId: string) => {
     const section = document.getElementById(sectionId)
@@ -107,7 +167,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
               <div id="baseLayersContent" className="pl-4">
                 <label className="flex items-center cursor-pointer mb-2">
-                  <input type="checkbox" id="toggleProvinces" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
+                  <input type="checkbox" id="toggleProvinces" className="mr-3 cursor-pointer w-4 h-4" />
                   <span className="text-[14px] text-[#555]">Province</span>
                 </label>
 
@@ -140,29 +200,29 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                   <div id="routesContent" className="pl-5">
                     <label className="flex items-center cursor-pointer mb-2">
-                      <input type="checkbox" id="toggleMainRoad" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
+                      <input type="checkbox" id="toggleMainRoad" className="mr-3 cursor-pointer w-4 h-4" />
                       <span className="text-[13px] text-[#666]">Main Road (5,929)</span>
                     </label>
 
                     <label className="flex items-center cursor-pointer mb-2">
-                      <input type="checkbox" id="toggleSecondaryRoad" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
+                      <input type="checkbox" id="toggleSecondaryRoad" className="mr-3 cursor-pointer w-4 h-4" />
                       <span className="text-[13px] text-[#666]">Secondary Road (9,267)</span>
                     </label>
 
                     <label className="flex items-center cursor-pointer mb-2">
-                      <input type="checkbox" id="toggleSeaLane" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
+                      <input type="checkbox" id="toggleSeaLane" className="mr-3 cursor-pointer w-4 h-4" />
                       <span className="text-[13px] text-[#666]">Sea Lane (524)</span>
                     </label>
 
                     <label className="flex items-center cursor-pointer mb-2">
-                      <input type="checkbox" id="toggleRiver" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
+                      <input type="checkbox" id="toggleRiver" className="mr-3 cursor-pointer w-4 h-4" />
                       <span className="text-[13px] text-[#666]">River (834)</span>
                     </label>
                   </div>
                 </div>
 
                 <label className="flex items-center cursor-pointer mb-2">
-                  <input type="checkbox" id="toggleElevation" className="mr-3 cursor-pointer w-4 h-4" />
+                  <input type="checkbox" id="toggleElevation" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
                   <span className="text-[14px] text-[#555]">標高マップ</span>
                 </label>
               </div>
@@ -241,13 +301,17 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       )}
                     </div>
 
-                    {/* Display inscription details */}
-                    {!inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && (
+                    {/* Display inscription details OR network visualization */}
+                    {!inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
                       <div className="mt-4">
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">碑文一覧</h4>
                         <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
                           {inscriptionData.inscriptions.map((inscription, index) => (
-                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                            <div
+                              key={index}
+                              ref={(el) => { inscriptionRefs.current[inscription.edcsId] = el }}
+                              className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+                            >
                               <div className="mb-2">
                                 <a
                                   href={inscription.edcsUrl}
@@ -259,24 +323,71 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 </a>
                               </div>
                               {inscription.description && inscription.description.trim() !== '' && (
-                                <p className="text-[12px] text-[#666] mb-2" style={{
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: 3,
-                                  WebkitBoxOrient: 'vertical',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis'
-                                }}>
-                                  {inscription.description}
-                                </p>
+                                <div className="mb-2">
+                                  <p
+                                    className="text-[12px] text-[#666] whitespace-pre-wrap"
+                                    style={expandedDescriptions.has(inscription.edcsId) ? {} : {
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 3,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis'
+                                    }}
+                                  >
+                                    {inscription.description}
+                                  </p>
+                                  <button
+                                    onClick={() => toggleDescription(inscription.edcsId)}
+                                    className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                                  >
+                                    {expandedDescriptions.has(inscription.edcsId) ? '閉じる' : 'もっと見る'}
+                                  </button>
+                                </div>
                               )}
-                              {inscription.dating && inscription.dating.trim() !== '' && (
-                                <p className="text-[11px] text-[#888]">
-                                  <strong>年代:</strong> {inscription.dating}
-                                </p>
-                              )}
+                              <p className="text-[11px] text-[#888] mb-2">
+                                <strong>年代:</strong> {inscription.dating && inscription.dating.trim() !== '' ? inscription.dating : '-'}
+                              </p>
+                              <div className="grid grid-cols-2 gap-1 text-[10px] text-[#666] mb-2">
+                                <div><strong>人物:</strong> {inscription.personCount || 0}</div>
+                                <div><strong>関係性:</strong> {inscription.relationshipCount || 0}</div>
+                                <div><strong>経歴:</strong> {inscription.careerCount || 0}</div>
+                                <div><strong>恵与:</strong> {inscription.benefactionCount || 0}</div>
+                              </div>
+                              <button
+                                onClick={() => handleShowNetwork(inscription.edcsId)}
+                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                title="ネットワーク表示"
+                                aria-label="ネットワーク表示"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
+                                  <circle cx="12" cy="12" r="2" />
+                                  <circle cx="6" cy="6" r="2" />
+                                  <circle cx="18" cy="6" r="2" />
+                                  <circle cx="6" cy="18" r="2" />
+                                  <circle cx="18" cy="18" r="2" />
+                                  <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" />
+                                  <line x1="13.5" y1="10.5" x2="16.5" y2="7.5" />
+                                  <line x1="7.5" y1="16.5" x2="10.5" y2="13.5" />
+                                  <line x1="13.5" y1="13.5" x2="16.5" y2="16.5" />
+                                </svg>
+                              </button>
                             </div>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Display network visualization when active */}
+                    {networkEdcsId && !networkLoading && (
+                      <InscriptionNetwork
+                        edcsId={networkEdcsId}
+                        networkData={networkData}
+                        onClose={handleCloseNetwork}
+                      />
+                    )}
+                    {networkLoading && (
+                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-[14px] text-[#666]">ネットワークデータを読み込み中...</p>
                       </div>
                     )}
                   </div>
@@ -331,12 +442,16 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     </div>
 
                     {/* Display inscription details for selected place */}
-                    {!inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && (
+                    {!inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
                       <div className="mt-4">
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">碑文一覧</h4>
                         <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
                           {inscriptionData.inscriptions.map((inscription, index) => (
-                            <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow">
+                            <div
+                              key={index}
+                              ref={(el) => { inscriptionRefs.current[inscription.edcsId] = el }}
+                              className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+                            >
                               <div className="mb-2">
                                 <a
                                   href={inscription.edcsUrl}
@@ -348,24 +463,75 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 </a>
                               </div>
                               {inscription.description && inscription.description.trim() !== '' && (
-                                <p className="text-[12px] text-[#666] mb-2" style={{
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: 3,
-                                  WebkitBoxOrient: 'vertical',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis'
-                                }}>
-                                  {inscription.description}
-                                </p>
+                                <div className="mb-2">
+                                  <p
+                                    className="text-[12px] text-[#666] whitespace-pre-wrap"
+                                    style={expandedDescriptions.has(inscription.edcsId) ? {} : {
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 3,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis'
+                                    }}
+                                  >
+                                    {inscription.description}
+                                  </p>
+                                  <button
+                                    onClick={() => toggleDescription(inscription.edcsId)}
+                                    className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                                  >
+                                    {expandedDescriptions.has(inscription.edcsId) ? '閉じる' : 'もっと見る'}
+                                  </button>
+                                </div>
                               )}
-                              {inscription.dating && inscription.dating.trim() !== '' && (
-                                <p className="text-[11px] text-[#888]">
-                                  <strong>年代:</strong> {inscription.dating}
-                                </p>
-                              )}
+                              <p className="text-[11px] text-[#888] mb-2">
+                                <strong>年代:</strong> {inscription.dating && inscription.dating.trim() !== '' ? inscription.dating : '-'}
+                              </p>
+                              <div className="grid grid-cols-2 gap-1 text-[10px] text-[#666] mb-2">
+                                <div><strong>人物:</strong> {inscription.personCount || 0}</div>
+                                <div><strong>関係性:</strong> {inscription.relationshipCount || 0}</div>
+                                <div><strong>経歴:</strong> {inscription.careerCount || 0}</div>
+                                <div><strong>恵与:</strong> {inscription.benefactionCount || 0}</div>
+                              </div>
+                              <button
+                                onClick={() => handleShowNetwork(inscription.edcsId)}
+                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                title="ネットワーク表示"
+                                aria-label="ネットワーク表示"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
+                                  <circle cx="12" cy="12" r="2" />
+                                  <circle cx="6" cy="6" r="2" />
+                                  <circle cx="18" cy="6" r="2" />
+                                  <circle cx="6" cy="18" r="2" />
+                                  <circle cx="18" cy="18" r="2" />
+                                  <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" />
+                                  <line x1="13.5" y1="10.5" x2="16.5" y2="7.5" />
+                                  <line x1="7.5" y1="16.5" x2="10.5" y2="13.5" />
+                                  <line x1="13.5" y1="13.5" x2="16.5" y2="16.5" />
+                                </svg>
+                              </button>
                             </div>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Display network visualization for multiple places */}
+                    {(() => {
+                      console.log('Network render check (multiple):', { networkEdcsId, networkLoading, dataLength: networkData.length })
+                      return null
+                    })()}
+                    {networkEdcsId && !networkLoading && (
+                      <InscriptionNetwork
+                        edcsId={networkEdcsId}
+                        networkData={networkData}
+                        onClose={handleCloseNetwork}
+                      />
+                    )}
+                    {networkLoading && (
+                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-[14px] text-[#666]">ネットワークデータを読み込み中...</p>
                       </div>
                     )}
                   </div>

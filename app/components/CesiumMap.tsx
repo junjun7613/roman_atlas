@@ -72,7 +72,7 @@ export default function CesiumMap() {
           })
         )
         elevationLayer.alpha = 0.6
-        elevationLayer.show = false
+        elevationLayer.show = true
 
         // Provincesデータの読み込み
         // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル

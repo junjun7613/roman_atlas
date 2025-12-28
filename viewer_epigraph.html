@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATAG Epigraph Viewer</title>
+
+    <!-- vis.js for knowledge graph visualization -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .controls {
+            padding: 20px;
+            border-bottom: 1px solid #ddd;
+            background-color: #f9f9f9;
+        }
+
+        .text-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .text-selector label {
+            font-weight: bold;
+        }
+
+        .text-selector select {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .error {
+            padding: 20px;
+            background-color: #fee;
+            color: #c33;
+            border-radius: 4px;
+            margin: 20px;
+        }
+
+        #content {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        #content.single-column {
+            display: block;
+        }
+
+        .text-viewer {
+            flex: 1;
+            padding: 10px 20px;
+            line-height: 2.2;
+            font-size: 18px;
+        }
+
+        .edcs-viewer {
+            flex: 1;
+            padding: 10px 20px;
+            border-left: 2px solid #ddd;
+            background-color: #f9f9f9;
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+        }
+
+        .edcs-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .edcs-link {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .edcs-link:hover {
+            background-color: #2980b9;
+        }
+
+        #knowledgeGraph {
+            width: 100%;
+            height: 350px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 15px;
+            background-color: white;
+        }
+
+        .graph-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 350px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .node-info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            height: 150px;
+            overflow-y: auto;
+        }
+
+        .node-info h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .node-info dl {
+            margin: 0;
+        }
+
+        .node-info dt {
+            font-weight: bold;
+            color: #34495e;
+            margin-top: 5px;
+        }
+
+        .node-info dd {
+            margin: 0 0 5px 15px;
+            color: #555;
+        }
+
+        .text-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #2c3e50;
+        }
+
+        .text-content {
+            font-family: 'Times New Roman', serif;
+            letter-spacing: 0.5px;
+        }
+
+        .text-line {
+            display: block;
+            margin-bottom: 0.5em;
+        }
+
+        .annotation {
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .annotation:hover {
+            background-color: rgba(52, 152, 219, 0.15);
+        }
+
+        .annotation.line {
+            display: inline-block;
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 0.75em;
+            vertical-align: super;
+            margin-right: 8px;
+            min-width: 20px;
+        }
+
+        .line-number {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 0.85em;
+            margin-right: 10px;
+            display: inline-block;
+            min-width: 25px;
+        }
+
+        .annotation.expan {
+            border-bottom: 2px solid #3498db;
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+
+        .annotation.abbr {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .annotation.ex {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        .annotation.supplied {
+            border-bottom: 2px dotted #e67e22;
+            background-color: rgba(230, 126, 34, 0.05);
+        }
+
+        .annotation.gap {
+            color: #95a5a6;
+            font-style: italic;
+            background-color: rgba(149, 165, 166, 0.1);
+        }
+
+        .annotation.selected {
+            background-color: rgba(241, 196, 15, 0.3);
+        }
+
+        .annotation-info {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #34495e;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1000;
+            margin-bottom: 5px;
+        }
+
+        .annotation:hover > .annotation-info {
+            opacity: 1;
+        }
+
+        .annotation-info::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #34495e;
+        }
+
+        .legend {
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-top: 1px solid #ddd;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .legend h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .legend-items {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 40px;
+            height: 20px;
+            border-radius: 3px;
+        }
+
+        .legend-color.line {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .legend-color.expan {
+            background-color: rgba(52, 152, 219, 0.1);
+            border-bottom: 3px solid #3498db;
+        }
+
+        .legend-color.abbr {
+            background-color: #ecf0f1;
+            border: 2px solid #2c3e50;
+            font-weight: bold;
+        }
+
+        .legend-color.ex {
+            background-color: #f8f9fa;
+            border: 1px dashed #7f8c8d;
+            font-style: italic;
+        }
+
+        .legend-color.supplied {
+            background-color: rgba(230, 126, 34, 0.05);
+            border-bottom: 3px dotted #e67e22;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #e67e22;
+        }
+
+        .legend-color.gap {
+            background-color: rgba(149, 165, 166, 0.1);
+            color: #95a5a6;
+            font-style: italic;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .stat-label {
+            font-weight: bold;
+        }
+
+        .char {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .char:hover {
+            background-color: rgba(52, 152, 219, 0.2);
+        }
+
+        .char.range-start {
+            background-color: rgba(46, 204, 113, 0.3);
+            border-left: 2px solid #2ecc71;
+        }
+
+        .char.range-end {
+            background-color: rgba(46, 204, 113, 0.3);
+            border-right: 2px solid #2ecc71;
+        }
+
+        .char.range-selected {
+            background-color: rgba(46, 204, 113, 0.15);
+        }
+
+        .char-info {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            max-width: 500px;
+            z-index: 2000;
+            display: none;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        .char-info h4 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+
+        .char-info .info-row {
+            margin: 5px 0;
+            word-break: break-all;
+        }
+
+        .char-info .label {
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .char-info .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+        }
+
+        .char-info .close-btn:hover {
+            color: #e74c3c;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ATAG Epigraph Viewer</h1>
+            <p>碑文テキスト・アノテーションビューア</p>
+        </div>
+
+        <div class="controls">
+            <div class="text-selector">
+                <label for="textSelect">碑文選択:</label>
+                <select id="textSelect">
+                    <option value="">読み込み中...</option>
+                </select>
+                <button id="loadButton" onclick="loadSelectedText()" disabled>読み込み</button>
+            </div>
+            <div class="stats" id="stats" style="display: none;">
+                <div class="stat-item">
+                    <span class="stat-label">文字数:</span>
+                    <span id="charCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">アノテーション数:</span>
+                    <span id="annotCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">行数:</span>
+                    <span id="lineCount">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="content">
+            <div class="loading">データを読み込んでいます...</div>
+        </div>
+
+        <div class="legend">
+            <h3>凡例</h3>
+            <div class="legend-items">
+                <div class="legend-item">
+                    <div class="legend-color line">1</div>
+                    <span>Line Number (行番号)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color expan"></div>
+                    <span>Expansion (略語展開)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color abbr">D</div>
+                    <span>Abbreviation (省略形)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color ex">is</div>
+                    <span>Expanded (展開形)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color supplied">[ani]</div>
+                    <span>Supplied (補完)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color gap">[---]</div>
+                    <span>Gap (欠損)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="charInfo" class="char-info">
+        <button class="close-btn" onclick="closeCharInfo()">&times;</button>
+        <h4>文字情報</h4>
+        <div id="charDetails"></div>
+    </div>
+
+    <script>
+        const SPARQL_ENDPOINT = 'https://dydra.com/junjun7613/atag_epigraph/sparql';
+        const PREFIX = `
+            PREFIX ex: <http://example.org/atag#>
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+        `;
+
+        let currentTexts = [];
+        let currentTextContent = '';
+        let charURIs = [];
+        let rangeStart = null;
+        let rangeEnd = null;
+
+        async function executeSPARQL(query) {
+            const response = await fetch(SPARQL_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/sparql-results+json',
+                    'Content-Type': 'application/sparql-query'
+                },
+                body: query
+            });
+
+            if (!response.ok) {
+                throw new Error(`SPARQL query failed: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.results.bindings;
+        }
+
+        async function loadTextList() {
+            const query = PREFIX + `
+                SELECT ?text ?xmlId ?localId ?edcsId ?content
+                WHERE {
+                    ?text a ex:Text ;
+                          ex:textContent ?content .
+                    OPTIONAL { ?text ex:teiXmlId ?xmlId }
+                    OPTIONAL { ?text ex:localId ?localId }
+                    OPTIONAL { ?text ex:edcsId ?edcsId }
+                }
+                ORDER BY ?localId
+            `;
+
+            try {
+                const results = await executeSPARQL(query);
+                currentTexts = results.map(r => ({
+                    uri: r.text.value,
+                    xmlId: r.xmlId ? r.xmlId.value : '',
+                    localId: r.localId ? r.localId.value : '',
+                    edcsId: r.edcsId ? r.edcsId.value : '',
+                    content: r.content.value
+                }));
+
+                const select = document.getElementById('textSelect');
+                select.innerHTML = '<option value="">-- 碑文を選択 --</option>';
+
+                currentTexts.forEach((text, index) => {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    const displayName = text.localId || text.xmlId || `Text ${index + 1}`;
+                    option.textContent = displayName;
+                    select.appendChild(option);
+                });
+
+                select.disabled = false;
+                document.getElementById('loadButton').disabled = false;
+                document.getElementById('content').innerHTML = '<div class="loading">碑文を選択してください</div>';
+            } catch (error) {
+                console.error('Error loading text list:', error);
+                document.getElementById('content').innerHTML =
+                    `<div class="error">碑文リストの読み込みに失敗しました: ${error.message}</div>`;
+            }
+        }
+
+        async function loadSelectedText() {
+            const select = document.getElementById('textSelect');
+            const index = select.value;
+
+            if (index === '') {
+                return;
+            }
+
+            const text = currentTexts[index];
+            document.getElementById('content').innerHTML = '<div class="loading">テキストとアノテーションを読み込んでいます...</div>';
+
+            try {
+                // Get text content directly
+                const contentQuery = PREFIX + `
+                    SELECT ?content
+                    WHERE {
+                        <${text.uri}> ex:textContent ?content .
+                    }
+                `;
+
+                // Get character URIs
+                const charQuery = PREFIX + `
+                    SELECT ?char ?offset
+                    WHERE {
+                        <${text.uri}> ex:firstChar ?firstChar .
+                        ?firstChar ex:next* ?char .
+                        ?char ex:offset ?offset .
+                    }
+                    ORDER BY xsd:integer(?offset)
+                `;
+
+                // Get annotations
+                const annotQuery = PREFIX + `
+                    SELECT ?annot ?kind ?n ?start ?end ?annotText
+                    WHERE {
+                        <${text.uri}> ex:hasAnnotation ?annot .
+                        ?annot a ex:Annotation ;
+                               ex:kind ?kind ;
+                               ex:start ?start ;
+                               ex:end ?end .
+                        OPTIONAL { ?annot ex:n ?n }
+                        OPTIONAL { ?annot ex:annotatedText ?annotText }
+                    }
+                    ORDER BY xsd:integer(?start)
+                `;
+
+                const [contentResults, charResults, annotResults] = await Promise.all([
+                    executeSPARQL(contentQuery),
+                    executeSPARQL(charQuery),
+                    executeSPARQL(annotQuery)
+                ]);
+
+                // Get text content
+                const textContent = contentResults.length > 0 ? contentResults[0].content.value : '';
+                currentTextContent = textContent;
+
+                // Build character URI array
+                charURIs = charResults.map(r => ({
+                    uri: r.char.value,
+                    offset: parseInt(r.offset.value)
+                }));
+
+                // Build annotations array
+                const annotations = annotResults.map(r => ({
+                    kind: r.kind.value,
+                    n: r.n ? r.n.value : null,
+                    start: parseInt(r.start.value),
+                    end: parseInt(r.end.value),
+                    annotText: r.annotText ? r.annotText.value : null
+                }));
+
+                renderText(text, textContent, annotations);
+            } catch (error) {
+                console.error('Error loading text:', error);
+                document.getElementById('content').innerHTML =
+                    `<div class="error">テキストの読み込みに失敗しました: ${error.message}</div>`;
+            }
+        }
+
+        function renderText(textInfo, textContent, annotations) {
+            // Text content is already provided as a string
+
+            // Create annotation map
+            const annotMap = new Map();
+            const lineAnnotations = [];
+
+            annotations.forEach(annot => {
+                if (annot.kind === 'line') {
+                    lineAnnotations.push(annot);
+                } else {
+                    for (let i = annot.start; i < annot.end; i++) {
+                        if (!annotMap.has(i)) {
+                            annotMap.set(i, []);
+                        }
+                        annotMap.get(i).push(annot);
+                    }
+                }
+            });
+
+            // Sort line annotations by position
+            lineAnnotations.sort((a, b) => a.start - b.start);
+
+            // Build HTML with annotations
+            let html = '<div class="text-viewer">';
+            const displayName = textInfo.localId || textInfo.xmlId || 'Epigraph';
+            html += `<div class="text-title">${displayName}</div>`;
+            html += '<div class="text-content">';
+
+            let currentAnnotations = new Set();
+            let lineIndex = 0;
+            let inLine = false;
+            let currentLineNum = null;
+
+            for (let i = 0; i < textContent.length; i++) {
+                const char = textContent[i];
+                const annots = annotMap.get(i) || [];
+
+                // Check for line numbers at this position
+                const linesAtPos = lineAnnotations.filter(a => a.start === i);
+                if (linesAtPos.length > 0) {
+                    // Close previous line if open
+                    if (inLine) {
+                        html += '</div>';
+                    }
+
+                    // Start new line
+                    linesAtPos.forEach(lineAnnot => {
+                        currentLineNum = lineAnnot.n;
+                        html += `<div class="text-line">`;
+                        html += `<span class="line-number">${lineAnnot.n}</span>`;
+                        inLine = true;
+                    });
+                }
+
+                // Find annotations starting at this position
+                const starting = annots.filter(a => a.start === i);
+                const ending = Array.from(currentAnnotations).filter(a => a.end === i);
+
+                // Close ending annotations
+                ending.forEach(a => {
+                    // supplied の場合は閉じ角括弧を追加
+                    if (a.kind === 'supplied') {
+                        html += ']';
+                    }
+                    html += '</span>';
+                    currentAnnotations.delete(a);
+                });
+
+                // Open new annotations
+                starting.forEach(a => {
+                    currentAnnotations.add(a);
+                    let label = '';
+                    switch(a.kind) {
+                        case 'expan':
+                            label = '略語展開';
+                            break;
+                        case 'abbr':
+                            label = '省略形';
+                            break;
+                        case 'ex':
+                            label = '展開形';
+                            break;
+                        case 'supplied':
+                            label = '補完';
+                            break;
+                        case 'gap':
+                            label = '欠損';
+                            break;
+                        default:
+                            label = a.kind;
+                    }
+                    if (a.annotText) {
+                        label += `: ${a.annotText}`;
+                    }
+                    html += `<span class="annotation ${a.kind}" title="${label}">`;
+                    html += `<span class="annotation-info">${label}</span>`;
+                    // supplied の場合は開き角括弧を追加
+                    if (a.kind === 'supplied') {
+                        html += '[';
+                    }
+                });
+
+                // Add character with offset data attribute from RDF
+                // charURIs is sorted by offset, use array index directly
+                const charInfo = charURIs[i];
+                const rdfOffset = charInfo ? charInfo.offset : i;
+                const rdfUri = charInfo ? charInfo.uri : '';
+
+                // Within a line, convert newlines to spaces
+                // Between lines, newlines are handled by line div structure
+                if (char === '\n') {
+                    // If we're in a line, add a space instead of newline
+                    if (inLine) {
+                        html += `<span class="char" data-offset="${rdfOffset}" data-uri="${rdfUri}" data-char="\\n"> </span>`;
+                    }
+                } else {
+                    html += `<span class="char" data-offset="${rdfOffset}" data-uri="${rdfUri}" data-char="${escapeHtml(char)}">${escapeHtml(char)}</span>`;
+                }
+            }
+
+            // Close any remaining annotations
+            currentAnnotations.forEach(a => {
+                html += '</span>';
+            });
+
+            // Close last line if open
+            if (inLine) {
+                html += '</div>';
+            }
+
+            html += '</div></div>';
+
+            // EDCS IDがあれば右側に表示
+            if (textInfo.edcsId) {
+                html += '<div class="edcs-viewer">';
+                html += `<div class="edcs-title">${textInfo.edcsId}</div>`;
+                // html += '<p>Epigraphik-Datenbank Clauss / Slaby (EDCS)の知識グラフ</p>';
+                const edcsUrl = `https://db.edcs.eu/epigr/epi_einzel_en.php?p_edcs_id=${textInfo.edcsId}`;
+                html += `<a href="${edcsUrl}" target="_blank" class="edcs-link">EDCSで表示 ↗</a>`;
+                html += '<div id="knowledgeGraph"><div class="graph-loading">知識グラフを読み込み中...</div></div>';
+                html += '<div id="nodeInfo" class="node-info" style="display: none;"></div>';
+                html += '</div>';
+                document.getElementById('content').className = '';
+            } else {
+                document.getElementById('content').className = 'single-column';
+            }
+
+            document.getElementById('content').innerHTML = html;
+
+            // Update stats
+            const lineCount = lineAnnotations.length;
+            document.getElementById('charCount').textContent = textContent.length;
+            document.getElementById('annotCount').textContent = annotations.length;
+            document.getElementById('lineCount').textContent = lineCount;
+            document.getElementById('stats').style.display = 'flex';
+
+            // Add character click event listener
+            setupCharClickHandler();
+
+            // Load knowledge graph if EDCS ID exists
+            if (textInfo.edcsId) {
+                loadKnowledgeGraph(textInfo.edcsId);
+            }
+        }
+
+        async function loadKnowledgeGraph(edcsId) {
+            const INSCRIPTIONS_ENDPOINT = 'https://dydra.com/junjun7613/inscriptions_llm/sparql';
+            const GRAPH_PREFIX = `
+                PREFIX base: <http://example.org/inscription/>
+                PREFIX epig: <http://example.org/epigraphy/>
+                PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+                PREFIX dcterms: <http://purl.org/dc/terms/>
+                PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+                PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+                PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+            `;
+
+            const query = GRAPH_PREFIX + `
+                SELECT DISTINCT
+                    ?inscription
+                    ?person
+                    ?person_name
+                    ?person_label
+                    ?normalized_name
+                    ?community
+                    ?community_label
+                    ?relationship
+                    ?rel_type
+                    ?rel_property
+                    ?rel_source
+                    ?rel_target
+                    ?career_position
+                    ?position
+                    ?position_abstract
+                    ?position_normalized
+                    ?position_type
+                    ?position_order
+                    ?position_desc
+                    ?benefaction
+                    ?benef_type
+                    ?benef_object
+                    ?benef_objectType
+                WHERE {
+                    ?inscription a epig:Inscription ;
+                                 dcterms:identifier "${edcsId}" .
+
+                    OPTIONAL {
+                        ?inscription epig:mentions ?person .
+                        ?person a foaf:Person .
+                        OPTIONAL { ?person foaf:name ?person_name . }
+                        OPTIONAL { ?person rdfs:label ?person_label . }
+                        OPTIONAL { ?person epig:normalizedName ?normalized_name . }
+
+                        OPTIONAL {
+                            ?person epig:hasCareerPosition ?career_position .
+                            OPTIONAL { ?career_position epig:position ?position . }
+                            OPTIONAL { ?career_position epig:positionAbstract ?position_abstract . }
+                            OPTIONAL { ?career_position epig:positionNormalized ?position_normalized . }
+                            OPTIONAL { ?career_position epig:positionType ?position_type . }
+                            OPTIONAL { ?career_position epig:order ?position_order . }
+                            OPTIONAL { ?career_position dcterms:description ?position_desc . }
+                        }
+
+                        OPTIONAL {
+                            ?person epig:hasBenefaction ?benefaction .
+                            OPTIONAL { ?benefaction epig:benefactionType ?benef_type . }
+                            OPTIONAL { ?benefaction epig:object ?benef_object . }
+                            OPTIONAL { ?benefaction epig:objectType ?benef_objectType . }
+                        }
+                    }
+
+                    OPTIONAL {
+                        ?inscription epig:mentions ?community .
+                        ?community a epig:Community .
+                        OPTIONAL { ?community rdfs:label ?community_label . }
+                    }
+
+                    OPTIONAL {
+                        ?inscription epig:mentions ?relationship .
+                        ?relationship a epig:Relationship .
+                        OPTIONAL { ?relationship epig:relationshipType ?rel_type . }
+                        OPTIONAL { ?relationship epig:relationshipProperty ?rel_property . }
+                        OPTIONAL { ?relationship epig:source ?rel_source . }
+                        OPTIONAL { ?relationship epig:target ?rel_target . }
+                    }
+                }
+            `;
+
+            try {
+                const response = await fetch(INSCRIPTIONS_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/sparql-results+json',
+                        'Content-Type': 'application/sparql-query'
+                    },
+                    body: query
+                });
+
+                const data = await response.json();
+                renderKnowledgeGraph(data.results.bindings, edcsId);
+            } catch (error) {
+                console.error('Error loading knowledge graph:', error);
+                document.getElementById('knowledgeGraph').innerHTML =
+                    '<div class="graph-loading">知識グラフの読み込みに失敗しました</div>';
+            }
+        }
+
+        function renderKnowledgeGraph(results, edcsId) {
+            if (results.length === 0) {
+                document.getElementById('knowledgeGraph').innerHTML =
+                    '<div class="graph-loading">この碑文の知識グラフデータはありません</div>';
+                return;
+            }
+
+            // URIから末尾部分を抽出するヘルパー関数
+            function extractLabelFromUri(uri) {
+                if (!uri) return '';
+                if (uri.includes('://') || uri.includes('/')) {
+                    return uri.split('/').pop().split('#').pop();
+                }
+                return uri;
+            }
+
+            // ノードとエッジを構築
+            const nodes = new vis.DataSet();
+            const edges = new vis.DataSet();
+            const nodeMap = new Map();
+
+            // 碑文ノード（中央）
+            const inscriptionId = `inscription_${edcsId}`;
+            nodes.add({
+                id: inscriptionId,
+                label: edcsId,
+                shape: 'box',
+                color: { background: '#e74c3c', border: '#c0392b' },
+                font: { color: 'white', size: 14, bold: true },
+                group: 'inscription'
+            });
+
+            results.forEach(row => {
+                // 人物ノード
+                if (row.person) {
+                    const personId = row.person.value;
+                    if (!nodeMap.has(personId)) {
+                        // normalized_nameを優先、なければfoaf:name、それもなければrdfs:label、最後にURIの末尾
+                        const label = row.normalized_name ? row.normalized_name.value :
+                                     (row.person_name ? row.person_name.value :
+                                     (row.person_label ? row.person_label.value : personId.split('/').pop()));
+                        nodes.add({
+                            id: personId,
+                            label: label,
+                            shape: 'dot',
+                            color: { background: '#3498db', border: '#2980b9' },
+                            font: { size: 12 },
+                            group: 'person',
+                            data: { type: 'person', label: label, uri: personId }
+                        });
+                        nodeMap.set(personId, true);
+
+                        edges.add({
+                            from: inscriptionId,
+                            to: personId,
+                            label: extractLabelFromUri('http://example.org/epigraphy/mentions'),
+                            arrows: 'to',
+                            color: { color: '#95a5a6' },
+                            font: { size: 10 }
+                        });
+                    }
+
+                    // 経歴ノード
+                    if (row.career_position) {
+                        const careerId = row.career_position.value;
+                        if (!nodeMap.has(careerId)) {
+                            const posLabel = row.position ? row.position.value : '役職';
+                            const careerData = {
+                                type: 'career',
+                                label: posLabel,
+                                uri: careerId,
+                                position: row.position ? row.position.value : null,
+                                positionAbstract: row.position_abstract ? row.position_abstract.value : null,
+                                positionNormalized: row.position_normalized ? row.position_normalized.value : null,
+                                positionType: row.position_type ? row.position_type.value : null,
+                                order: row.position_order ? row.position_order.value : null,
+                                description: row.position_desc ? row.position_desc.value : null
+                            };
+                            nodes.add({
+                                id: careerId,
+                                label: posLabel,
+                                shape: 'box',
+                                color: { background: '#9b59b6', border: '#8e44ad' },
+                                font: { size: 10, color: 'white' },
+                                group: 'career',
+                                data: careerData
+                            });
+                            nodeMap.set(careerId, true);
+
+                            edges.add({
+                                from: personId,
+                                to: careerId,
+                                label: extractLabelFromUri('http://example.org/epigraphy/hasCareerPosition'),
+                                arrows: 'to',
+                                color: { color: '#9b59b6' },
+                                font: { size: 9 }
+                            });
+                        }
+                    }
+
+                    // 恵与行為ノード
+                    if (row.benefaction) {
+                        const benefId = row.benefaction.value;
+                        if (!nodeMap.has(benefId)) {
+                            const benefLabel = row.benef_type ? row.benef_type.value : '恵与';
+                            const benefData = {
+                                type: 'benefaction',
+                                label: benefLabel,
+                                uri: benefId,
+                                benefactionType: row.benef_type ? row.benef_type.value : null,
+                                object: row.benef_object ? row.benef_object.value : null,
+                                objectType: row.benef_objectType ? row.benef_objectType.value : null
+                            };
+                            nodes.add({
+                                id: benefId,
+                                label: benefLabel,
+                                shape: 'diamond',
+                                color: { background: '#f39c12', border: '#e67e22' },
+                                font: { size: 10 },
+                                group: 'benefaction',
+                                data: benefData
+                            });
+                            nodeMap.set(benefId, true);
+
+                            edges.add({
+                                from: personId,
+                                to: benefId,
+                                label: extractLabelFromUri('http://example.org/epigraphy/hasBenefaction'),
+                                arrows: 'to',
+                                color: { color: '#f39c12' },
+                                font: { size: 9 }
+                            });
+                        }
+                    }
+                }
+
+                // コミュニティノード
+                if (row.community) {
+                    const commId = row.community.value;
+                    if (!nodeMap.has(commId)) {
+                        const commLabel = row.community_label ? row.community_label.value : commId.split('/').pop();
+                        nodes.add({
+                            id: commId,
+                            label: commLabel,
+                            shape: 'ellipse',
+                            color: { background: '#1abc9c', border: '#16a085' },
+                            font: { size: 11, color: 'white' },
+                            group: 'community',
+                            data: { type: 'community', label: commLabel }
+                        });
+                        nodeMap.set(commId, true);
+
+                        edges.add({
+                            from: inscriptionId,
+                            to: commId,
+                            label: extractLabelFromUri('http://example.org/epigraphy/mentions'),
+                            arrows: 'to',
+                            color: { color: '#95a5a6' },
+                            font: { size: 10 }
+                        });
+                    }
+                }
+
+                // 関係性エッジ
+                if (row.relationship && row.rel_source && row.rel_target) {
+                    const relType = row.rel_type ? extractLabelFromUri(row.rel_type.value) : 'relationship';
+                    const relProperty = row.rel_property ? extractLabelFromUri(row.rel_property.value) : null;
+                    const edgeLabel = relProperty ? `${relType} (${relProperty})` : relType;
+                    edges.add({
+                        from: row.rel_source.value,
+                        to: row.rel_target.value,
+                        label: edgeLabel,
+                        arrows: 'to',
+                        color: { color: '#e74c3c' },
+                        font: { size: 9 },
+                        dashes: true
+                    });
+                }
+            });
+
+            // ネットワーク描画
+            const container = document.getElementById('knowledgeGraph');
+            const data = { nodes: nodes, edges: edges };
+            const options = {
+                nodes: {
+                    borderWidth: 2,
+                    shadow: true,
+                    font: { face: 'Arial' }
+                },
+                edges: {
+                    width: 2,
+                    shadow: true,
+                    smooth: { type: 'continuous' }
+                },
+                physics: {
+                    enabled: true,
+                    stabilization: {
+                        iterations: 200
+                    },
+                    barnesHut: {
+                        gravitationalConstant: -2000,
+                        centralGravity: 0.3,
+                        springLength: 150,
+                        springConstant: 0.04
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200
+                },
+                layout: {
+                    improvedLayout: true
+                }
+            };
+
+            const network = new vis.Network(container, data, options);
+
+            // ノードクリック時の詳細表示
+            network.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    const node = nodes.get(nodeId);
+                    showNodeInfo(node, results);
+                }
+            });
+
+            // 物理シミュレーション完了後に停止
+            network.once('stabilizationIterationsDone', function() {
+                network.setOptions({ physics: false });
+            });
+        }
+
+        function showNodeInfo(node, results) {
+            const infoDiv = document.getElementById('nodeInfo');
+            let html = `<h4>${node.label}</h4><dl>`;
+            html += `<dt>タイプ</dt><dd>${node.group}</dd>`;
+
+            if (node.data) {
+                html += `<dt>URI</dt><dd style="word-break: break-all; font-size: 11px;">${node.data.uri || node.id}</dd>`;
+
+                // 経歴ノードの詳細情報を表示
+                if (node.data.type === 'career') {
+                    if (node.data.position) {
+                        html += `<dt>Position</dt><dd>${node.data.position}</dd>`;
+                    }
+                    if (node.data.positionAbstract) {
+                        html += `<dt>Abstract</dt><dd>${node.data.positionAbstract}</dd>`;
+                    }
+                    if (node.data.positionNormalized) {
+                        html += `<dt>Normalized</dt><dd>${node.data.positionNormalized}</dd>`;
+                    }
+                    if (node.data.positionType) {
+                        html += `<dt>Type</dt><dd>${node.data.positionType}</dd>`;
+                    }
+                    if (node.data.order) {
+                        html += `<dt>Order</dt><dd>${node.data.order}</dd>`;
+                    }
+                    if (node.data.description) {
+                        html += `<dt>Description</dt><dd>${node.data.description}</dd>`;
+                    }
+                }
+
+                // 恵与行為ノードの詳細情報を表示
+                if (node.data.type === 'benefaction') {
+                    if (node.data.benefactionType) {
+                        html += `<dt>Benefaction Type</dt><dd>${node.data.benefactionType}</dd>`;
+                    }
+                    if (node.data.object) {
+                        html += `<dt>Object</dt><dd>${node.data.object}</dd>`;
+                    }
+                    if (node.data.objectType) {
+                        html += `<dt>Object Type</dt><dd>${node.data.objectType}</dd>`;
+                    }
+                }
+            }
+
+            // 該当ノードに関する情報を検索
+            const relevantData = results.filter(r =>
+                (r.person && r.person.value === node.id) ||
+                (r.community && r.community.value === node.id)
+            );
+
+            if (relevantData.length > 0 && relevantData[0].person_label) {
+                html += `<dt>詳細</dt><dd>データベースに${relevantData.length}件の関連情報</dd>`;
+            }
+
+            html += '</dl>';
+            infoDiv.innerHTML = html;
+            infoDiv.style.display = 'block';
+        }
+
+        function setupCharClickHandler() {
+            document.addEventListener('click', function(event) {
+                if (event.target.classList.contains('char')) {
+                    handleCharClick(event.target);
+                }
+            });
+        }
+
+        function handleCharClick(charElement) {
+            const offset = parseInt(charElement.dataset.offset);
+            const char = charElement.dataset.char;
+            const uri = charElement.dataset.uri;
+
+            // Create charInfo object from data attributes
+            const charInfo = uri ? { offset: offset, uri: uri } : null;
+
+            // Display character info
+            displayCharInfo(offset, char, charInfo);
+        }
+
+        function displayCharInfo(offset, char, charInfo) {
+            const details = document.getElementById('charDetails');
+            let html = '';
+
+            html += `<div class="info-row"><span class="label">文字:</span> "${char === '\\n' ? '(改行)' : char}"</div>`;
+            html += `<div class="info-row"><span class="label">オフセット:</span> ${offset}</div>`;
+
+            if (charInfo) {
+                html += `<div class="info-row"><span class="label">文字URI:</span><br><span style="font-size: 0.9em; word-break: break-all;">${charInfo.uri}</span></div>`;
+            } else {
+                html += `<div class="info-row"><span class="label">文字URI:</span> (見つかりません)</div>`;
+            }
+
+            // Range selection buttons
+            html += `<div class="info-row" style="margin-top: 10px;">`;
+            html += `<button onclick="setRangeStart(${offset}, '${charInfo ? charInfo.uri : ''}')" style="margin-right: 5px; padding: 5px 10px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer;">始点に設定</button>`;
+            html += `<button onclick="setRangeEnd(${offset}, '${charInfo ? charInfo.uri : ''}')" style="padding: 5px 10px; background: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer;">終点に設定</button>`;
+            html += `</div>`;
+
+            // Show current range if set
+            if (rangeStart !== null || rangeEnd !== null) {
+                html += `<div class="info-row" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #666;">`;
+                html += `<span class="label">選択範囲:</span><br>`;
+                if (rangeStart !== null) {
+                    html += `<div style="margin: 5px 0;">`;
+                    html += `<strong>始点:</strong><br>`;
+                    html += `offset=${rangeStart.offset}<br>`;
+                    html += `<span style="font-size: 0.85em; word-break: break-all;">${rangeStart.uri}</span>`;
+                    html += `</div>`;
+                }
+                if (rangeEnd !== null) {
+                    html += `<div style="margin: 5px 0;">`;
+                    html += `<strong>終点:</strong><br>`;
+                    html += `offset=${rangeEnd.offset}<br>`;
+                    html += `<span style="font-size: 0.85em; word-break: break-all;">${rangeEnd.uri}</span>`;
+                    html += `</div>`;
+                }
+                if (rangeStart !== null && rangeEnd !== null) {
+                    html += `<button onclick="clearRange()" style="margin-top: 5px; padding: 5px 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">範囲をクリア</button>`;
+                }
+                html += `</div>`;
+            }
+
+            details.innerHTML = html;
+            document.getElementById('charInfo').style.display = 'block';
+        }
+
+        function closeCharInfo() {
+            document.getElementById('charInfo').style.display = 'none';
+        }
+
+        function setRangeStart(offset, uri) {
+            rangeStart = { offset: offset, uri: uri };
+            updateRangeHighlight();
+            // Re-display current character info to show updated range
+            const currentChar = document.querySelector(`.char[data-offset="${offset}"]`);
+            if (currentChar) {
+                handleCharClick(currentChar);
+            }
+        }
+
+        function setRangeEnd(offset, uri) {
+            rangeEnd = { offset: offset, uri: uri };
+            updateRangeHighlight();
+            // Re-display current character info to show updated range
+            const currentChar = document.querySelector(`.char[data-offset="${offset}"]`);
+            if (currentChar) {
+                handleCharClick(currentChar);
+            }
+        }
+
+        function clearRange() {
+            rangeStart = null;
+            rangeEnd = null;
+            updateRangeHighlight();
+            closeCharInfo();
+        }
+
+        function updateRangeHighlight() {
+            // Remove all range classes
+            document.querySelectorAll('.char').forEach(el => {
+                el.classList.remove('range-start', 'range-end', 'range-selected');
+            });
+
+            if (rangeStart === null && rangeEnd === null) {
+                return;
+            }
+
+            // Add range classes
+            if (rangeStart !== null) {
+                const startEl = document.querySelector(`.char[data-offset="${rangeStart.offset}"]`);
+                if (startEl) {
+                    startEl.classList.add('range-start');
+                }
+            }
+
+            if (rangeEnd !== null) {
+                const endEl = document.querySelector(`.char[data-offset="${rangeEnd.offset}"]`);
+                if (endEl) {
+                    endEl.classList.add('range-end');
+                }
+            }
+
+            // Highlight range between start and end
+            if (rangeStart !== null && rangeEnd !== null) {
+                const start = Math.min(rangeStart.offset, rangeEnd.offset);
+                const end = Math.max(rangeStart.offset, rangeEnd.offset);
+
+                document.querySelectorAll('.char').forEach(el => {
+                    const offset = parseInt(el.dataset.offset);
+                    if (offset > start && offset < end) {
+                        el.classList.add('range-selected');
+                    }
+                });
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            loadTextList();
+        });
+    </script>
+</body>
+</html>

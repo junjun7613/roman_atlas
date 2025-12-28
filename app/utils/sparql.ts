@@ -21,6 +21,36 @@ export interface InscriptionDetail {
   description: string
   dating: string
   edcsUrl: string
+  personCount?: number
+  relationshipCount?: number
+  careerCount?: number
+  benefactionCount?: number
+}
+
+export interface InscriptionNetworkData {
+  inscription: string
+  person?: string
+  person_name?: string
+  person_label?: string
+  normalized_name?: string
+  community?: string
+  community_label?: string
+  relationship?: string
+  rel_type?: string
+  rel_property?: string
+  rel_source?: string
+  rel_target?: string
+  career_position?: string
+  position?: string
+  position_abstract?: string
+  position_normalized?: string
+  position_type?: string
+  position_order?: string
+  position_desc?: string
+  benefaction?: string
+  benef_type?: string
+  benef_object?: string
+  benef_objectType?: string
 }
 
 /**
@@ -162,8 +192,13 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
     PREFIX location: <http://example.org/location/>
     PREFIX dcterms: <http://purl.org/dc/terms/>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
-    SELECT DISTINCT ?inscription ?text ?comment ?datingFrom ?datingTo
+    SELECT ?inscription ?text ?comment ?datingFrom ?datingTo
+      (COALESCE(?personCount, 0) AS ?personCount)
+      (COALESCE(?relationshipCount, 0) AS ?relationshipCount)
+      (COALESCE(?careerCount, 0) AS ?careerCount)
+      (COALESCE(?benefactionCount, 0) AS ?benefactionCount)
     WHERE {
       ?inscription a epig:Inscription .
 
@@ -178,6 +213,54 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
       OPTIONAL { ?inscription rdfs:comment ?comment }
       OPTIONAL { ?inscription epig:datingFrom ?datingFrom }
       OPTIONAL { ?inscription epig:datingTo ?datingTo }
+
+      OPTIONAL {
+        SELECT ?inscription (COUNT(DISTINCT ?person) AS ?personCount)
+        WHERE {
+          { ?inscription epig:mainSubject ?person . }
+          UNION
+          { ?inscription epig:mentions ?person . }
+          ?person a foaf:Person .
+        }
+        GROUP BY ?inscription
+      }
+
+      OPTIONAL {
+        SELECT ?inscription (COUNT(DISTINCT ?relationship) AS ?relationshipCount)
+        WHERE {
+          ?inscription epig:mentions ?relationship .
+          ?relationship a epig:Relationship .
+        }
+        GROUP BY ?inscription
+      }
+
+      OPTIONAL {
+        SELECT ?inscription (COUNT(DISTINCT ?career) AS ?careerCount)
+        WHERE {
+          {
+            { ?inscription epig:mainSubject ?personForCareer . }
+            UNION
+            { ?inscription epig:mentions ?personForCareer . }
+            ?personForCareer a foaf:Person .
+            ?personForCareer epig:hasCareerPosition ?career .
+          }
+        }
+        GROUP BY ?inscription
+      }
+
+      OPTIONAL {
+        SELECT ?inscription (COUNT(DISTINCT ?benefaction) AS ?benefactionCount)
+        WHERE {
+          {
+            { ?inscription epig:mainSubject ?personForBenef . }
+            UNION
+            { ?inscription epig:mentions ?personForBenef . }
+            ?personForBenef a foaf:Person .
+            ?personForBenef epig:hasBenefaction ?benefaction .
+          }
+        }
+        GROUP BY ?inscription
+      }
     }
     ORDER BY ?inscription
   `
@@ -232,11 +315,21 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
           dating = `- ${datingTo}`
         }
 
+        // Extract counts
+        const personCount = binding.personCount ? parseInt(binding.personCount.value, 10) : 0
+        const relationshipCount = binding.relationshipCount ? parseInt(binding.relationshipCount.value, 10) : 0
+        const careerCount = binding.careerCount ? parseInt(binding.careerCount.value, 10) : 0
+        const benefactionCount = binding.benefactionCount ? parseInt(binding.benefactionCount.value, 10) : 0
+
         return {
           edcsId: edcsId,
           description: description,
           dating: dating,
-          edcsUrl: `https://db.edcs.eu/epigr/epi_url.php?s_sprache=en&p_edcs_id=${edcsId}`
+          edcsUrl: `https://db.edcs.eu/epigr/epi_url.php?s_sprache=en&p_edcs_id=${edcsId}`,
+          personCount: personCount,
+          relationshipCount: relationshipCount,
+          careerCount: careerCount,
+          benefactionCount: benefactionCount
         }
       })
       console.log('Inscription details count:', inscriptions.length)
@@ -323,6 +416,150 @@ export async function queryCustomPlaces(): Promise<CustomPlace[]> {
     return []
   } catch (error) {
     console.error('Error querying custom places from SPARQL endpoint:', error)
+    return []
+  }
+}
+
+/**
+ * Query inscription network data (persons, communities, relationships, careers, benefactions) from SPARQL endpoint
+ */
+export async function queryInscriptionNetwork(edcsId: string): Promise<InscriptionNetworkData[]> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+
+  const query = `
+    PREFIX base: <http://example.org/inscription/>
+    PREFIX epig: <http://example.org/epigraphy/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+    SELECT DISTINCT
+        ?inscription
+        ?person
+        ?person_name
+        ?person_label
+        ?normalized_name
+        ?community
+        ?community_label
+        ?relationship
+        ?rel_type
+        ?rel_property
+        ?rel_source
+        ?rel_target
+        ?career_position
+        ?position
+        ?position_abstract
+        ?position_normalized
+        ?position_type
+        ?position_order
+        ?position_desc
+        ?benefaction
+        ?benef_type
+        ?benef_object
+        ?benef_objectType
+    WHERE {
+        ?inscription a epig:Inscription ;
+                     dcterms:identifier "${edcsId}" .
+
+        OPTIONAL {
+            ?inscription epig:mentions ?person .
+            ?person a foaf:Person .
+            OPTIONAL { ?person foaf:name ?person_name . }
+            OPTIONAL { ?person rdfs:label ?person_label . }
+            OPTIONAL { ?person epig:normalizedName ?normalized_name . }
+
+            OPTIONAL {
+                ?person epig:hasCareerPosition ?career_position .
+                OPTIONAL { ?career_position epig:position ?position . }
+                OPTIONAL { ?career_position epig:positionAbstract ?position_abstract . }
+                OPTIONAL { ?career_position epig:positionNormalized ?position_normalized . }
+                OPTIONAL { ?career_position epig:positionType ?position_type . }
+                OPTIONAL { ?career_position epig:order ?position_order . }
+                OPTIONAL { ?career_position dcterms:description ?position_desc . }
+            }
+
+            OPTIONAL {
+                ?person epig:hasBenefaction ?benefaction .
+                OPTIONAL { ?benefaction epig:benefactionType ?benef_type . }
+                OPTIONAL { ?benefaction epig:object ?benef_object . }
+                OPTIONAL { ?benefaction epig:objectType ?benef_objectType . }
+            }
+        }
+
+        OPTIONAL {
+            ?inscription epig:mentions ?community .
+            ?community a epig:Community .
+            OPTIONAL { ?community rdfs:label ?community_label . }
+        }
+
+        OPTIONAL {
+            ?inscription epig:mentions ?relationship .
+            ?relationship a epig:Relationship .
+            OPTIONAL { ?relationship epig:relationshipType ?rel_type . }
+            OPTIONAL { ?relationship epig:relationshipProperty ?rel_property . }
+            OPTIONAL { ?relationship epig:source ?rel_source . }
+            OPTIONAL { ?relationship epig:target ?rel_target . }
+        }
+    }
+  `
+
+  console.log('Querying inscription network for EDCS ID:', edcsId)
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/sparql-results+json'
+      },
+      body: `query=${encodeURIComponent(query)}`
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('SPARQL error response:', errorText)
+      throw new Error(`SPARQL query failed: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('SPARQL network response:', data)
+
+    if (data.results && data.results.bindings && data.results.bindings.length > 0) {
+      const networkData: InscriptionNetworkData[] = data.results.bindings.map((binding: any) => ({
+        inscription: binding.inscription?.value || '',
+        person: binding.person?.value,
+        person_name: binding.person_name?.value,
+        person_label: binding.person_label?.value,
+        normalized_name: binding.normalized_name?.value,
+        community: binding.community?.value,
+        community_label: binding.community_label?.value,
+        relationship: binding.relationship?.value,
+        rel_type: binding.rel_type?.value,
+        rel_property: binding.rel_property?.value,
+        rel_source: binding.rel_source?.value,
+        rel_target: binding.rel_target?.value,
+        career_position: binding.career_position?.value,
+        position: binding.position?.value,
+        position_abstract: binding.position_abstract?.value,
+        position_normalized: binding.position_normalized?.value,
+        position_type: binding.position_type?.value,
+        position_order: binding.position_order?.value,
+        position_desc: binding.position_desc?.value,
+        benefaction: binding.benefaction?.value,
+        benef_type: binding.benef_type?.value,
+        benef_object: binding.benef_object?.value,
+        benef_objectType: binding.benef_objectType?.value
+      }))
+      console.log('Inscription network data count:', networkData.length)
+      return networkData
+    }
+
+    console.log('No network data found')
+    return []
+  } catch (error) {
+    console.error('Error querying inscription network from SPARQL endpoint:', error)
     return []
   }
 }

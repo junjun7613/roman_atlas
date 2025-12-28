@@ -27,6 +27,10 @@ interface InscriptionDetailData {
   description: string
   dating: string
   edcsUrl: string
+  personCount?: number
+  relationshipCount?: number
+  careerCount?: number
+  benefactionCount?: number
 }
 
 interface InscriptionData {
