@@ -258,7 +258,6 @@ export default function CesiumMap() {
           }
         }
         handler.setInputAction(clickAction, Cesium.ScreenSpaceEventType.LEFT_CLICK)
-        clickHandlerRef.current = { handler, clickAction }
 
         const mouseMoveAction = (movement: any) => {
           const pickedObject = viewer.scene.pick(movement.endPosition)
@@ -269,7 +268,6 @@ export default function CesiumMap() {
           }
         }
         handler.setInputAction(mouseMoveAction, Cesium.ScreenSpaceEventType.MOUSE_MOVE)
-        mouseMoveHandlerRef.current = { handler, mouseMoveAction }
 
       } catch (error) {
         console.error('Cesium initialization error:', error)
