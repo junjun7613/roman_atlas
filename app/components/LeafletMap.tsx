@@ -31,6 +31,7 @@ export default function LeafletMap() {
 
   // Rectangle selection state
   const [isDrawingMode, setIsDrawingMode] = useState(false)
+  const [hasRectangle, setHasRectangle] = useState(false)
   const rectangleLayerRef = useRef<L.Rectangle | null>(null)
   const drawingStartRef = useRef<L.LatLng | null>(null)
 
@@ -781,14 +782,24 @@ export default function LeafletMap() {
     }
   }
 
-  // Toggle rectangle selection mode
+  // Toggle rectangle selection mode or clear rectangle
   const toggleDrawingMode = () => {
+    // If rectangle exists, clear it
+    if (hasRectangle && rectangleLayerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(rectangleLayerRef.current)
+      rectangleLayerRef.current = null
+      setHasRectangle(false)
+      return
+    }
+
+    // Otherwise, toggle drawing mode
     const newMode = !isDrawingMode
     setIsDrawingMode(newMode)
 
     if (!newMode && rectangleLayerRef.current && mapRef.current) {
       mapRef.current.removeLayer(rectangleLayerRef.current)
       rectangleLayerRef.current = null
+      setHasRectangle(false)
     }
   }
 
@@ -855,8 +866,9 @@ export default function LeafletMap() {
       // Find all places within bounds
       await queryPlacesInBounds(bounds)
 
-      // Exit drawing mode
+      // Exit drawing mode and mark that rectangle exists
       setIsDrawingMode(false)
+      setHasRectangle(true)
     }
 
     map.on('mousedown', onMouseDown)
@@ -1015,11 +1027,13 @@ export default function LeafletMap() {
         className={`absolute top-20 left-4 z-[1000] px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
           isDrawingMode
             ? 'bg-blue-500 text-white'
+            : hasRectangle
+            ? 'bg-red-500 text-white hover:bg-red-600'
             : 'bg-white text-gray-700 hover:bg-gray-100'
         }`}
-        title="矩形選択モード"
+        title={hasRectangle ? '矩形解除' : '矩形選択モード'}
       >
-        {isDrawingMode ? '選択中...' : '矩形選択'}
+        {isDrawingMode ? '選択中...' : hasRectangle ? '矩形解除' : '矩形選択'}
       </button>
       <div ref={mapContainerRef} className="w-full h-full" />
     </>

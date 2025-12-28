@@ -407,7 +407,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             <strong>合計碑文数:</strong> {inscriptionData.count}件
                           </p>
                           <p className="text-[14px] text-[#666] mb-2">
-                            <strong>選択され��地点:</strong> {inscriptionData.places?.length || 0}箇所
+                            <strong>選択された地点:</strong> {inscriptionData.places?.length || 0}箇所
                           </p>
 
                           {/* Place selector for multiple places */}
