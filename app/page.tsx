@@ -27,6 +27,7 @@ interface InscriptionDetailData {
   description: string
   dating: string
   edcsUrl: string
+  iiifManifest3D?: string
   personCount?: number
   relationshipCount?: number
   careerCount?: number

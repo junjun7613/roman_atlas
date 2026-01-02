@@ -1,0 +1,36 @@
+{
+  "SocialStatus": [
+    "http://example.org/status/actor",
+    "http://example.org/status/aedilis",
+    "http://example.org/status/artisan",
+    "http://example.org/status/citizen",
+    "http://example.org/status/consul",
+    "http://example.org/status/curator",
+    "http://example.org/status/decurio",
+    "http://example.org/status/duovir",
+    "http://example.org/status/emperor",
+    "http://example.org/status/empress",
+    "http://example.org/status/equestrian",
+    "http://example.org/status/equestrian-perfectissimus",
+    "http://example.org/status/equestrian-splendidus",
+    "http://example.org/status/flamen",
+    "http://example.org/status/freedman",
+    "http://example.org/status/imperial-family",
+    "http://example.org/status/municipal-magistrate",
+    "http://example.org/status/quaestor",
+    "http://example.org/status/sacerdos",
+    "http://example.org/status/senator-consularis",
+    "http://example.org/status/senator-praetorius",
+    "http://example.org/status/slave",
+    "http://example.org/status/soldier",
+    "http://example.org/status/unknown"
+  ],
+  "RelationshipType": [
+    "http://example.org/relationship-type/affiliation",
+    "http://example.org/relationship-type/colleague",
+    "http://example.org/relationship-type/dedication",
+    "http://example.org/relationship-type/economic",
+    "http://example.org/relationship-type/family",
+    "http://example.org/relationship-type/patronage"
+  ]
+}

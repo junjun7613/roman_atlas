@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { queryInscriptionNetwork, type InscriptionNetworkData } from '../utils/sparql'
 
@@ -19,6 +19,7 @@ interface InscriptionDetailData {
   description: string
   dating: string
   edcsUrl: string
+  iiifManifest3D?: string
   personCount?: number
   relationshipCount?: number
   careerCount?: number
@@ -48,6 +49,142 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [networkLoading, setNetworkLoading] = useState(false)
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
   const inscriptionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+
+  // Store multiple places data when switching to single place view
+  const [savedMultiplePlacesData, setSavedMultiplePlacesData] = useState<InscriptionData | null>(null)
+
+  // When inscriptionData changes from 'multiple' to 'single', save the multiple places data
+  useEffect(() => {
+    if (inscriptionData?.type === 'multiple' && inscriptionData.places && inscriptionData.places.length > 0) {
+      setSavedMultiplePlacesData(inscriptionData)
+    }
+  }, [inscriptionData])
+
+  // Function to return to multiple places list
+  const returnToMultiplePlacesList = () => {
+    if (savedMultiplePlacesData) {
+      const setInscriptionData = (window as any).setInscriptionData
+      if (setInscriptionData) {
+        setInscriptionData(savedMultiplePlacesData)
+      }
+    }
+  }
+
+  // Filter states
+  const [filterType, setFilterType] = useState<'SocialStatus' | 'RelationshipType'>('SocialStatus')
+  const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set())
+  const [availableFilters, setAvailableFilters] = useState<{ [key: string]: string[] }>({})
+  const [inscriptionFilterData, setInscriptionFilterData] = useState<{ [edcsId: string]: { socialStatuses: string[], relationshipTypes: string[] } }>({})
+
+
+  // Load available filters from FilteringData.json
+  useEffect(() => {
+    const loadFilteringData = async () => {
+      try {
+        const response = await fetch('/FilteringData.json')
+        const data = await response.json()
+        setAvailableFilters(data)
+      } catch (error) {
+        console.error('Error loading FilteringData.json:', error)
+      }
+    }
+
+    loadFilteringData()
+  }, [])
+
+  // Extract social statuses and relationship types from inscriptions when data changes
+  useEffect(() => {
+    const loadFilterData = async () => {
+      if (!inscriptionData?.inscriptions || inscriptionData.inscriptions.length === 0) {
+        setInscriptionFilterData({})
+        return
+      }
+
+      const filterDataMap: { [edcsId: string]: { socialStatuses: string[], relationshipTypes: string[] } } = {}
+
+      // Load data for all inscriptions in parallel
+      const promises = inscriptionData.inscriptions.map(async (inscription) => {
+        try {
+          const networkData = await queryInscriptionNetwork(inscription.edcsId)
+          const socialStatuses = new Set<string>()
+          const relationshipTypes = new Set<string>()
+
+          networkData.forEach(data => {
+            if (data.social_status) {
+              // Store full URI
+              socialStatuses.add(data.social_status)
+            }
+            if (data.rel_type) {
+              // Store full URI
+              relationshipTypes.add(data.rel_type)
+            }
+          })
+
+          return {
+            edcsId: inscription.edcsId,
+            socialStatuses: Array.from(socialStatuses),
+            relationshipTypes: Array.from(relationshipTypes)
+          }
+        } catch (error) {
+          console.error(`Error loading filter data for ${inscription.edcsId}:`, error)
+          return { edcsId: inscription.edcsId, socialStatuses: [], relationshipTypes: [] }
+        }
+      })
+
+      // Wait for all queries to complete
+      const results = await Promise.all(promises)
+
+      // Build filterDataMap from results
+      results.forEach(result => {
+        filterDataMap[result.edcsId] = {
+          socialStatuses: result.socialStatuses,
+          relationshipTypes: result.relationshipTypes
+        }
+      })
+
+      setInscriptionFilterData(filterDataMap)
+    }
+
+    loadFilterData()
+  }, [inscriptionData?.inscriptions])
+
+  // Filter inscriptions based on selected filters
+  const filteredInscriptions = useMemo(() => {
+    if (!inscriptionData?.inscriptions) return []
+    if (selectedFilters.size === 0) return inscriptionData.inscriptions
+
+    return inscriptionData.inscriptions.filter(inscription => {
+      const filterData = inscriptionFilterData[inscription.edcsId]
+      if (!filterData) return false
+
+      // Get the appropriate filter values based on filter type
+      const values = filterType === 'SocialStatus'
+        ? filterData.socialStatuses
+        : filterData.relationshipTypes
+
+      if (values.length === 0) return false
+
+      // Show inscription if it has any of the selected filters
+      return values.some(value => selectedFilters.has(value))
+    })
+  }, [inscriptionData?.inscriptions, inscriptionFilterData, selectedFilters, filterType])
+
+  const toggleFilter = (value: string) => {
+    setSelectedFilters(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(value)) {
+        newSet.delete(value)
+      } else {
+        newSet.add(value)
+      }
+      return newSet
+    })
+  }
+
+  // Reset filters when filter type changes
+  useEffect(() => {
+    setSelectedFilters(new Set())
+  }, [filterType])
 
   const handleShowNetwork = async (edcsId: string) => {
     console.log('handleShowNetwork called with edcsId:', edcsId)
@@ -283,30 +420,83 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
               <div>
                 {inscriptionData.type === 'single' ? (
                   <div>
-                    <h3 className="text-[18px] font-semibold mb-4 text-[#333]">
-                      {inscriptionData.placeName}
-                    </h3>
-                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                      <p className="text-[14px] text-[#666] mb-2">
-                        <strong>PLACE ID:</strong> {inscriptionData.placeId}
-                      </p>
-                      {inscriptionData.loading ? (
-                        <p className="text-[14px] text-[#666]">
-                          碑文データを読み込み中...
-                        </p>
-                      ) : (
-                        <p className="text-[14px] text-[#666] mb-4">
-                          <strong>碑文数:</strong> {inscriptionData.count}件
-                        </p>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-[18px] font-semibold text-[#333]">
+                        {inscriptionData.placeName}
+                      </h3>
+                      {savedMultiplePlacesData && (
+                        <button
+                          onClick={returnToMultiplePlacesList}
+                          className="px-3 py-1 text-[13px] bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors"
+                        >
+                          ← 一覧に戻る
+                        </button>
                       )}
+                    </div>
+
+                    {/* 情報とフィルタを横並びに配置 */}
+                    <div className="flex gap-4 mb-4">
+                      {/* 左側: 基本情報 */}
+                      <div className="flex-1 bg-gray-50 p-4 rounded-lg">
+                        <p className="text-[14px] text-[#666] mb-2">
+                          <strong>PLACE ID:</strong> {inscriptionData.placeId}
+                        </p>
+                        {inscriptionData.loading ? (
+                          <p className="text-[14px] text-[#666]">
+                            碑文データを読み込み中...
+                          </p>
+                        ) : (
+                          <p className="text-[14px] text-[#666] mb-0">
+                            <strong>碑文数:</strong> {inscriptionData.count}件
+                          </p>
+                        )}
+                      </div>
+
+                      {/* 右側: フィルタ */}
+                      <div className="flex-1 bg-blue-50 p-4 rounded-lg">
+                        {/* Filter type selector */}
+                        <div className="mb-3">
+                          <select
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value as 'SocialStatus' | 'RelationshipType')}
+                            className="w-full px-2 py-1 border border-gray-300 rounded text-[13px] bg-white"
+                          >
+                            <option value="SocialStatus">社会的身分で絞り込み</option>
+                            <option value="RelationshipType">関係性で絞り込み</option>
+                          </select>
+                        </div>
+                        {availableFilters[filterType]?.length > 0 ? (
+                          <div className="space-y-2 max-h-[120px] overflow-y-auto">
+                            {availableFilters[filterType].map(filterUri => {
+                              // Extract label from URI (e.g., "http://example.org/status/emperor" -> "emperor")
+                              const filterLabel = filterUri.split('/').pop() || filterUri
+                              return (
+                                <label key={filterUri} className="flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    className="mr-2 cursor-pointer w-4 h-4"
+                                    checked={selectedFilters.has(filterUri)}
+                                    onChange={() => toggleFilter(filterUri)}
+                                  />
+                                  <span className="text-[13px] text-[#555]">{filterLabel}</span>
+                                </label>
+                              )
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-[12px] text-[#666]">フィルタデータがありません</p>
+                        )}
+                      </div>
                     </div>
 
                     {/* Display inscription details OR network visualization */}
                     {!inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
                       <div className="mt-4">
-                        <h4 className="text-[16px] font-semibold mb-3 text-[#333]">碑文一覧</h4>
+                        <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
+                          碑文一覧 ({filteredInscriptions.length}件{selectedFilters.size > 0 ? ` / ${inscriptionData.inscriptions.length}件中` : ''})
+                        </h4>
                         <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
-                          {inscriptionData.inscriptions.map((inscription, index) => (
+                          {filteredInscriptions.map((inscription, index) => (
                             <div
                               key={index}
                               ref={(el) => { inscriptionRefs.current[inscription.edcsId] = el }}
@@ -353,24 +543,42 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 <div><strong>経歴:</strong> {inscription.careerCount || 0}</div>
                                 <div><strong>恵与:</strong> {inscription.benefactionCount || 0}</div>
                               </div>
-                              <button
-                                onClick={() => handleShowNetwork(inscription.edcsId)}
-                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                                title="ネットワーク表示"
-                                aria-label="ネットワーク表示"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
-                                  <circle cx="12" cy="12" r="2" />
-                                  <circle cx="6" cy="6" r="2" />
-                                  <circle cx="18" cy="6" r="2" />
-                                  <circle cx="6" cy="18" r="2" />
-                                  <circle cx="18" cy="18" r="2" />
-                                  <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" />
-                                  <line x1="13.5" y1="10.5" x2="16.5" y2="7.5" />
-                                  <line x1="7.5" y1="16.5" x2="10.5" y2="13.5" />
-                                  <line x1="13.5" y1="13.5" x2="16.5" y2="16.5" />
-                                </svg>
-                              </button>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleShowNetwork(inscription.edcsId)}
+                                  className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                  title="ネットワーク表示"
+                                  aria-label="ネットワーク表示"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
+                                    <circle cx="12" cy="12" r="2" />
+                                    <circle cx="6" cy="6" r="2" />
+                                    <circle cx="18" cy="6" r="2" />
+                                    <circle cx="6" cy="18" r="2" />
+                                    <circle cx="18" cy="18" r="2" />
+                                    <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" />
+                                    <line x1="13.5" y1="10.5" x2="16.5" y2="7.5" />
+                                    <line x1="7.5" y1="16.5" x2="10.5" y2="13.5" />
+                                    <line x1="13.5" y1="13.5" x2="16.5" y2="16.5" />
+                                  </svg>
+                                </button>
+                                {inscription.iiifManifest3D && (
+                                  <a
+                                    href={`https://3-d-annotation-viewer.vercel.app/?manifest=${encodeURIComponent(inscription.iiifManifest3D)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors inline-flex"
+                                    title="3Dモデル表示"
+                                    aria-label="3Dモデル表示"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                                      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                                      <line x1="12" y1="22.08" x2="12" y2="12" />
+                                    </svg>
+                                  </a>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -444,9 +652,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {/* Display inscription details for selected place */}
                     {!inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
                       <div className="mt-4">
-                        <h4 className="text-[16px] font-semibold mb-3 text-[#333]">碑文一覧</h4>
+                        <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
+                          碑文一覧 ({filteredInscriptions.length}件{selectedFilters.size > 0 ? ` / ${inscriptionData.inscriptions.length}件中` : ''})
+                        </h4>
                         <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
-                          {inscriptionData.inscriptions.map((inscription, index) => (
+                          {filteredInscriptions.map((inscription, index) => (
                             <div
                               key={index}
                               ref={(el) => { inscriptionRefs.current[inscription.edcsId] = el }}
@@ -493,24 +703,42 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 <div><strong>経歴:</strong> {inscription.careerCount || 0}</div>
                                 <div><strong>恵与:</strong> {inscription.benefactionCount || 0}</div>
                               </div>
-                              <button
-                                onClick={() => handleShowNetwork(inscription.edcsId)}
-                                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                                title="ネットワーク表示"
-                                aria-label="ネットワーク表示"
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
-                                  <circle cx="12" cy="12" r="2" />
-                                  <circle cx="6" cy="6" r="2" />
-                                  <circle cx="18" cy="6" r="2" />
-                                  <circle cx="6" cy="18" r="2" />
-                                  <circle cx="18" cy="18" r="2" />
-                                  <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" />
-                                  <line x1="13.5" y1="10.5" x2="16.5" y2="7.5" />
-                                  <line x1="7.5" y1="16.5" x2="10.5" y2="13.5" />
-                                  <line x1="13.5" y1="13.5" x2="16.5" y2="16.5" />
-                                </svg>
-                              </button>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleShowNetwork(inscription.edcsId)}
+                                  className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                  title="ネットワーク表示"
+                                  aria-label="ネットワーク表示"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
+                                    <circle cx="12" cy="12" r="2" />
+                                    <circle cx="6" cy="6" r="2" />
+                                    <circle cx="18" cy="6" r="2" />
+                                    <circle cx="6" cy="18" r="2" />
+                                    <circle cx="18" cy="18" r="2" />
+                                    <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" />
+                                    <line x1="13.5" y1="10.5" x2="16.5" y2="7.5" />
+                                    <line x1="7.5" y1="16.5" x2="10.5" y2="13.5" />
+                                    <line x1="13.5" y1="13.5" x2="16.5" y2="16.5" />
+                                  </svg>
+                                </button>
+                                {inscription.iiifManifest3D && (
+                                  <a
+                                    href={`https://3-d-annotation-viewer.vercel.app/?manifest=${encodeURIComponent(inscription.iiifManifest3D)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors inline-flex"
+                                    title="3Dモデル表示"
+                                    aria-label="3Dモデル表示"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                                      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                                      <line x1="12" y1="22.08" x2="12" y2="12" />
+                                    </svg>
+                                  </a>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>

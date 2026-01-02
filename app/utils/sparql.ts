@@ -21,6 +21,7 @@ export interface InscriptionDetail {
   description: string
   dating: string
   edcsUrl: string
+  iiifManifest3D?: string
   personCount?: number
   relationshipCount?: number
   careerCount?: number
@@ -33,6 +34,7 @@ export interface InscriptionNetworkData {
   person_name?: string
   person_label?: string
   normalized_name?: string
+  social_status?: string
   community?: string
   community_label?: string
   relationship?: string
@@ -194,7 +196,7 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
-    SELECT ?inscription ?text ?comment ?datingFrom ?datingTo
+    SELECT ?inscription ?text ?comment ?datingFrom ?datingTo ?iiifManifest3D
       (COALESCE(?personCount, 0) AS ?personCount)
       (COALESCE(?relationshipCount, 0) AS ?relationshipCount)
       (COALESCE(?careerCount, 0) AS ?careerCount)
@@ -213,6 +215,7 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
       OPTIONAL { ?inscription rdfs:comment ?comment }
       OPTIONAL { ?inscription epig:datingFrom ?datingFrom }
       OPTIONAL { ?inscription epig:datingTo ?datingTo }
+      OPTIONAL { ?inscription epig:IIIFManifest3D ?iiifManifest3D }
 
       OPTIONAL {
         SELECT ?inscription (COUNT(DISTINCT ?person) AS ?personCount)
@@ -321,11 +324,15 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
         const careerCount = binding.careerCount ? parseInt(binding.careerCount.value, 10) : 0
         const benefactionCount = binding.benefactionCount ? parseInt(binding.benefactionCount.value, 10) : 0
 
+        // Extract IIIF Manifest 3D URL
+        const iiifManifest3D = binding.iiifManifest3D ? binding.iiifManifest3D.value : undefined
+
         return {
           edcsId: edcsId,
           description: description,
           dating: dating,
           edcsUrl: `https://db.edcs.eu/epigr/epi_url.php?s_sprache=en&p_edcs_id=${edcsId}`,
+          iiifManifest3D: iiifManifest3D,
           personCount: personCount,
           relationshipCount: relationshipCount,
           careerCount: careerCount,
@@ -421,6 +428,58 @@ export async function queryCustomPlaces(): Promise<CustomPlace[]> {
 }
 
 /**
+ * Query all unique relationship types from SPARQL endpoint
+ */
+export async function queryAllRelationshipTypes(): Promise<string[]> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+
+  const query = `
+    PREFIX epig: <http://example.org/epigraphy/>
+
+    SELECT DISTINCT ?relationshipType
+    WHERE {
+      ?relationship a epig:Relationship .
+      ?relationship epig:relationshipType ?relationshipType .
+    }
+    ORDER BY ?relationshipType
+  `
+
+  console.log('Querying all relationship types from SPARQL endpoint')
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/sparql-results+json'
+      },
+      body: `query=${encodeURIComponent(query)}`
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('SPARQL error response:', errorText)
+      throw new Error(`SPARQL query failed: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('SPARQL relationship types response:', data)
+
+    if (data.results && data.results.bindings && data.results.bindings.length > 0) {
+      const types = data.results.bindings.map((binding: any) => binding.relationshipType?.value).filter(Boolean)
+      console.log('Relationship types count:', types.length)
+      return types
+    }
+
+    console.log('No relationship types found')
+    return []
+  } catch (error) {
+    console.error('Error querying relationship types from SPARQL endpoint:', error)
+    return []
+  }
+}
+
+/**
  * Query inscription network data (persons, communities, relationships, careers, benefactions) from SPARQL endpoint
  */
 export async function queryInscriptionNetwork(edcsId: string): Promise<InscriptionNetworkData[]> {
@@ -441,6 +500,7 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
         ?person_name
         ?person_label
         ?normalized_name
+        ?social_status
         ?community
         ?community_label
         ?relationship
@@ -469,6 +529,7 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
             OPTIONAL { ?person foaf:name ?person_name . }
             OPTIONAL { ?person rdfs:label ?person_label . }
             OPTIONAL { ?person epig:normalizedName ?normalized_name . }
+            OPTIONAL { ?person epig:socialStatus ?social_status . }
 
             OPTIONAL {
                 ?person epig:hasCareerPosition ?career_position .
@@ -533,6 +594,7 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
         person_name: binding.person_name?.value,
         person_label: binding.person_label?.value,
         normalized_name: binding.normalized_name?.value,
+        social_status: binding.social_status?.value,
         community: binding.community?.value,
         community_label: binding.community_label?.value,
         relationship: binding.relationship?.value,

@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import 'leaflet.markercluster'
-import { queryInscriptionsByPlaceId, queryInscriptionsByPlaceIds, queryCustomPlaces, queryInscriptionDetails } from '../utils/sparql'
+import { queryInscriptionsByPlaceId, queryCustomPlaces, queryInscriptionDetails } from '../utils/sparql'
 
 // Leafletのデフォルトマーカーアイコンの修正
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -34,6 +34,16 @@ export default function LeafletMap() {
   const [hasRectangle, setHasRectangle] = useState(false)
   const rectangleLayerRef = useRef<L.Rectangle | null>(null)
   const drawingStartRef = useRef<L.LatLng | null>(null)
+
+  // Circle selection state
+  const [isCircleDrawingMode, setIsCircleDrawingMode] = useState(false)
+  const [hasCircle, setHasCircle] = useState(false)
+  const circleLayerRef = useRef<L.Circle | null>(null)
+  const circleStartRef = useRef<L.LatLng | null>(null)
+
+  // Distance display states
+  const [rectangleDistances, setRectangleDistances] = useState<{ width: number; height: number } | null>(null)
+  const [circleRadius, setCircleRadius] = useState<number | null>(null)
 
   // イベントリスナーを保存するref
   const eventListenersRef = useRef<Array<{element: HTMLElement, event: string, handler: EventListener}>>([])
@@ -789,6 +799,7 @@ export default function LeafletMap() {
       mapRef.current.removeLayer(rectangleLayerRef.current)
       rectangleLayerRef.current = null
       setHasRectangle(false)
+      setRectangleDistances(null)
       return
     }
 
@@ -800,6 +811,30 @@ export default function LeafletMap() {
       mapRef.current.removeLayer(rectangleLayerRef.current)
       rectangleLayerRef.current = null
       setHasRectangle(false)
+      setRectangleDistances(null)
+    }
+  }
+
+  // Toggle circle selection mode or clear circle
+  const toggleCircleDrawingMode = () => {
+    // If circle exists, clear it
+    if (hasCircle && circleLayerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(circleLayerRef.current)
+      circleLayerRef.current = null
+      setHasCircle(false)
+      setCircleRadius(null)
+      return
+    }
+
+    // Otherwise, toggle circle drawing mode
+    const newMode = !isCircleDrawingMode
+    setIsCircleDrawingMode(newMode)
+
+    if (!newMode && circleLayerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(circleLayerRef.current)
+      circleLayerRef.current = null
+      setHasCircle(false)
+      setCircleRadius(null)
     }
   }
 
@@ -863,6 +898,16 @@ export default function LeafletMap() {
       })
       rectangleLayerRef.current.addTo(map)
 
+      // Calculate rectangle dimensions
+      const northEast = bounds.getNorthEast()
+      const southWest = bounds.getSouthWest()
+      const northWest = L.latLng(northEast.lat, southWest.lng)
+
+      const width = northWest.distanceTo(northEast) // meters
+      const height = northWest.distanceTo(southWest) // meters
+
+      setRectangleDistances({ width, height })
+
       // Find all places within bounds
       await queryPlacesInBounds(bounds)
 
@@ -889,6 +934,100 @@ export default function LeafletMap() {
       }
     }
   }, [isDrawingMode])
+
+  // Handle circle selection
+  useEffect(() => {
+    if (!mapRef.current || !isCircleDrawingMode) return
+
+    const map = mapRef.current
+    let isDrawing = false
+    let centerLatLng: L.LatLng | null = null
+    let currentCircle: L.Circle | null = null
+
+    const onMouseDown = (e: L.LeafletMouseEvent) => {
+      if (!isCircleDrawingMode) return
+      isDrawing = true
+      centerLatLng = e.latlng
+      circleStartRef.current = e.latlng
+
+      // Remove previous circle if exists
+      if (currentCircle) {
+        map.removeLayer(currentCircle)
+      }
+      if (circleLayerRef.current) {
+        map.removeLayer(circleLayerRef.current)
+      }
+    }
+
+    const onMouseMove = (e: L.LeafletMouseEvent) => {
+      if (!isDrawing || !centerLatLng) return
+
+      // Remove previous temp circle
+      if (currentCircle) {
+        map.removeLayer(currentCircle)
+      }
+
+      // Calculate radius from center to current mouse position
+      const radius = centerLatLng.distanceTo(e.latlng)
+
+      // Create new circle
+      currentCircle = L.circle(centerLatLng, {
+        radius: radius,
+        color: '#ff8833',
+        weight: 2,
+        fillOpacity: 0.1
+      })
+      currentCircle.addTo(map)
+    }
+
+    const onMouseUp = async (e: L.LeafletMouseEvent) => {
+      if (!isDrawing || !centerLatLng) return
+      isDrawing = false
+
+      // Calculate final radius
+      const radius = centerLatLng.distanceTo(e.latlng)
+
+      if (currentCircle) {
+        map.removeLayer(currentCircle)
+      }
+
+      circleLayerRef.current = L.circle(centerLatLng, {
+        radius: radius,
+        color: '#ff8833',
+        weight: 2,
+        fillOpacity: 0.2
+      })
+      circleLayerRef.current.addTo(map)
+
+      // Store circle radius for display
+      setCircleRadius(radius)
+
+      // Find all places within circle
+      await queryPlacesInCircle(centerLatLng, radius)
+
+      // Exit drawing mode and mark that circle exists
+      setIsCircleDrawingMode(false)
+      setHasCircle(true)
+    }
+
+    map.on('mousedown', onMouseDown)
+    map.on('mousemove', onMouseMove)
+    map.on('mouseup', onMouseUp)
+
+    // Change cursor when in drawing mode
+    if (mapContainerRef.current) {
+      mapContainerRef.current.style.cursor = 'crosshair'
+    }
+
+    return () => {
+      map.off('mousedown', onMouseDown)
+      map.off('mousemove', onMouseMove)
+      map.off('mouseup', onMouseUp)
+      if (mapContainerRef.current) {
+        mapContainerRef.current.style.cursor = ''
+      }
+    }
+  }, [isCircleDrawingMode])
 
   // Function to load inscriptions for a selected place
   const loadInscriptionsForPlace = async (placeId: string, placeName: string, customLocationId?: string) => {
@@ -929,8 +1068,102 @@ export default function LeafletMap() {
   }, [])
 
   // Query all places within bounds
+  // Function to query places within a circle
+  const queryPlacesInCircle = async (center: L.LatLng, radiusInMeters: number) => {
+    const placesInCircle: Array<{ name: string; id: string; latlng: L.LatLng; customLocationId?: string }> = []
+
+    // Check all place layers
+    Object.keys(layersRef.current).forEach(layerKey => {
+      if (!layerKey.startsWith('pleiades')) return
+
+      const layer = layersRef.current[layerKey]
+      if (!layer) return
+
+      // Check if layer is on map (visible)
+      if (!mapRef.current?.hasLayer(layer)) return
+
+      layer.eachLayer((marker: any) => {
+        if (marker instanceof L.Marker) {
+          const markerLatLng = marker.getLatLng()
+          const distance = center.distanceTo(markerLatLng)
+
+          if (distance <= radiusInMeters) {
+            // Extract place info from marker
+            const popup = marker.getPopup()
+            if (popup) {
+              const content = popup.getContent() as string
+              // Extract place name and ID from popup HTML
+              const nameMatch = content.match(/<h3[^>]*>([^<]+)<\/h3>/)
+              const pleiadesIdMatch = content.match(/Pleiades ID:\s*(\d+)/)
+              const customIdMatch = content.match(/ID:\s*([^\s<]+)/)
+
+              const name = nameMatch ? nameMatch[1] : 'Unknown'
+              const pleiadesId = pleiadesIdMatch ? pleiadesIdMatch[1] : null
+              const customId = customIdMatch ? customIdMatch[1] : null
+
+              if (pleiadesId || customId) {
+                placesInCircle.push({
+                  name: name,
+                  id: pleiadesId || customId || '',
+                  latlng: markerLatLng,
+                  customLocationId: customId || undefined
+                })
+              }
+            }
+          }
+        }
+      })
+    })
+
+    console.log('Places in circle:', placesInCircle)
+
+    if (placesInCircle.length === 0) {
+      const setInscriptionData = (window as any).setInscriptionData
+      if (setInscriptionData) {
+        setInscriptionData({
+          type: 'multiple',
+          count: 0,
+          loading: false,
+          places: []
+        })
+      }
+      return
+    }
+
+    // Query inscription counts for all places
+    const setInscriptionData = (window as any).setInscriptionData
+    if (setInscriptionData) {
+      setInscriptionData({
+        type: 'multiple',
+        count: 0,
+        loading: true,
+        places: []
+      })
+
+      const placeDetails = await Promise.all(
+        placesInCircle.map(async (place) => {
+          const count = await queryInscriptionsByPlaceId(place.id, place.customLocationId)
+          return {
+            placeName: place.name,
+            placeId: place.id,
+            count: count
+          }
+        })
+      )
+
+      const totalCount = placeDetails.reduce((sum, place) => sum + place.count, 0)
+
+      setInscriptionData({
+        type: 'multiple',
+        count: totalCount,
+        loading: false,
+        places: placeDetails
+      })
+    }
+  }
+
   const queryPlacesInBounds = async (bounds: L.LatLngBounds) => {
-    const placesInBounds: Array<{ name: string; id: string; latlng: L.LatLng }> = []
+    const placesInBounds: Array<{ name: string; id: string; latlng: L.LatLng; customLocationId?: string }> = []
 
     // Check all place layers
     Object.keys(layersRef.current).forEach(layerKey => {
@@ -952,13 +1185,19 @@ export default function LeafletMap() {
               const content = popup.getContent() as string
               // Extract place name and ID from popup HTML
               const nameMatch = content.match(/<h3[^>]*>([^<]+)<\/h3>/)
-              const idMatch = content.match(/Pleiades ID:\s*(\d+)/)
+              const pleiadesIdMatch = content.match(/Pleiades ID:\s*(\d+)/)
+              const customIdMatch = content.match(/ID:\s*([^\s<]+)/)
 
-              if (nameMatch && idMatch) {
+              const name = nameMatch ? nameMatch[1] : 'Unknown'
+              const pleiadesId = pleiadesIdMatch ? pleiadesIdMatch[1] : null
+              const customId = customIdMatch ? customIdMatch[1] : null
+
+              if (pleiadesId || customId) {
                 placesInBounds.push({
-                  name: nameMatch[1],
-                  id: idMatch[1],
-                  latlng: markerLatLng
+                  name: name,
+                  id: pleiadesId || customId || '',
+                  latlng: markerLatLng,
+                  customLocationId: customId || undefined
                 })
               }
             }
@@ -992,19 +1231,17 @@ export default function LeafletMap() {
         places: []
       })
 
-      // Query inscriptions for all places
-      const placeIds = placesInBounds.map(p => p.id)
-      const results = await queryInscriptionsByPlaceIds(placeIds)
-
-      // Create place details with counts
-      const placeDetails = placesInBounds.map(place => {
-        const result = results.find(r => r.placeId === place.id)
-        return {
-          placeName: place.name,
-          placeId: place.id,
-          count: result ? result.count : 0
-        }
-      })
+      // Query inscription counts for all places (with custom location support)
+      const placeDetails = await Promise.all(
+        placesInBounds.map(async (place) => {
+          const count = await queryInscriptionsByPlaceId(place.id, place.customLocationId)
+          return {
+            placeName: place.name,
+            placeId: place.id,
+            count: count
+          }
+        })
+      )
 
       // Calculate total count
       const totalCount = placeDetails.reduce((sum, place) => sum + place.count, 0)
@@ -1035,6 +1272,53 @@ export default function LeafletMap() {
       >
         {isDrawingMode ? '選択中...' : hasRectangle ? '矩形解除' : '矩形選択'}
       </button>
+
+      {/* Circle selection button */}
+      <button
+        onClick={toggleCircleDrawingMode}
+        className={`absolute top-36 left-4 z-[1000] px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
+          isCircleDrawingMode
+            ? 'bg-orange-500 text-white'
+            : hasCircle
+            ? 'bg-red-500 text-white hover:bg-red-600'
+            : 'bg-white text-gray-700 hover:bg-gray-100'
+        }`}
+        title={hasCircle ? '円形解除' : '円形選択モード'}
+      >
+        {isCircleDrawingMode ? '選択中...' : hasCircle ? '円形解除' : '円形選択'}
+      </button>
+
+      {/* Distance display */}
+      {(rectangleDistances || circleRadius !== null) && (
+        <div className="absolute bottom-4 right-4 z-[1000] bg-white px-4 py-2 rounded-lg shadow-lg text-sm">
+          {rectangleDistances && (
+            <div>
+              <div className="font-medium text-gray-700">矩形サイズ:</div>
+              <div className="text-gray-600">
+                幅: {rectangleDistances.width >= 1000
+                  ? `${(rectangleDistances.width / 1000).toFixed(2)} km`
+                  : `${rectangleDistances.width.toFixed(0)} m`}
+              </div>
+              <div className="text-gray-600">
+                高さ: {rectangleDistances.height >= 1000
+                  ? `${(rectangleDistances.height / 1000).toFixed(2)} km`
+                  : `${rectangleDistances.height.toFixed(0)} m`}
+              </div>
+            </div>
+          )}
+          {circleRadius !== null && (
+            <div>
+              <div className="font-medium text-gray-700">円形半径:</div>
+              <div className="text-gray-600">
+                {circleRadius >= 1000
+                  ? `${(circleRadius / 1000).toFixed(2)} km`
+                  : `${circleRadius.toFixed(0)} m`}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div ref={mapContainerRef} className="w-full h-full" />
     </>
   )
