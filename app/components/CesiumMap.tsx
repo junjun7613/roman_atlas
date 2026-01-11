@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { queryInscriptionsByPlaceId, queryInscriptionDetails } from '../utils/sparql'
 
 export default function CesiumMap() {
@@ -8,6 +8,20 @@ export default function CesiumMap() {
   const viewerRef = useRef<any>(null)
   const eventListenersRef = useRef<Array<{element: HTMLElement, event: string, handler: EventListener}>>([])
   const cesiumRef = useRef<any>(null)
+
+  // Time slider states
+  const [timeStart, setTimeStart] = useState(-800)
+  const [timeEnd, setTimeEnd] = useState(800)
+  const [showTimeSlider, setShowTimeSlider] = useState(false)
+
+  // Input field states (for editing)
+  const [timeStartInput, setTimeStartInput] = useState('-800')
+  const [timeEndInput, setTimeEndInput] = useState('800')
+
+  // Store place event listeners in window for cleanup
+  if (typeof window !== 'undefined' && !(window as any).cesiumPlaceEventListeners) {
+    (window as any).cesiumPlaceEventListeners = []
+  }
 
   useEffect(() => {
     const addEventListenerTracked = (elementId: string, eventType: string, handler: EventListener) => {
@@ -329,8 +343,219 @@ export default function CesiumMap() {
     }
   }, [])
 
+  // Time slider effect - reload places when time range changes
+  useEffect(() => {
+    if (!viewerRef.current || !cesiumRef.current) return
+    if (!showTimeSlider) return
+
+    const viewer = viewerRef.current
+    const Cesium = cesiumRef.current
+
+    console.log('Cesium: Reloading places with time filter:', timeStart, 'to', timeEnd)
+
+    // Save checkbox states before clearing
+    const typeConfigs = [
+      { key: 'settlement', toggle: 'toggleSettlements' },
+      { key: 'villa', toggle: 'toggleVillas' },
+      { key: 'fort', toggle: 'toggleForts' },
+      { key: 'temple', toggle: 'toggleTemples' },
+      { key: 'station', toggle: 'toggleStations' },
+      { key: 'archaeological', toggle: 'toggleArchaeological' },
+      { key: 'cemetery', toggle: 'toggleCemetery' },
+      { key: 'sanctuary', toggle: 'toggleSanctuary' },
+      { key: 'bridge', toggle: 'toggleBridge' },
+      { key: 'aqueduct', toggle: 'toggleAqueduct' },
+      { key: 'church', toggle: 'toggleChurch' },
+      { key: 'bath', toggle: 'toggleBath' },
+      { key: 'quarry', toggle: 'toggleQuarry' },
+      { key: 'port', toggle: 'togglePort' },
+      { key: 'theater', toggle: 'toggleTheater' },
+      { key: 'amphitheatre', toggle: 'toggleAmphitheatre' }
+    ]
+
+    const checkboxStates: { [key: string]: boolean } = {}
+    typeConfigs.forEach(config => {
+      const checkbox = document.getElementById(config.toggle) as HTMLInputElement
+      if (checkbox) {
+        checkboxStates[config.key] = checkbox.checked
+      }
+    })
+
+    // Clear existing place event listeners
+    if ((window as any).cesiumPlaceEventListeners) {
+      (window as any).cesiumPlaceEventListeners.forEach(({ element, event, handler }: any) => {
+        element.removeEventListener(event, handler)
+      })
+      ;(window as any).cesiumPlaceEventListeners = []
+    }
+
+    // Remove existing place data sources using window global array
+    if ((window as any).placeDataSources) {
+      (window as any).placeDataSources.forEach((dataSource: any) => {
+        viewer.dataSources.remove(dataSource)
+      })
+      // Clean up window references
+      const windowObj = window as any
+      const keys = Object.keys(windowObj).filter((key: string) => key.startsWith('pleiades') && key.endsWith('DataSource'))
+      keys.forEach((key: string) => {
+        delete windowObj[key]
+      })
+      windowObj.placeDataSources = []
+    }
+
+    // Create a function to track data sources
+    const addEventListenerTracked = (elementId: string, eventType: string, handler: EventListener) => {
+      const element = document.getElementById(elementId)
+      if (element) {
+        element.addEventListener(eventType, handler)
+      }
+    }
+
+    // Reload places with time filter
+    loadPleiadesPlaces(Cesium, viewer, addEventListenerTracked, timeStart, timeEnd)
+
+    // Restore checkbox states - retry until data sources are loaded
+    const restoreCheckboxes = (attempt: number = 0) => {
+      if (attempt > 20) {
+        console.log('Cesium: Failed to restore checkboxes after 20 attempts')
+        console.log('Cesium: Final checkbox states were:', checkboxStates)
+        return
+      }
+
+      let allLoaded = true
+      const missingDataSources: string[] = []
+
+      typeConfigs.forEach(config => {
+        if (checkboxStates[config.key]) {
+          const dataSource = (window as any)[`pleiades${config.key}DataSource`]
+          if (!dataSource) {
+            allLoaded = false
+            missingDataSources.push(config.key)
+          }
+        }
+      })
+
+      if (!allLoaded) {
+        console.log(`Cesium: Attempt ${attempt + 1}: Waiting for data sources: ${missingDataSources.join(', ')}`)
+        setTimeout(() => restoreCheckboxes(attempt + 1), 200)
+        return
+      }
+
+      console.log('Cesium: All data sources loaded, restoring checkbox states:', checkboxStates)
+
+      typeConfigs.forEach(config => {
+        const checkbox = document.getElementById(config.toggle) as HTMLInputElement
+        const dataSource = (window as any)[`pleiades${config.key}DataSource`]
+
+        if (checkbox && checkboxStates[config.key] && dataSource) {
+          console.log(`Cesium: Restoring checkbox for ${config.key}, setting dataSource.show to true`)
+          // Directly set the dataSource.show property instead of relying on event dispatch
+          dataSource.show = true
+          checkbox.checked = true
+          console.log(`Cesium: DataSource ${config.key} show state:`, dataSource.show)
+          console.log(`Cesium: DataSource ${config.key} entities count:`, dataSource.entities.values.length)
+          console.log(`Cesium: DataSource ${config.key} in viewer:`, viewer.dataSources.contains(dataSource))
+        } else if (checkbox && !checkboxStates[config.key]) {
+          // Ensure unchecked items stay unchecked
+          checkbox.checked = false
+          if (dataSource) {
+            dataSource.show = false
+          }
+        }
+      })
+    }
+
+    restoreCheckboxes()
+  }, [timeStart, timeEnd])
+
   return (
-    <div ref={cesiumContainerRef} className="w-full h-full" />
+    <>
+      {/* Top button group - aligned with 2D/3D switcher */}
+      <div className="absolute top-4 left-[280px] z-[1000] flex gap-2">
+        {/* Time filter toggle button */}
+        <button
+          onClick={() => setShowTimeSlider(!showTimeSlider)}
+          className={`px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
+            showTimeSlider
+              ? 'bg-purple-500 text-white hover:bg-purple-600'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
+          title="時代フィルタ表示切替"
+        >
+          {showTimeSlider ? 'フィルタ非表示' : '時代フィルタ'}
+        </button>
+      </div>
+
+      {/* Time Filter */}
+      {showTimeSlider && (
+        <div className="absolute bottom-4 left-4 z-[1000] bg-white px-6 py-3 rounded-lg shadow-lg" style={{ width: '300px' }}>
+          <div className="text-sm font-medium text-gray-700 mb-3">時代範囲フィルタ</div>
+          <div className="flex gap-4 items-center">
+            <div className="flex-1">
+              <label className="text-xs text-gray-600 block mb-1">開始年</label>
+              <input
+                type="text"
+                value={timeStartInput}
+                onChange={(e) => {
+                  setTimeStartInput(e.target.value)
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value
+                  const newStart = parseInt(value)
+                  if (!isNaN(newStart)) {
+                    setTimeStart(newStart)
+                    setTimeStartInput(newStart.toString())
+                    console.log('Time range:', newStart, 'to', timeEnd)
+                  } else {
+                    // Reset to current value if invalid
+                    setTimeStartInput(timeStart.toString())
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur()
+                  }
+                }}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                placeholder="-800"
+              />
+            </div>
+            <div className="text-gray-500 mt-5">〜</div>
+            <div className="flex-1">
+              <label className="text-xs text-gray-600 block mb-1">終了年</label>
+              <input
+                type="text"
+                value={timeEndInput}
+                onChange={(e) => {
+                  setTimeEndInput(e.target.value)
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value
+                  const newEnd = parseInt(value)
+                  if (!isNaN(newEnd)) {
+                    setTimeEnd(newEnd)
+                    setTimeEndInput(newEnd.toString())
+                    console.log('Time range:', timeStart, 'to', newEnd)
+                  } else {
+                    // Reset to current value if invalid
+                    setTimeEndInput(timeEnd.toString())
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur()
+                  }
+                }}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                placeholder="800"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div ref={cesiumContainerRef} className="w-full h-full" />
+    </>
   )
 }
 
@@ -517,7 +742,7 @@ function setupRouteEntity(entity: any, Cesium: any) {
   }
 }
 
-function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (elementId: string, eventType: string, handler: EventListener) => void) {
+function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (elementId: string, eventType: string, handler: EventListener) => void, filterTimeStart?: number, filterTimeEnd?: number) {
   // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル
   const placesUrl = process.env.NEXT_PUBLIC_PLACES_URL
     ? '/api/data/places'
@@ -541,6 +766,25 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
         const placeTypes = place.placeTypes || []
         const reprPoint = place.reprPoint
         if (!reprPoint) return
+
+        // Time filtering logic
+        if (filterTimeStart !== undefined && filterTimeEnd !== undefined) {
+          const placeStart = place.start_date
+          const placeEnd = place.end_date
+
+          // If place has date information, check if it overlaps with filter range
+          if (placeStart !== undefined || placeEnd !== undefined) {
+            // Check if there's any overlap between place period and filter range
+            const actualStart = placeStart !== undefined ? placeStart : -Infinity
+            const actualEnd = placeEnd !== undefined ? placeEnd : Infinity
+
+            // No overlap if place ends before filter starts or place starts after filter ends
+            if (actualEnd < filterTimeStart || actualStart > filterTimeEnd) {
+              return // Skip this place
+            }
+          }
+          // If place has no date information, include it (as per requirement)
+        }
 
         const feature = {
           type: 'Feature',
@@ -592,6 +836,17 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
         { key: 'amphitheatre', color: Cesium.Color.CRIMSON, name: '円形闘技場', toggle: 'toggleAmphitheatre' }
       ]
 
+      // Log filtering results
+      if (filterTimeStart !== undefined && filterTimeEnd !== undefined) {
+        console.log(`Cesium: Time filtering active (${filterTimeStart} to ${filterTimeEnd}). Places by type:`)
+        typeConfigs.forEach(config => {
+          const count = placesByType[config.key].length
+          if (count > 0) {
+            console.log(`  ${config.name} (${config.key}): ${count} places`)
+          }
+        })
+      }
+
       typeConfigs.forEach(config => {
         const geojson = { type: 'FeatureCollection', features: placesByType[config.key] }
         if (geojson.features.length === 0) return
@@ -601,18 +856,35 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
           markerSize: 24,
           clampToGround: true
         }).then((dataSource: any) => {
+          console.log(`Cesium: Loaded ${config.key} dataSource with ${dataSource.entities.values.length} entities`)
           // @ts-ignore
           window[`pleiades${config.key}DataSource`] = dataSource
+          // Store in global tracking array for time filtering
+          if (!(window as any).placeDataSources) {
+            (window as any).placeDataSources = []
+          }
+          (window as any).placeDataSources.push(dataSource)
+
           dataSource.show = false
           viewer.dataSources.add(dataSource)
 
           const entities = dataSource.entities.values
+          console.log(`Cesium: Processing ${entities.length} entities for ${config.key}`)
           for (let i = 0; i < entities.length; i++) {
             const entity = entities[i]
             if (entity.billboard) {
+              entity.billboard.show = true
               entity.billboard.color = config.color.withAlpha(0.8)
               entity.billboard.scale = 0.5
               entity.billboard.heightReference = Cesium.HeightReference.CLAMP_TO_GROUND
+              if (i === 0) {
+                console.log(`Cesium: First entity billboard configured for ${config.key}:`, {
+                  show: entity.billboard.show ? entity.billboard.show.getValue() : 'undefined',
+                  scale: entity.billboard.scale ? entity.billboard.scale.getValue() : 'undefined'
+                })
+              }
+            } else if (i === 0) {
+              console.log(`Cesium: Warning - First entity in ${config.key} has no billboard`)
             }
 
             if (entity.properties) {
@@ -671,9 +943,22 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
             }
           }
 
-          addEventListenerTracked(config.toggle, 'change', (e: any) => {
+          // Track place event listeners separately for cleanup
+          const handler = (e: any) => {
+            console.log(`Cesium: Checkbox ${config.key} changed to:`, e.target.checked)
             dataSource.show = e.target.checked
-          })
+            console.log(`Cesium: DataSource ${config.key} show set to:`, dataSource.show)
+          }
+          const element = document.getElementById(config.toggle)
+          if (element) {
+            console.log(`Cesium: Setting up event listener for ${config.key} toggle`)
+            element.addEventListener('change', handler)
+            if ((window as any).cesiumPlaceEventListeners) {
+              (window as any).cesiumPlaceEventListeners.push({ element, event: 'change', handler })
+            }
+          } else {
+            console.log(`Cesium: Warning - toggle element not found for ${config.key}`)
+          }
         })
       })
     })
@@ -838,9 +1123,13 @@ function loadCustomPlaces(Cesium: any, viewer: any, addEventListenerTracked: (el
           // トグルボタンがあれば接続（新しいタイプの場合はまだないかもしれない）
           const toggleElement = document.getElementById(config.toggle)
           if (toggleElement) {
-            addEventListenerTracked(config.toggle, 'change', (e: any) => {
+            const handler = (e: any) => {
               dataSource.show = e.target.checked
-            })
+            }
+            toggleElement.addEventListener('change', handler)
+            if ((window as any).cesiumPlaceEventListeners) {
+              (window as any).cesiumPlaceEventListeners.push({ element: toggleElement, event: 'change', handler })
+            }
           }
         })
       })

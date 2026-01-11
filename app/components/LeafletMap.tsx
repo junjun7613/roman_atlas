@@ -45,8 +45,18 @@ export default function LeafletMap() {
   const [rectangleDistances, setRectangleDistances] = useState<{ width: number; height: number } | null>(null)
   const [circleRadius, setCircleRadius] = useState<number | null>(null)
 
+  // Time slider states
+  const [timeStart, setTimeStart] = useState(-800)
+  const [timeEnd, setTimeEnd] = useState(800)
+  const [showTimeSlider, setShowTimeSlider] = useState(false)
+
+  // Input field states (for editing)
+  const [timeStartInput, setTimeStartInput] = useState('-800')
+  const [timeEndInput, setTimeEndInput] = useState('800')
+
   // イベントリスナーを保存するref
   const eventListenersRef = useRef<Array<{element: HTMLElement, event: string, handler: EventListener}>>([])
+  const placeEventListenersRef = useRef<Array<{element: HTMLElement, event: string, handler: EventListener}>>([])
 
   // イベントリスナーを登録するヘルパー関数
   const addEventListenerTracked = (elementId: string, eventType: string, handler: EventListener) => {
@@ -54,6 +64,15 @@ export default function LeafletMap() {
     if (element) {
       element.addEventListener(eventType, handler)
       eventListenersRef.current.push({ element, event: eventType, handler })
+    }
+  }
+
+  // Place用のイベントリスナーを登録するヘルパー関数
+  const addPlaceEventListenerTracked = (elementId: string, eventType: string, handler: EventListener) => {
+    const element = document.getElementById(elementId)
+    if (element) {
+      element.addEventListener(eventType, handler)
+      placeEventListenersRef.current.push({ element, event: eventType, handler })
     }
   }
 
@@ -141,6 +160,83 @@ export default function LeafletMap() {
       }
     }
   }, [])
+
+  // Time slider effect - reload places when time range changes
+  useEffect(() => {
+    if (!mapRef.current) return
+    if (!showTimeSlider) return
+
+    console.log('Reloading places with time filter:', timeStart, 'to', timeEnd)
+
+    // Save checkbox states before clearing
+    const typeConfigs = [
+      { key: 'settlement', toggle: 'toggleSettlements' },
+      { key: 'villa', toggle: 'toggleVillas' },
+      { key: 'fort', toggle: 'toggleForts' },
+      { key: 'temple', toggle: 'toggleTemples' },
+      { key: 'station', toggle: 'toggleStations' },
+      { key: 'archaeological', toggle: 'toggleArchaeological' },
+      { key: 'cemetery', toggle: 'toggleCemetery' },
+      { key: 'sanctuary', toggle: 'toggleSanctuary' },
+      { key: 'bridge', toggle: 'toggleBridge' },
+      { key: 'aqueduct', toggle: 'toggleAqueduct' },
+      { key: 'church', toggle: 'toggleChurch' },
+      { key: 'bath', toggle: 'toggleBath' },
+      { key: 'quarry', toggle: 'toggleQuarry' },
+      { key: 'port', toggle: 'togglePort' },
+      { key: 'theater', toggle: 'toggleTheater' },
+      { key: 'amphitheatre', toggle: 'toggleAmphitheatre' }
+    ]
+
+    const checkboxStates: { [key: string]: boolean } = {}
+    typeConfigs.forEach(config => {
+      const checkbox = document.getElementById(config.toggle) as HTMLInputElement
+      if (checkbox) {
+        checkboxStates[config.key] = checkbox.checked
+      }
+    })
+
+    // Clear existing place event listeners first
+    placeEventListenersRef.current.forEach(({ element, event, handler }) => {
+      element.removeEventListener(event, handler)
+    })
+    placeEventListenersRef.current = []
+
+    // Clear existing place layers
+    typeConfigs.forEach(config => {
+      const layerKey = `pleiades${config.key}`
+      const layer = layersRef.current[layerKey]
+      if (layer) {
+        // Try to remove from map (it may not be added yet)
+        try {
+          mapRef.current?.removeLayer(layer)
+        } catch (e) {
+          // Layer might not be on map
+        }
+        delete layersRef.current[layerKey]
+      }
+      // Also clean up window reference
+      const windowKey = `pleiades${config.key}Layer`
+      if ((window as any)[windowKey]) {
+        delete (window as any)[windowKey]
+      }
+    })
+
+    // Reload places with time filter
+    loadPleiadesPlaces(mapRef.current, timeStart, timeEnd)
+
+    // Restore checkbox states after a brief delay to allow layers to load
+    setTimeout(() => {
+      typeConfigs.forEach(config => {
+        const checkbox = document.getElementById(config.toggle) as HTMLInputElement
+        if (checkbox && checkboxStates[config.key]) {
+          // Trigger the checkbox change event to show the layer
+          checkbox.checked = true
+          checkbox.dispatchEvent(new Event('change'))
+        }
+      })
+    }, 500)
+  }, [timeStart, timeEnd])
 
   const loadProvinces = (map: L.Map) => {
     if (!map) return
@@ -372,7 +468,7 @@ export default function LeafletMap() {
     }
   }
 
-  const loadPleiadesPlaces = (map: L.Map) => {
+  const loadPleiadesPlaces = (map: L.Map, filterTimeStart?: number, filterTimeEnd?: number) => {
     if (!map) return
 
     const placesUrl = process.env.NEXT_PUBLIC_PLACES_URL
@@ -394,6 +490,25 @@ export default function LeafletMap() {
           const placeTypes = place.placeTypes || []
           const reprPoint = place.reprPoint
           if (!reprPoint) return
+
+          // Time filtering logic
+          if (filterTimeStart !== undefined && filterTimeEnd !== undefined) {
+            const placeStart = place.start_date
+            const placeEnd = place.end_date
+
+            // If place has date information, check if it overlaps with filter range
+            if (placeStart !== undefined || placeEnd !== undefined) {
+              // Check if there's any overlap between place period and filter range
+              const actualStart = placeStart !== undefined ? placeStart : -Infinity
+              const actualEnd = placeEnd !== undefined ? placeEnd : Infinity
+
+              // No overlap if place ends before filter starts or place starts after filter ends
+              if (actualEnd < filterTimeStart || actualStart > filterTimeEnd) {
+                return // Skip this place
+              }
+            }
+            // If place has no date information, include it (as per requirement)
+          }
 
           const feature = {
             type: 'Feature',
@@ -565,7 +680,7 @@ export default function LeafletMap() {
           ;(window as any)[`pleiades${config.key}Layer`] = clusterGroup
 
           // デフォルトでは非表示
-          addEventListenerTracked(config.toggle, 'change', (e: any) => {
+          addPlaceEventListenerTracked(config.toggle, 'change', (e: any) => {
             const currentMap = mapRef.current
             if (!currentMap) return
             if (e.target.checked) {
@@ -797,7 +912,7 @@ export default function LeafletMap() {
           layersRef.current[`pleiades${config.key}`] = clusterGroup
           ;(window as any)[`pleiades${config.key}Layer`] = clusterGroup
 
-          addEventListenerTracked(config.toggle, 'change', (e: any) => {
+          addPlaceEventListenerTracked(config.toggle, 'change', (e: any) => {
             const currentMap = mapRef.current
             if (!currentMap) return
             if (e.target.checked) {
@@ -1278,35 +1393,51 @@ export default function LeafletMap() {
 
   return (
     <>
-      {/* Rectangle selection button */}
-      <button
-        onClick={toggleDrawingMode}
-        className={`absolute top-20 left-4 z-[1000] px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
-          isDrawingMode
-            ? 'bg-blue-500 text-white'
-            : hasRectangle
-            ? 'bg-red-500 text-white hover:bg-red-600'
-            : 'bg-white text-gray-700 hover:bg-gray-100'
-        }`}
-        title={hasRectangle ? '矩形解除' : '矩形選択モード'}
-      >
-        {isDrawingMode ? '選択中...' : hasRectangle ? '矩形解除' : '矩形選択'}
-      </button>
+      {/* Top button group - aligned with 2D/3D switcher */}
+      <div className="absolute top-4 left-[280px] z-[1000] flex gap-2">
+        {/* Rectangle selection button */}
+        <button
+          onClick={toggleDrawingMode}
+          className={`px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
+            isDrawingMode
+              ? 'bg-blue-500 text-white'
+              : hasRectangle
+              ? 'bg-red-500 text-white hover:bg-red-600'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
+          title={hasRectangle ? '矩形解除' : '矩形選択モード'}
+        >
+          {isDrawingMode ? '選択中...' : hasRectangle ? '矩形解除' : '矩形選択'}
+        </button>
 
-      {/* Circle selection button */}
-      <button
-        onClick={toggleCircleDrawingMode}
-        className={`absolute top-36 left-4 z-[1000] px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
-          isCircleDrawingMode
-            ? 'bg-orange-500 text-white'
-            : hasCircle
-            ? 'bg-red-500 text-white hover:bg-red-600'
-            : 'bg-white text-gray-700 hover:bg-gray-100'
-        }`}
-        title={hasCircle ? '円形解除' : '円形選択モード'}
-      >
-        {isCircleDrawingMode ? '選択中...' : hasCircle ? '円形解除' : '円形選択'}
-      </button>
+        {/* Circle selection button */}
+        <button
+          onClick={toggleCircleDrawingMode}
+          className={`px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
+            isCircleDrawingMode
+              ? 'bg-orange-500 text-white'
+              : hasCircle
+              ? 'bg-red-500 text-white hover:bg-red-600'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
+          title={hasCircle ? '円形解除' : '円形選択モード'}
+        >
+          {isCircleDrawingMode ? '選択中...' : hasCircle ? '円形解除' : '円形選択'}
+        </button>
+
+        {/* Time filter toggle button */}
+        <button
+          onClick={() => setShowTimeSlider(!showTimeSlider)}
+          className={`px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
+            showTimeSlider
+              ? 'bg-purple-500 text-white hover:bg-purple-600'
+              : 'bg-white text-gray-700 hover:bg-gray-100'
+          }`}
+          title="時代フィルタ表示切替"
+        >
+          {showTimeSlider ? 'フィルタ非表示' : '時代フィルタ'}
+        </button>
+      </div>
 
       {/* Distance display */}
       {(rectangleDistances || circleRadius !== null) && (
@@ -1336,6 +1467,74 @@ export default function LeafletMap() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Time Filter */}
+      {showTimeSlider && (
+        <div className="absolute bottom-4 left-4 z-[1000] bg-white px-6 py-3 rounded-lg shadow-lg" style={{ width: '300px' }}>
+          <div className="text-sm font-medium text-gray-700 mb-3">時代範囲フィルタ</div>
+          <div className="flex gap-4 items-center">
+            <div className="flex-1">
+              <label className="text-xs text-gray-600 block mb-1">開始年</label>
+              <input
+                type="text"
+                value={timeStartInput}
+                onChange={(e) => {
+                  setTimeStartInput(e.target.value)
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value
+                  const newStart = parseInt(value)
+                  if (!isNaN(newStart)) {
+                    setTimeStart(newStart)
+                    setTimeStartInput(newStart.toString())
+                    console.log('Time range:', newStart, 'to', timeEnd)
+                  } else {
+                    // Reset to current value if invalid
+                    setTimeStartInput(timeStart.toString())
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur()
+                  }
+                }}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                placeholder="-800"
+              />
+            </div>
+            <div className="text-gray-500 mt-5">〜</div>
+            <div className="flex-1">
+              <label className="text-xs text-gray-600 block mb-1">終了年</label>
+              <input
+                type="text"
+                value={timeEndInput}
+                onChange={(e) => {
+                  setTimeEndInput(e.target.value)
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value
+                  const newEnd = parseInt(value)
+                  if (!isNaN(newEnd)) {
+                    setTimeEnd(newEnd)
+                    setTimeEndInput(newEnd.toString())
+                    console.log('Time range:', timeStart, 'to', newEnd)
+                  } else {
+                    // Reset to current value if invalid
+                    setTimeEndInput(timeEnd.toString())
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.currentTarget.blur()
+                  }
+                }}
+                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                placeholder="800"
+              />
+            </div>
+          </div>
         </div>
       )}
 
