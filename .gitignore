@@ -40,7 +40,12 @@ next-env.d.ts
 # Large data files (download separately)
 public/route-segments-all.ndjson
 public/pleiades-places-filtered-expanded.json
+public/pleiades-places-filtered-expanded-with-dates.json
 public/provinces.geojson
+public/pleiades_location_dates.csv
 
 # Cesium static assets (auto-copied from node_modules via postinstall script)
 public/cesium/
+
+# scripts
+scrips/add_dates_to_places.py

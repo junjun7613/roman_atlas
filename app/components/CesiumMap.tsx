@@ -521,7 +521,7 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
   // 環境変数が設定されている場合はAPI Route経由、そうでない場合はローカルファイル
   const placesUrl = process.env.NEXT_PUBLIC_PLACES_URL
     ? '/api/data/places'
-    : '/pleiades-places-filtered-expanded.json'
+    : '/pleiades-places-filtered-expanded-with-dates.json'
   fetch(placesUrl)
     .then(response => {
       if (!response.ok) {
@@ -549,7 +549,9 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
             title: place.title || 'Unnamed',
             description: place.description || '',
             placeTypes: placeTypes,
-            uri: "https://pleiades.stoa.org/places/" + place.id || ''
+            uri: "https://pleiades.stoa.org/places/" + place.id || '',
+            startDate: place.start_date,
+            endDate: place.end_date
           }
         }
 
@@ -618,6 +620,8 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
               const description = entity.properties.description ? entity.properties.description.getValue() : ''
               const uri = entity.properties.uri ? entity.properties.uri.getValue() : ''
               const placeTypesArray = entity.properties.placeTypes ? entity.properties.placeTypes.getValue() : []
+              const startDate = entity.properties.startDate ? entity.properties.startDate.getValue() : undefined
+              const endDate = entity.properties.endDate ? entity.properties.endDate.getValue() : undefined
 
               // Extract Pleiades ID from URI
               let placeId = ''
@@ -636,6 +640,22 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
               if (placeId) {
                 descriptionHtml += `<p style="margin: 5px 0; color: #666;">Pleiades ID: ${placeId}</p>`
               }
+
+              // Add date range if available
+              if (startDate !== undefined || endDate !== undefined) {
+                let dateStr = ''
+                if (startDate !== undefined && endDate !== undefined) {
+                  dateStr = `${startDate} - ${endDate}`
+                } else if (startDate !== undefined) {
+                  dateStr = `${startDate} -`
+                } else if (endDate !== undefined) {
+                  dateStr = `- ${endDate}`
+                }
+                if (dateStr) {
+                  descriptionHtml += `<p style="margin: 5px 0; color: #666;">年代: ${dateStr}</p>`
+                }
+              }
+
               if (description) {
                 descriptionHtml += `<p style="margin: 5px 0; color: #666;">${description}</p>`
               }

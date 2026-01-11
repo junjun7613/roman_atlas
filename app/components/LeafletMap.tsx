@@ -377,7 +377,7 @@ export default function LeafletMap() {
 
     const placesUrl = process.env.NEXT_PUBLIC_PLACES_URL
       ? '/api/data/places'
-      : '/pleiades-places-filtered-expanded.json'
+      : '/pleiades-places-filtered-expanded-with-dates.json'
 
     fetch(placesUrl)
       .then(response => response.json())
@@ -402,7 +402,9 @@ export default function LeafletMap() {
               title: place.title || 'Unnamed',
               description: place.description || '',
               placeTypes: placeTypes,
-              uri: "https://pleiades.stoa.org/places/" + place.id || ''
+              uri: "https://pleiades.stoa.org/places/" + place.id || '',
+              startDate: place.start_date,
+              endDate: place.end_date
             }
           }
 
@@ -472,6 +474,8 @@ export default function LeafletMap() {
                 const description = feature.properties.description || ''
                 const uri = feature.properties.uri || ''
                 const placeTypesArray = feature.properties.placeTypes || []
+                const startDate = feature.properties.startDate
+                const endDate = feature.properties.endDate
 
                 // Extract Pleiades ID from URI
                 let placeId = ''
@@ -489,6 +493,22 @@ export default function LeafletMap() {
                 if (placeId) {
                   popupHtml += `<p style="margin: 5px 0; color: #666;">Pleiades ID: ${placeId}</p>`
                 }
+
+                // Add date range if available
+                if (startDate !== undefined || endDate !== undefined) {
+                  let dateStr = ''
+                  if (startDate !== undefined && endDate !== undefined) {
+                    dateStr = `${startDate} - ${endDate}`
+                  } else if (startDate !== undefined) {
+                    dateStr = `${startDate} -`
+                  } else if (endDate !== undefined) {
+                    dateStr = `- ${endDate}`
+                  }
+                  if (dateStr) {
+                    popupHtml += `<p style="margin: 5px 0; color: #666;">年代: ${dateStr}</p>`
+                  }
+                }
+
                 if (description) {
                   popupHtml += `<p style="margin: 5px 0; color: #666;">${description}</p>`
                 }
