@@ -2,7 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { queryInscriptionNetwork, type InscriptionNetworkData } from '../utils/sparql'
+import { queryInscriptionNetwork, queryMosaicsByPlaceId, type InscriptionNetworkData, type MosaicDetail } from '../utils/sparql'
 
 const InscriptionNetwork = dynamic(() => import('./InscriptionNetwork'), {
   ssr: false
@@ -35,6 +35,8 @@ interface InscriptionData {
   loading: boolean
   places?: PlaceDetail[]
   inscriptions?: InscriptionDetailData[]
+  mosaics?: MosaicDetail[]
+  mosaicsLoading?: boolean
 }
 
 interface ControlPanelProps {
@@ -43,6 +45,7 @@ interface ControlPanelProps {
 
 export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState<'settings' | 'info'>('settings')
+  const [infoSubTab, setInfoSubTab] = useState<'inscriptions' | 'mosaics'>('inscriptions')
   const [selectedPlaceIndex, setSelectedPlaceIndex] = useState<number>(0)
   const [networkEdcsId, setNetworkEdcsId] = useState<string | null>(null)
   const [networkData, setNetworkData] = useState<InscriptionNetworkData[]>([])
@@ -434,63 +437,115 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       )}
                     </div>
 
-                    {/* 情報とフィルタを横並びに配置 */}
-                    <div className="flex gap-4 mb-4">
-                      {/* 左側: 基本情報 */}
-                      <div className="flex-1 bg-gray-50 p-4 rounded-lg">
-                        <p className="text-[14px] text-[#666] mb-2">
-                          <strong>PLACE ID:</strong> {inscriptionData.placeId}
-                        </p>
-                        {inscriptionData.loading ? (
-                          <p className="text-[14px] text-[#666]">
-                            碑文データを読み込み中...
-                          </p>
-                        ) : (
-                          <p className="text-[14px] text-[#666] mb-0">
-                            <strong>碑文数:</strong> {inscriptionData.count}件
-                          </p>
-                        )}
+                    {/* Sub tabs for Inscriptions and Mosaics */}
+                    {!networkEdcsId && !networkLoading && (
+                      <div className="mb-3 flex gap-2 border-b border-gray-200">
+                        <button
+                          onClick={() => setInfoSubTab('inscriptions')}
+                          className={`px-4 py-2 text-[14px] font-medium transition-colors ${
+                            infoSubTab === 'inscriptions'
+                              ? 'text-blue-600 border-b-2 border-blue-600'
+                              : 'text-gray-600 hover:text-gray-800'
+                          }`}
+                        >
+                          碑文 {inscriptionData.inscriptions ? `(${inscriptionData.inscriptions.length})` : '(0)'}
+                        </button>
+                        <button
+                          onClick={() => setInfoSubTab('mosaics')}
+                          className={`px-4 py-2 text-[14px] font-medium transition-colors ${
+                            infoSubTab === 'mosaics'
+                              ? 'text-blue-600 border-b-2 border-blue-600'
+                              : 'text-gray-600 hover:text-gray-800'
+                          }`}
+                        >
+                          モザイク {inscriptionData.mosaics ? `(${inscriptionData.mosaics.length})` : '(0)'}
+                        </button>
                       </div>
+                    )}
 
-                      {/* 右側: フィルタ */}
-                      <div className="flex-1 bg-blue-50 p-4 rounded-lg">
-                        {/* Filter type selector */}
-                        <div className="mb-3">
-                          <select
-                            value={filterType}
-                            onChange={(e) => setFilterType(e.target.value as 'SocialStatus' | 'RelationshipType')}
-                            className="w-full px-2 py-1 border border-gray-300 rounded text-[13px] bg-white"
-                          >
-                            <option value="SocialStatus">社会的身分で絞り込み</option>
-                            <option value="RelationshipType">関係性で絞り込み</option>
-                          </select>
-                        </div>
-                        {availableFilters[filterType]?.length > 0 ? (
-                          <div className="space-y-2 max-h-[120px] overflow-y-auto">
-                            {availableFilters[filterType].map(filterUri => {
-                              // Extract label from URI (e.g., "http://example.org/status/emperor" -> "emperor")
-                              const filterLabel = filterUri.split('/').pop() || filterUri
-                              return (
-                                <label key={filterUri} className="flex items-center cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    className="mr-2 cursor-pointer w-4 h-4"
-                                    checked={selectedFilters.has(filterUri)}
-                                    onChange={() => toggleFilter(filterUri)}
-                                  />
-                                  <span className="text-[13px] text-[#555]">{filterLabel}</span>
-                                </label>
-                              )
-                            })}
+                    {/* Tab content for Inscriptions */}
+                    {infoSubTab === 'inscriptions' && !networkEdcsId && !networkLoading && (
+                      <div>
+                        {/* 情報とフィルタを横並びに配置 */}
+                        <div className="flex gap-4 mb-4">
+                          {/* 左側: 基本情報 */}
+                          <div className="flex-1 bg-gray-50 p-4 rounded-lg">
+                            <p className="text-[14px] text-[#666] mb-2">
+                              <strong>PLACE ID:</strong> {inscriptionData.placeId}
+                            </p>
+                            {inscriptionData.loading ? (
+                              <p className="text-[14px] text-[#666]">
+                                碑文データを読み込み中...
+                              </p>
+                            ) : (
+                              <p className="text-[14px] text-[#666] mb-0">
+                                <strong>碑文数:</strong> {inscriptionData.count}件
+                              </p>
+                            )}
                           </div>
-                        ) : (
-                          <p className="text-[12px] text-[#666]">フィルタデータがありません</p>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* Display inscription details OR network visualization */}
-                    {!inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
+                          {/* 右側: フィルタ */}
+                          <div className="flex-1 bg-blue-50 p-4 rounded-lg">
+                            {/* Filter type selector */}
+                            <div className="mb-3">
+                              <select
+                                value={filterType}
+                                onChange={(e) => setFilterType(e.target.value as 'SocialStatus' | 'RelationshipType')}
+                                className="w-full px-2 py-1 border border-gray-300 rounded text-[13px] bg-white"
+                              >
+                                <option value="SocialStatus">社会的身分で絞り込み</option>
+                                <option value="RelationshipType">関係性で絞り込み</option>
+                              </select>
+                            </div>
+                            {availableFilters[filterType]?.length > 0 ? (
+                              <div className="space-y-2 max-h-[120px] overflow-y-auto">
+                                {availableFilters[filterType].map(filterUri => {
+                                  // Extract label from URI (e.g., "http://example.org/status/emperor" -> "emperor")
+                                  const filterLabel = filterUri.split('/').pop() || filterUri
+                                  return (
+                                    <label key={filterUri} className="flex items-center cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        className="mr-2 cursor-pointer w-4 h-4"
+                                        checked={selectedFilters.has(filterUri)}
+                                        onChange={() => toggleFilter(filterUri)}
+                                      />
+                                      <span className="text-[13px] text-[#555]">{filterLabel}</span>
+                                    </label>
+                                  )
+                                })}
+                              </div>
+                            ) : (
+                              <p className="text-[12px] text-[#666]">フィルタデータがありません</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tab content for Mosaics */}
+                    {infoSubTab === 'mosaics' && !networkEdcsId && !networkLoading && (
+                      <div>
+                        {/* 基本情報 */}
+                        <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                          <p className="text-[14px] text-[#666] mb-2">
+                            <strong>PLACE ID:</strong> {inscriptionData.placeId}
+                          </p>
+                          {inscriptionData.mosaicsLoading ? (
+                            <p className="text-[14px] text-[#666]">
+                              モザイクデータを読み込み中...
+                            </p>
+                          ) : (
+                            <p className="text-[14px] text-[#666] mb-0">
+                              <strong>モザイク数:</strong> {inscriptionData.mosaics?.length || 0}件
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Display inscription details */}
+                    {infoSubTab === 'inscriptions' && !inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
                       <div className="mt-4">
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
                           碑文一覧 ({filteredInscriptions.length}件{selectedFilters.size > 0 ? ` / ${inscriptionData.inscriptions.length}件中` : ''})
@@ -582,6 +637,87 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             </div>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Display mosaics */}
+                    {infoSubTab === 'mosaics' && !inscriptionData.mosaicsLoading && inscriptionData.mosaics && !networkEdcsId && !networkLoading && (
+                      <div className="mt-4">
+                        <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
+                          モザイク一覧 ({inscriptionData.mosaics.length}件)
+                        </h4>
+                        {inscriptionData.mosaics.length > 0 ? (
+                          <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
+                            {inscriptionData.mosaics.map((mosaic, index) => (
+                              <div
+                                key={index}
+                                className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+                              >
+                                {mosaic.thumbnail && (
+                                  <div className="mb-2">
+                                    <img
+                                      src={mosaic.thumbnail}
+                                      alt={mosaic.label || 'Mosaic thumbnail'}
+                                      className="w-full h-auto rounded"
+                                      style={{ maxHeight: '150px', objectFit: 'cover' }}
+                                    />
+                                  </div>
+                                )}
+                                <div className="mb-2">
+                                  <h5 className="text-[13px] font-semibold text-[#333]">
+                                    {mosaic.label || 'Untitled Mosaic'}
+                                  </h5>
+                                </div>
+                                <div className="flex gap-1 items-center">
+                                  <a
+                                    href={mosaic.manifestUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 hover:opacity-70 transition-opacity inline-flex rounded hover:bg-gray-100"
+                                    title="IIIF Manifest (クリックでJSONを表示、ドラッグでビューアに投げ込み)"
+                                    aria-label="IIIF Manifest"
+                                    draggable="true"
+                                    onDragStart={(e) => {
+                                      e.dataTransfer.setData('text/uri-list', mosaic.manifestUrl)
+                                      e.dataTransfer.effectAllowed = 'copy'
+                                    }}
+                                  >
+                                    <img
+                                      src="/img/IIIF.png"
+                                      alt="IIIF"
+                                      style={{ width: '24px', height: '24px' }}
+                                    />
+                                  </a>
+                                  <a
+                                    href={`/viewer?manifest=${encodeURIComponent(mosaic.manifestUrl)}&type=mirador`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 hover:opacity-70 transition-opacity inline-flex rounded hover:bg-gray-100"
+                                    title="Mirador Viewerで表示"
+                                    aria-label="Mirador Viewer"
+                                  >
+                                    <img
+                                      src="/img/mirador.png"
+                                      alt="Mirador"
+                                      style={{ width: '24px', height: '24px' }}
+                                    />
+                                  </a>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[14px] text-[#666]">この地名にはモザイクデータがありません。</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Display loading state for mosaics */}
+                    {infoSubTab === 'mosaics' && inscriptionData.mosaicsLoading && (
+                      <div className="mt-4">
+                        <p className="text-[14px] text-[#666]">
+                          モザイクデータを読み込み中...
+                        </p>
                       </div>
                     )}
 

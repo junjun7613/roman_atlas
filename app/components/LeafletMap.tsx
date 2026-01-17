@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import 'leaflet.markercluster'
-import { queryInscriptionsByPlaceId, queryCustomPlaces, queryInscriptionDetails } from '../utils/sparql'
+import { queryInscriptionsByPlaceId, queryCustomPlaces, queryInscriptionDetails, queryMosaicsByPlaceId } from '../utils/sparql'
 
 // Leafletのデフォルトマーカーアイコンの修正
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -648,12 +648,14 @@ export default function LeafletMap() {
                         placeName: title,
                         placeId: placeId,
                         count: 0,
-                        loading: true
+                        loading: true,
+                        mosaicsLoading: true
                       })
 
                       // Query SPARQL endpoint for count and details
                       const count = await queryInscriptionsByPlaceId(placeId)
                       const inscriptions = await queryInscriptionDetails(placeId)
+                      const mosaics = await queryMosaicsByPlaceId(placeId)
 
                       // Update with results
                       setInscriptionData({
@@ -662,7 +664,9 @@ export default function LeafletMap() {
                         placeId: placeId,
                         count: count,
                         loading: false,
-                        inscriptions: inscriptions
+                        inscriptions: inscriptions,
+                        mosaics: mosaics,
+                        mosaicsLoading: false
                       })
                     }
                   })
@@ -748,9 +752,12 @@ export default function LeafletMap() {
               uri: place.uri || '',
               modernName: place.modernName || '',
               period: place.period || '',
-              source: place.source || ''
+              source: place.source || '',
+              iiif3d: place.IIIF3D || ''
             }
           }
+
+          console.log('Custom place feature:', place.id, 'IIIF3D:', place.IIIF3D)
 
           placeTypes.forEach((type: string) => {
             if (placesByType[type]) {
@@ -813,6 +820,7 @@ export default function LeafletMap() {
                 const period = feature.properties.period || ''
                 const source = feature.properties.source || ''
                 const placeTypesArray = feature.properties.placeTypes || []
+                const iiif3d = feature.properties.iiif3d || ''
 
                 // Try to extract Pleiades ID from URI if available
                 let placeId = ''
@@ -845,13 +853,35 @@ export default function LeafletMap() {
                 if (source) {
                   popupHtml += `<p style="margin: 5px 0; color: #666; font-size: 0.9em;">Source: ${source}</p>`
                 }
-                if (uri) {
-                  popupHtml += `<p style="margin: 5px 0;">
-                    <a href="${uri}" target="_blank" style="color: #6688ff; text-decoration: none;">
+
+                // Add links section
+                if (uri || iiif3d) {
+                  popupHtml += `<div style="margin-top: 10px; display: flex; gap: 8px; align-items: center;">`
+
+                  if (iiif3d) {
+                    popupHtml += `<a href="${iiif3d}" target="_blank" rel="noopener noreferrer"
+                      style="display: inline-flex; align-items: center; padding: 4px 8px; background-color: #10b981; color: white; border-radius: 4px; text-decoration: none; font-size: 0.85em;"
+                      title="3Dモデル表示">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                        <line x1="12" y1="22.08" x2="12" y2="12" />
+                      </svg>
+                      3D Model
+                    </a>`
+                  }
+
+                  if (uri) {
+                    popupHtml += `<a href="${uri}" target="_blank"
+                      style="display: inline-flex; align-items: center; color: #6688ff; text-decoration: none; font-size: 0.85em;"
+                      title="詳細情報">
                       More Info →
-                    </a>
-                  </p>`
+                    </a>`
+                  }
+
+                  popupHtml += `</div>`
                 }
+
                 popupHtml += `</div>`
                 layer.bindPopup(popupHtml)
 
@@ -867,7 +897,8 @@ export default function LeafletMap() {
                         placeName: title,
                         placeId: placeId || id,
                         count: 0,
-                        loading: true
+                        loading: true,
+                        mosaicsLoading: true
                       })
 
                       // Query SPARQL endpoint with both Pleiades ID and custom location ID
@@ -885,6 +916,7 @@ export default function LeafletMap() {
                         placeId || id,
                         customLocationId
                       )
+                      const mosaics = await queryMosaicsByPlaceId(placeId || id)
 
                       // Update with results
                       setInscriptionData({
@@ -894,7 +926,9 @@ export default function LeafletMap() {
                         customLocationId: customLocationId,
                         count: count,
                         loading: false,
-                        inscriptions: inscriptions
+                        inscriptions: inscriptions,
+                        mosaics: mosaics,
+                        mosaicsLoading: false
                       })
                     }
                   })

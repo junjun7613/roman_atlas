@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { queryInscriptionsByPlaceId, queryInscriptionDetails } from '../utils/sparql'
+import { queryInscriptionsByPlaceId, queryInscriptionDetails, queryMosaicsByPlaceId } from '../utils/sparql'
 
 export default function CesiumMap() {
   const cesiumContainerRef = useRef<HTMLDivElement>(null)
@@ -237,7 +237,8 @@ export default function CesiumMap() {
                     placeName: title,
                     placeId: placeId || customId,
                     count: 0,
-                    loading: true
+                    loading: true,
+                    mosaicsLoading: true
                   })
 
                   // Query SPARQL endpoint with both Pleiades ID and custom location ID
@@ -247,6 +248,7 @@ export default function CesiumMap() {
                     customLocationId = customId
                   }
 
+                  // Query inscriptions
                   const count = await queryInscriptionsByPlaceId(
                     placeId || customId,
                     customLocationId
@@ -256,6 +258,9 @@ export default function CesiumMap() {
                     customLocationId
                   )
 
+                  // Query mosaics
+                  const mosaics = await queryMosaicsByPlaceId(placeId || customId)
+
                   // Update with results
                   setInscriptionData({
                     type: 'single',
@@ -264,7 +269,9 @@ export default function CesiumMap() {
                     customLocationId: customLocationId,
                     count: count,
                     loading: false,
-                    inscriptions: inscriptions
+                    inscriptions: inscriptions,
+                    mosaics: mosaics,
+                    mosaicsLoading: false
                   })
                 }
               }

@@ -14,6 +14,7 @@ export interface CustomPlace {
   modernName: string
   period: string
   source: string
+  IIIF3D?: string
 }
 
 export interface InscriptionDetail {
@@ -53,6 +54,13 @@ export interface InscriptionNetworkData {
   benef_type?: string
   benef_object?: string
   benef_objectType?: string
+}
+
+export interface MosaicDetail {
+  manifestUrl: string
+  place?: string
+  label?: string
+  thumbnail?: string
 }
 
 /**
@@ -364,7 +372,7 @@ export async function queryCustomPlaces(): Promise<CustomPlace[]> {
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX dcterms: <http://purl.org/dc/terms/>
 
-    SELECT ?id ?title ?lat ?long ?placeType ?description ?uri ?modernName ?period ?source
+    SELECT ?id ?title ?lat ?long ?placeType ?description ?uri ?modernName ?period ?source ?iiif3d
     WHERE {
       ?location a epig:Location ;
                 dcterms:identifier ?id ;
@@ -377,6 +385,7 @@ export async function queryCustomPlaces(): Promise<CustomPlace[]> {
                 epig:period ?period ;
                 dcterms:source ?source .
       OPTIONAL { ?location rdfs:seeAlso ?uri }
+      OPTIONAL { ?location epig:IIIFManifest3D ?iiif3d }
     }
     ORDER BY ?id
   `
@@ -413,7 +422,8 @@ export async function queryCustomPlaces(): Promise<CustomPlace[]> {
         uri: binding.uri ? binding.uri.value : '',
         modernName: binding.modernName.value,
         period: binding.period.value,
-        source: binding.source.value
+        source: binding.source.value,
+        IIIF3D: binding.iiif3d ? binding.iiif3d.value : ''
       }))
       console.log('Custom places count:', places.length)
       return places
@@ -622,6 +632,155 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
     return []
   } catch (error) {
     console.error('Error querying inscription network from SPARQL endpoint:', error)
+    return []
+  }
+}
+
+/**
+ * Query mosaics by Pleiades ID from SPARQL endpoint
+ * This function retrieves mosaic IIIF manifests linked to a specific place
+ */
+export async function queryMosaicsByPlaceId(pleiadesId: string): Promise<MosaicDetail[]> {
+  const endpoint = 'https://dydra.com/junjun7613/mosaic_llm/sparql'
+
+  const query = `
+    PREFIX epig: <http://example.org/epigraphy/>
+
+    SELECT ?mosaic ?place
+    WHERE {
+      ?mosaic a epig:Mosaic ;
+              epig:pleiadesId "${pleiadesId}" .
+      OPTIONAL { ?mosaic epig:place ?place }
+    }
+  `
+
+  console.log('Querying mosaics for Pleiades ID:', pleiadesId)
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/sparql-results+json'
+      },
+      body: `query=${encodeURIComponent(query)}`
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Mosaic SPARQL error response:', errorText)
+      throw new Error(`Mosaic SPARQL query failed: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log('Mosaic SPARQL response:', data)
+
+    if (data.results && data.results.bindings && data.results.bindings.length > 0) {
+      const mosaics: MosaicDetail[] = await Promise.all(
+        data.results.bindings.map(async (binding: any) => {
+          const manifestUrl = binding.mosaic.value
+          let label: string | undefined = undefined
+          let thumbnail: string | undefined = undefined
+
+          // Fetch manifest to get label and thumbnail
+          try {
+            const manifestResponse = await fetch(manifestUrl)
+            if (manifestResponse.ok) {
+              const manifest = await manifestResponse.json()
+
+              // Extract label from manifest (IIIF Presentation API format)
+              if (manifest.label) {
+                if (typeof manifest.label === 'string') {
+                  label = manifest.label
+                } else if (manifest.label.none && Array.isArray(manifest.label.none)) {
+                  label = manifest.label.none[0]
+                } else if (manifest.label['@value']) {
+                  label = manifest.label['@value']
+                } else {
+                  // Try to get first available language
+                  const firstLang = Object.keys(manifest.label)[0]
+                  if (firstLang && Array.isArray(manifest.label[firstLang])) {
+                    label = manifest.label[firstLang][0]
+                  }
+                }
+              }
+
+              // Extract thumbnail from manifest
+              if (manifest.thumbnail) {
+                if (Array.isArray(manifest.thumbnail)) {
+                  // IIIF Presentation API 3.0 format
+                  if (manifest.thumbnail[0].id) {
+                    thumbnail = manifest.thumbnail[0].id
+                  } else if (manifest.thumbnail[0]['@id']) {
+                    thumbnail = manifest.thumbnail[0]['@id']
+                  }
+                } else if (typeof manifest.thumbnail === 'object') {
+                  // Single thumbnail object
+                  if (manifest.thumbnail.id) {
+                    thumbnail = manifest.thumbnail.id
+                  } else if (manifest.thumbnail['@id']) {
+                    thumbnail = manifest.thumbnail['@id']
+                  }
+                } else if (typeof manifest.thumbnail === 'string') {
+                  thumbnail = manifest.thumbnail
+                }
+              }
+
+              // If no thumbnail at manifest level, try to get from first canvas
+              if (!thumbnail && manifest.items && Array.isArray(manifest.items) && manifest.items.length > 0) {
+                const firstCanvas = manifest.items[0]
+                if (firstCanvas.thumbnail) {
+                  if (Array.isArray(firstCanvas.thumbnail)) {
+                    if (firstCanvas.thumbnail[0].id) {
+                      thumbnail = firstCanvas.thumbnail[0].id
+                    } else if (firstCanvas.thumbnail[0]['@id']) {
+                      thumbnail = firstCanvas.thumbnail[0]['@id']
+                    }
+                  } else if (typeof firstCanvas.thumbnail === 'object') {
+                    if (firstCanvas.thumbnail.id) {
+                      thumbnail = firstCanvas.thumbnail.id
+                    } else if (firstCanvas.thumbnail['@id']) {
+                      thumbnail = firstCanvas.thumbnail['@id']
+                    }
+                  }
+                }
+                // If still no thumbnail, try to construct from first image
+                if (!thumbnail && firstCanvas.items && Array.isArray(firstCanvas.items)) {
+                  const annotationPage = firstCanvas.items[0]
+                  if (annotationPage.items && Array.isArray(annotationPage.items)) {
+                    const annotation = annotationPage.items[0]
+                    if (annotation.body && annotation.body.id) {
+                      // Use IIIF Image API to get a thumbnail
+                      const imageUrl = annotation.body.id
+                      if (imageUrl.includes('/full/')) {
+                        thumbnail = imageUrl.replace('/full/', '/full/400,/')
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching manifest ${manifestUrl}:`, error)
+          }
+
+          return {
+            manifestUrl,
+            place: binding.place?.value,
+            label,
+            thumbnail
+          }
+        })
+      )
+      console.log('Mosaic details count:', mosaics.length)
+      console.log('Mosaic details:', mosaics)
+      return mosaics
+    }
+
+    console.log('No mosaics found for Pleiades ID:', pleiadesId)
+    return []
+  } catch (error) {
+    console.error('Error querying mosaics from SPARQL endpoint:', error)
     return []
   }
 }
