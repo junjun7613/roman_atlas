@@ -1,9 +1,12 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 
-export default function ViewerPage() {
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
+function ViewerContent() {
   const searchParams = useSearchParams()
   const manifestUrl = searchParams.get('manifest')
   const viewerType = searchParams.get('type') || 'uv' // 'uv' or 'mirador'
@@ -63,5 +66,20 @@ export default function ViewerPage() {
         allow="fullscreen"
       />
     </div>
+  )
+}
+
+export default function ViewerPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-700">読み込み中...</p>
+        </div>
+      </div>
+    }>
+      <ViewerContent />
+    </Suspense>
   )
 }
