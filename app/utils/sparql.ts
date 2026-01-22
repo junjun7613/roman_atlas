@@ -23,6 +23,7 @@ export interface InscriptionDetail {
   dating: string
   edcsUrl: string
   iiifManifest3D?: string
+  iiifManifest2D?: string
   personCount?: number
   relationshipCount?: number
   careerCount?: number
@@ -204,7 +205,7 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
 
-    SELECT ?inscription ?text ?comment ?datingFrom ?datingTo ?iiifManifest3D
+    SELECT ?inscription ?text ?comment ?datingFrom ?datingTo ?iiifManifest3D ?iiifManifest2D
       (COALESCE(?personCount, 0) AS ?personCount)
       (COALESCE(?relationshipCount, 0) AS ?relationshipCount)
       (COALESCE(?careerCount, 0) AS ?careerCount)
@@ -224,6 +225,7 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
       OPTIONAL { ?inscription epig:datingFrom ?datingFrom }
       OPTIONAL { ?inscription epig:datingTo ?datingTo }
       OPTIONAL { ?inscription epig:IIIFManifest3D ?iiifManifest3D }
+      OPTIONAL { ?inscription epig:IIIFManifest2D ?iiifManifest2D }
 
       OPTIONAL {
         SELECT ?inscription (COUNT(DISTINCT ?person) AS ?personCount)
@@ -332,8 +334,9 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
         const careerCount = binding.careerCount ? parseInt(binding.careerCount.value, 10) : 0
         const benefactionCount = binding.benefactionCount ? parseInt(binding.benefactionCount.value, 10) : 0
 
-        // Extract IIIF Manifest 3D URL
+        // Extract IIIF Manifest 3D and 2D URLs
         const iiifManifest3D = binding.iiifManifest3D ? binding.iiifManifest3D.value : undefined
+        const iiifManifest2D = binding.iiifManifest2D ? binding.iiifManifest2D.value : undefined
 
         return {
           edcsId: edcsId,
@@ -341,6 +344,7 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
           dating: dating,
           edcsUrl: `https://db.edcs.eu/epigr/epi_url.php?s_sprache=en&p_edcs_id=${edcsId}`,
           iiifManifest3D: iiifManifest3D,
+          iiifManifest2D: iiifManifest2D,
           personCount: personCount,
           relationshipCount: relationshipCount,
           careerCount: careerCount,
@@ -632,6 +636,7 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
     return []
   } catch (error) {
     console.error('Error querying inscription network from SPARQL endpoint:', error)
+    // Return empty array to avoid breaking the UI
     return []
   }
 }

@@ -20,6 +20,7 @@ interface InscriptionDetailData {
   dating: string
   edcsUrl: string
   iiifManifest3D?: string
+  iiifManifest2D?: string
   personCount?: number
   relationshipCount?: number
   careerCount?: number
@@ -633,6 +634,18 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     </svg>
                                   </a>
                                 )}
+                                {inscription.iiifManifest2D && (
+                                  <a
+                                    href={`/viewer?manifest=${encodeURIComponent(inscription.iiifManifest2D)}&type=mirador`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 hover:opacity-70 transition-opacity inline-flex"
+                                    title="Mirador Viewerで表示"
+                                    aria-label="Mirador Viewer"
+                                  >
+                                    <img src="/img/mirador.png" alt="Mirador" style={{ width: '16px', height: '16px' }} />
+                                  </a>
+                                )}
                               </div>
                             </div>
                           ))}
@@ -872,6 +885,18 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
                                       <line x1="12" y1="22.08" x2="12" y2="12" />
                                     </svg>
+                                  </a>
+                                )}
+                                {inscription.iiifManifest2D && (
+                                  <a
+                                    href={`/viewer?manifest=${encodeURIComponent(inscription.iiifManifest2D)}&type=mirador`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 hover:opacity-70 transition-opacity inline-flex"
+                                    title="Mirador Viewerで表示"
+                                    aria-label="Mirador Viewer"
+                                  >
+                                    <img src="/img/mirador.png" alt="Mirador" style={{ width: '16px', height: '16px' }} />
                                   </a>
                                 )}
                               </div>
