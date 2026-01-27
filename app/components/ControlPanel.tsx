@@ -2,7 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { queryInscriptionNetwork, queryMosaicsByPlaceId, type InscriptionNetworkData, type MosaicDetail } from '../utils/sparql'
+import { queryInscriptionNetwork, queryMosaicsByPlaceId, queryAverageAgeAtDeath, queryNomenFrequency, queryBenefactionTypeFrequency, queryBenefactionObjectTypeFrequency, queryInscriptionsByNomen, queryInscriptionsByBenefactionType, queryInscriptionsByBenefactionObjectType, type InscriptionNetworkData, type MosaicDetail, type AgeAtDeathData, type NomenFrequency, type BenefactionTypeFrequency, type BenefactionObjectTypeFrequency } from '../utils/sparql'
 
 const InscriptionNetwork = dynamic(() => import('./InscriptionNetwork'), {
   ssr: false
@@ -46,7 +46,8 @@ interface ControlPanelProps {
 
 export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState<'settings' | 'info'>('settings')
-  const [infoSubTab, setInfoSubTab] = useState<'inscriptions' | 'mosaics'>('inscriptions')
+  const [infoSubTab, setInfoSubTab] = useState<'inscriptions' | 'mosaics' | 'statistics'>('inscriptions')
+  const [statisticsTab, setStatisticsTab] = useState<'age' | 'clan' | 'benefaction'>('age')
   const [selectedPlaceIndex, setSelectedPlaceIndex] = useState<number>(0)
   const [networkEdcsId, setNetworkEdcsId] = useState<string | null>(null)
   const [networkData, setNetworkData] = useState<InscriptionNetworkData[]>([])
@@ -57,12 +58,126 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   // Store multiple places data when switching to single place view
   const [savedMultiplePlacesData, setSavedMultiplePlacesData] = useState<InscriptionData | null>(null)
 
+  // Store statistics data
+  const [ageAtDeathData, setAgeAtDeathData] = useState<AgeAtDeathData | null>(null)
+  const [ageAtDeathLoading, setAgeAtDeathLoading] = useState(false)
+  const [nomenFrequencyData, setNomenFrequencyData] = useState<NomenFrequency[]>([])
+  const [nomenFrequencyLoading, setNomenFrequencyLoading] = useState(false)
+  const [benefactionTypeData, setBenefactionTypeData] = useState<BenefactionTypeFrequency[]>([])
+  const [benefactionTypeLoading, setBenefactionTypeLoading] = useState(false)
+  const [selectedBenefactionType, setSelectedBenefactionType] = useState<string | null>(null)
+  const [benefactionObjectTypeData, setBenefactionObjectTypeData] = useState<BenefactionObjectTypeFrequency[]>([])
+  const [benefactionObjectTypeLoading, setBenefactionObjectTypeLoading] = useState(false)
+
+  // Statistics filter
+  const [statisticsFilter, setStatisticsFilter] = useState<{
+    type: 'nomen' | 'benefactionType' | 'objectType' | null
+    value: string | null
+    benefactionTypeForObjectType?: string | null
+  }>({ type: null, value: null, benefactionTypeForObjectType: null })
+  const [statisticsFilteredEdcsIds, setStatisticsFilteredEdcsIds] = useState<string[]>([])
+  const [statisticsFilterLoading, setStatisticsFilterLoading] = useState(false)
+
   // When inscriptionData changes from 'multiple' to 'single', save the multiple places data
   useEffect(() => {
     if (inscriptionData?.type === 'multiple' && inscriptionData.places && inscriptionData.places.length > 0) {
       setSavedMultiplePlacesData(inscriptionData)
     }
   }, [inscriptionData])
+
+  // Load statistics data when places are selected
+  useEffect(() => {
+    const loadData = async () => {
+      if (!inscriptionData) return
+
+      let pleiadesIds: string[] = []
+      if (inscriptionData.type === 'single' && inscriptionData.placeId) {
+        pleiadesIds = [inscriptionData.placeId]
+      } else if (inscriptionData.type === 'multiple' && inscriptionData.places && inscriptionData.places.length > 0) {
+        pleiadesIds = inscriptionData.places.map(p => p.placeId)
+      }
+
+      if (pleiadesIds.length === 0) return
+
+      // Load age data
+      setAgeAtDeathLoading(true)
+      const ageData = await queryAverageAgeAtDeath(pleiadesIds)
+      setAgeAtDeathData(ageData)
+      setAgeAtDeathLoading(false)
+
+      // Load nomen data
+      setNomenFrequencyLoading(true)
+      const nomenData = await queryNomenFrequency(pleiadesIds)
+      setNomenFrequencyData(nomenData)
+      setNomenFrequencyLoading(false)
+
+      // Load benefaction data
+      setBenefactionTypeLoading(true)
+      const benefData = await queryBenefactionTypeFrequency(pleiadesIds)
+      setBenefactionTypeData(benefData)
+      setBenefactionTypeLoading(false)
+    }
+
+    loadData()
+  }, [inscriptionData?.type, inscriptionData?.placeId, inscriptionData?.places])
+
+  // Load object types when benefaction type selected
+  useEffect(() => {
+    const loadObjectTypes = async () => {
+      if (!selectedBenefactionType || !inscriptionData) return
+
+      let pleiadesIds: string[] = []
+      if (inscriptionData.type === 'single' && inscriptionData.placeId) {
+        pleiadesIds = [inscriptionData.placeId]
+      } else if (inscriptionData.type === 'multiple' && inscriptionData.places && inscriptionData.places.length > 0) {
+        pleiadesIds = inscriptionData.places.map(p => p.placeId)
+      }
+
+      if (pleiadesIds.length === 0) return
+
+      setBenefactionObjectTypeLoading(true)
+      const data = await queryBenefactionObjectTypeFrequency(pleiadesIds, selectedBenefactionType)
+      setBenefactionObjectTypeData(data)
+      setBenefactionObjectTypeLoading(false)
+    }
+
+    loadObjectTypes()
+  }, [selectedBenefactionType, inscriptionData?.type, inscriptionData?.placeId, inscriptionData?.places])
+
+  // Load filtered inscriptions
+  useEffect(() => {
+    const loadFiltered = async () => {
+      if (!statisticsFilter.type || !statisticsFilter.value || !inscriptionData) {
+        setStatisticsFilteredEdcsIds([])
+        return
+      }
+
+      let pleiadesIds: string[] = []
+      if (inscriptionData.type === 'single' && inscriptionData.placeId) {
+        pleiadesIds = [inscriptionData.placeId]
+      } else if (inscriptionData.type === 'multiple' && inscriptionData.places && inscriptionData.places.length > 0) {
+        pleiadesIds = inscriptionData.places.map(p => p.placeId)
+      }
+
+      if (pleiadesIds.length === 0) return
+
+      setStatisticsFilterLoading(true)
+      let ids: string[] = []
+
+      if (statisticsFilter.type === 'nomen') {
+        ids = await queryInscriptionsByNomen(pleiadesIds, statisticsFilter.value)
+      } else if (statisticsFilter.type === 'benefactionType') {
+        ids = await queryInscriptionsByBenefactionType(pleiadesIds, statisticsFilter.value)
+      } else if (statisticsFilter.type === 'objectType' && statisticsFilter.benefactionTypeForObjectType) {
+        ids = await queryInscriptionsByBenefactionObjectType(pleiadesIds, statisticsFilter.benefactionTypeForObjectType, statisticsFilter.value)
+      }
+
+      setStatisticsFilteredEdcsIds(ids)
+      setStatisticsFilterLoading(false)
+    }
+
+    loadFiltered()
+  }, [statisticsFilter, inscriptionData?.type, inscriptionData?.placeId, inscriptionData?.places])
 
   // Function to return to multiple places list
   const returnToMultiplePlacesList = () => {
@@ -155,9 +270,19 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   // Filter inscriptions based on selected filters
   const filteredInscriptions = useMemo(() => {
     if (!inscriptionData?.inscriptions) return []
-    if (selectedFilters.size === 0) return inscriptionData.inscriptions
 
-    return inscriptionData.inscriptions.filter(inscription => {
+    let inscriptions = inscriptionData.inscriptions
+
+    // Apply statistics filter first
+    if (statisticsFilteredEdcsIds.length > 0) {
+      const edcsIdSet = new Set(statisticsFilteredEdcsIds)
+      inscriptions = inscriptions.filter(inscription => edcsIdSet.has(inscription.edcsId))
+    }
+
+    // Then apply social status/relationship filters
+    if (selectedFilters.size === 0) return inscriptions
+
+    return inscriptions.filter(inscription => {
       const filterData = inscriptionFilterData[inscription.edcsId]
       if (!filterData) return false
 
@@ -171,7 +296,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
       // Show inscription if it has any of the selected filters
       return values.some(value => selectedFilters.has(value))
     })
-  }, [inscriptionData?.inscriptions, inscriptionFilterData, selectedFilters, filterType])
+  }, [inscriptionData?.inscriptions, inscriptionFilterData, selectedFilters, filterType, statisticsFilteredEdcsIds])
 
   const toggleFilter = (value: string) => {
     setSelectedFilters(prev => {
@@ -461,6 +586,16 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         >
                           モザイク {inscriptionData.mosaics ? `(${inscriptionData.mosaics.length})` : '(0)'}
                         </button>
+                        <button
+                          onClick={() => setInfoSubTab('statistics')}
+                          className={`px-4 py-2 text-[14px] font-medium transition-colors ${
+                            infoSubTab === 'statistics'
+                              ? 'text-blue-600 border-b-2 border-blue-600'
+                              : 'text-gray-600 hover:text-gray-800'
+                          }`}
+                        >
+                          統計
+                        </button>
                       </div>
                     )}
 
@@ -549,8 +684,34 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {infoSubTab === 'inscriptions' && !inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
                       <div className="mt-4">
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
-                          碑文一覧 ({filteredInscriptions.length}件{selectedFilters.size > 0 ? ` / ${inscriptionData.inscriptions.length}件中` : ''})
+                          碑文一覧 ({filteredInscriptions.length}件{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length}件中` : ''})
                         </h4>
+
+                        {/* Statistics filter indicator */}
+                        {statisticsFilter.type && statisticsFilter.value && (
+                          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded flex items-center justify-between">
+                            <div className="text-[13px]">
+                              <span className="text-gray-600">統計フィルタ: </span>
+                              <span className="font-medium text-gray-900">
+                                {statisticsFilter.type === 'nomen' && `氏族名: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'benefactionType' && `恵与行為タイプ: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'objectType' && `対象物: ${statisticsFilter.value}`}
+                              </span>
+                              {statisticsFilterLoading && (
+                                <span className="ml-2 text-gray-500">読み込み中...</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setStatisticsFilter({ type: null, value: null })
+                              }}
+                              className="px-2 py-1 text-[12px] text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded"
+                            >
+                              解除
+                            </button>
+                          </div>
+                        )}
+
                         <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
                           {filteredInscriptions.map((inscription, index) => (
                             <div
@@ -734,6 +895,376 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       </div>
                     )}
 
+                    {/* Statistics tab content */}
+                    {infoSubTab === 'statistics' && !networkEdcsId && !networkLoading && (
+                      <div>
+                        {/* Statistics sub-tabs */}
+                        <div className="mb-3 flex gap-2 border-b border-gray-200">
+                          <button
+                            onClick={() => setStatisticsTab('age')}
+                            className={`px-4 py-2 text-[13px] font-medium transition-colors ${
+                              statisticsTab === 'age'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                          >
+                            年齢
+                          </button>
+                          <button
+                            onClick={() => setStatisticsTab('clan')}
+                            className={`px-4 py-2 text-[13px] font-medium transition-colors ${
+                              statisticsTab === 'clan'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                          >
+                            氏族名
+                          </button>
+                          <button
+                            onClick={() => setStatisticsTab('benefaction')}
+                            className={`px-4 py-2 text-[13px] font-medium transition-colors ${
+                              statisticsTab === 'benefaction'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                          >
+                            恵与行為
+                          </button>
+                        </div>
+
+                        {/* Age statistics */}
+                        {statisticsTab === 'age' && (
+                          <div className="mt-4">
+                            {ageAtDeathLoading ? (
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
+                            ) : ageAtDeathData ? (
+                              <div className="space-y-3">
+                                <div className="p-3 bg-gray-50 rounded">
+                                  <p className="text-[13px] text-gray-600 mb-1">平均死亡年齢</p>
+                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.averageAge.toFixed(1)}歳</p>
+                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.count}件)</p>
+                                </div>
+                                <div className="p-3 bg-gray-50 rounded">
+                                  <p className="text-[13px] text-gray-600 mb-1">10歳未満の割合</p>
+                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.under10Percentage.toFixed(1)}%</p>
+                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.under10Count}件)</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-[14px] text-[#666]">データがありません</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Clan statistics */}
+                        {statisticsTab === 'clan' && (
+                          <div className="mt-4">
+                            {nomenFrequencyLoading ? (
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
+                            ) : nomenFrequencyData.length > 0 ? (
+                              <div>
+                                <div className="mb-3">
+                                  <p className="text-[13px] font-medium text-gray-700">氏族名の出現頻度（上位20件、クリックでフィルタ）</p>
+                                  <p className="text-[12px] text-gray-500 mt-1">
+                                    氏族名を持つ碑文: {nomenFrequencyData.reduce((sum, d) => sum + d.count, 0)}件 / ユニークな氏族名: {nomenFrequencyData.length}件
+                                  </p>
+                                </div>
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 max-h-[400px] overflow-y-auto shadow-sm">
+                                  <div className="space-y-3">
+                                    {nomenFrequencyData.slice(0, 20).map((item, index) => {
+                                      const totalNomenInscriptions = nomenFrequencyData.reduce((sum, d) => sum + d.count, 0)
+                                      const percentage = (item.count / totalNomenInscriptions) * 100
+                                      const barPercentage = (item.count / Math.max(...nomenFrequencyData.map(d => d.count))) * 100
+                                      const isActive = statisticsFilter.type === 'nomen' && statisticsFilter.value === item.nomen
+                                      const label = item.nomen.split('/').pop() || item.nomen
+                                      return (
+                                        <div
+                                          key={index}
+                                          className={`py-2.5 px-3 rounded-md cursor-pointer transition-all border ${
+                                            isActive
+                                              ? 'bg-blue-50 border-blue-300 shadow-sm'
+                                              : 'bg-gray-50 border-transparent hover:bg-gray-100 hover:border-gray-200'
+                                          }`}
+                                          onClick={() => {
+                                            if (isActive) {
+                                              setStatisticsFilter({ type: null, value: null })
+                                            } else {
+                                              setStatisticsFilter({ type: 'nomen', value: item.nomen })
+                                              if (inscriptionData?.type === 'single') {
+                                                setInfoSubTab('inscriptions')
+                                              }
+                                            }
+                                          }}
+                                        >
+                                          <div className="flex items-center justify-between mb-1.5">
+                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-blue-700' : 'text-gray-800'}`}>
+                                              {label}
+                                            </span>
+                                            <span className={`text-[12px] font-semibold ${isActive ? 'text-blue-600' : 'text-gray-600'}`}>
+                                              {item.count}件 ({percentage.toFixed(1)}%)
+                                            </span>
+                                          </div>
+                                          <div className="relative w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                                            <div
+                                              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${
+                                                isActive ? 'bg-blue-500' : 'bg-blue-400'
+                                              }`}
+                                              style={{ width: `${barPercentage}%` }}
+                                            />
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-[14px] text-[#666]">データがありません</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Benefaction statistics */}
+                        {statisticsTab === 'benefaction' && (
+                          <div className="mt-4">
+                            {benefactionTypeLoading ? (
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
+                            ) : benefactionTypeData.length > 0 ? (
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="text-[13px] text-gray-600 mb-3">恵与行為タイプの割合（クリックで詳細）</p>
+                                  {/* Pie chart and legend side by side */}
+                                  <div className="flex gap-4 items-center mb-3">
+                                    {/* Pie chart */}
+                                    <div className="flex-shrink-0">
+                                      <svg width="180" height="180" viewBox="0 0 200 200" className="transform -rotate-90">
+                                        {(() => {
+                                          const totalCount = benefactionTypeData.reduce((sum, d) => sum + d.count, 0)
+                                          const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+                                          let currentAngle = 0
+                                          return benefactionTypeData.map((item, index) => {
+                                            const percentage = (item.count / totalCount) * 100
+                                            const angle = (percentage / 100) * 360
+                                            const startAngle = currentAngle
+                                            const endAngle = currentAngle + angle
+                                            currentAngle = endAngle
+
+                                            const startRad = (startAngle * Math.PI) / 180
+                                            const endRad = (endAngle * Math.PI) / 180
+                                            const x1 = 100 + 90 * Math.cos(startRad)
+                                            const y1 = 100 + 90 * Math.sin(startRad)
+                                            const x2 = 100 + 90 * Math.cos(endRad)
+                                            const y2 = 100 + 90 * Math.sin(endRad)
+                                            const largeArcFlag = angle > 180 ? 1 : 0
+
+                                            const isActive = selectedBenefactionType === item.benefactionType
+
+                                            return (
+                                              <path
+                                                key={index}
+                                                d={`M 100 100 L ${x1} ${y1} A 90 90 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                                                fill={colors[index % colors.length]}
+                                                stroke="white"
+                                                strokeWidth="2"
+                                                className="cursor-pointer transition-opacity hover:opacity-80"
+                                                style={{ opacity: isActive ? 1 : 0.9 }}
+                                                onClick={() => {
+                                                  if (isActive) {
+                                                    setSelectedBenefactionType(null)
+                                                    if (statisticsFilter.type === 'benefactionType' && statisticsFilter.value === item.benefactionType) {
+                                                      setStatisticsFilter({ type: null, value: null })
+                                                    }
+                                                  } else {
+                                                    setSelectedBenefactionType(item.benefactionType)
+                                                  }
+                                                }}
+                                              />
+                                            )
+                                          })
+                                        })()}
+                                      </svg>
+                                    </div>
+                                    {/* Legend */}
+                                    <div className="flex-1 space-y-1">
+                                      {benefactionTypeData.map((item, index) => {
+                                        const totalCount = benefactionTypeData.reduce((sum, d) => sum + d.count, 0)
+                                        const percentage = (item.count / totalCount) * 100
+                                        const isActive = selectedBenefactionType === item.benefactionType
+                                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+                                        return (
+                                          <div
+                                            key={index}
+                                            className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                                              isActive ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'
+                                            }`}
+                                            onClick={() => {
+                                              if (isActive) {
+                                                setSelectedBenefactionType(null)
+                                                if (statisticsFilter.type === 'benefactionType' && statisticsFilter.value === item.benefactionType) {
+                                                  setStatisticsFilter({ type: null, value: null })
+                                                }
+                                              } else {
+                                                setSelectedBenefactionType(item.benefactionType)
+                                              }
+                                            }}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="w-3 h-3 rounded-sm flex-shrink-0"
+                                                style={{ backgroundColor: colors[index % colors.length] }}
+                                              />
+                                              <span className="text-[13px] font-medium text-gray-900">{item.benefactionType}</span>
+                                            </div>
+                                            <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                  {/* Filter button */}
+                                  {selectedBenefactionType && !statisticsFilter.type && (
+                                    <button
+                                      onClick={() => {
+                                        setStatisticsFilter({ type: 'benefactionType', value: selectedBenefactionType })
+                                        if (inscriptionData?.type === 'single') {
+                                          setInfoSubTab('inscriptions')
+                                        }
+                                      }}
+                                      className="w-full px-3 py-2 text-[13px] bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                    >
+                                      この恵与行為タイプでフィルタ
+                                    </button>
+                                  )}
+                                  {statisticsFilter.type === 'benefactionType' && statisticsFilter.value === selectedBenefactionType && (
+                                    <button
+                                      onClick={() => {
+                                        setStatisticsFilter({ type: null, value: null })
+                                      }}
+                                      className="w-full px-3 py-2 text-[13px] bg-gray-50 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                    >
+                                      フィルタ解除
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Object types for selected benefaction type */}
+                                {selectedBenefactionType && (
+                                  <div className="pt-3 border-t border-gray-200">
+                                    <p className="text-[13px] text-gray-600 mb-3">
+                                      {selectedBenefactionType}の対象物（クリックでフィルタ）
+                                    </p>
+                                    {benefactionObjectTypeLoading ? (
+                                      <p className="text-[14px] text-[#666]">データを読み込み中...</p>
+                                    ) : benefactionObjectTypeData.length > 0 ? (
+                                      <div className="flex gap-4 items-center">
+                                        {/* Pie chart */}
+                                        <div className="flex-shrink-0">
+                                          <svg width="180" height="180" viewBox="0 0 200 200" className="transform -rotate-90">
+                                            {(() => {
+                                              const totalCount = benefactionObjectTypeData.reduce((sum, d) => sum + d.count, 0)
+                                              const colors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                                              let currentAngle = 0
+                                              return benefactionObjectTypeData.map((item, index) => {
+                                                const percentage = (item.count / totalCount) * 100
+                                                const angle = (percentage / 100) * 360
+                                                const startAngle = currentAngle
+                                                const endAngle = currentAngle + angle
+                                                currentAngle = endAngle
+
+                                                const startRad = (startAngle * Math.PI) / 180
+                                                const endRad = (endAngle * Math.PI) / 180
+                                                const x1 = 100 + 90 * Math.cos(startRad)
+                                                const y1 = 100 + 90 * Math.sin(startRad)
+                                                const x2 = 100 + 90 * Math.cos(endRad)
+                                                const y2 = 100 + 90 * Math.sin(endRad)
+                                                const largeArcFlag = angle > 180 ? 1 : 0
+
+                                                const isActive = statisticsFilter.type === 'objectType' && statisticsFilter.value === item.objectType
+
+                                                return (
+                                                  <path
+                                                    key={index}
+                                                    d={`M 100 100 L ${x1} ${y1} A 90 90 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                                                    fill={colors[index % colors.length]}
+                                                    stroke="white"
+                                                    strokeWidth="2"
+                                                    className="cursor-pointer transition-opacity hover:opacity-80"
+                                                    style={{ opacity: isActive ? 1 : 0.9 }}
+                                                    onClick={() => {
+                                                      if (isActive) {
+                                                        setStatisticsFilter({ type: null, value: null })
+                                                      } else {
+                                                        setStatisticsFilter({
+                                                          type: 'objectType',
+                                                          value: item.objectType,
+                                                          benefactionTypeForObjectType: selectedBenefactionType
+                                                        })
+                                                        if (inscriptionData?.type === 'single') {
+                                                          setInfoSubTab('inscriptions')
+                                                        }
+                                                      }
+                                                    }}
+                                                  />
+                                                )
+                                              })
+                                            })()}
+                                          </svg>
+                                        </div>
+                                        {/* Legend */}
+                                        <div className="flex-1 space-y-1">
+                                          {benefactionObjectTypeData.map((item, index) => {
+                                            const totalCount = benefactionObjectTypeData.reduce((sum, d) => sum + d.count, 0)
+                                            const percentage = (item.count / totalCount) * 100
+                                            const isActive = statisticsFilter.type === 'objectType' && statisticsFilter.value === item.objectType
+                                            const colors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                                            return (
+                                              <div
+                                                key={index}
+                                                className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                                                  isActive ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'
+                                                }`}
+                                                onClick={() => {
+                                                  if (isActive) {
+                                                    setStatisticsFilter({ type: null, value: null })
+                                                  } else {
+                                                    setStatisticsFilter({
+                                                      type: 'objectType',
+                                                      value: item.objectType,
+                                                      benefactionTypeForObjectType: selectedBenefactionType
+                                                    })
+                                                    if (inscriptionData?.type === 'single') {
+                                                      setInfoSubTab('inscriptions')
+                                                    }
+                                                  }
+                                                }}
+                                              >
+                                                <div className="flex items-center gap-2">
+                                                  <div
+                                                    className="w-3 h-3 rounded-sm flex-shrink-0"
+                                                    style={{ backgroundColor: colors[index % colors.length] }}
+                                                  />
+                                                  <span className="text-[13px] font-medium text-gray-900">{item.objectType}</span>
+                                                </div>
+                                                <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <p className="text-[14px] text-[#666]">データがありません</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-[14px] text-[#666]">データがありません</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Display network visualization when active */}
                     {networkEdcsId && !networkLoading && (
                       <InscriptionNetwork
@@ -798,11 +1329,62 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       )}
                     </div>
 
+                    {/* Sub tabs for multiple places */}
+                    {!networkEdcsId && !networkLoading && (
+                      <div className="mb-3 flex gap-2 border-b border-gray-200">
+                        <button
+                          onClick={() => setInfoSubTab('inscriptions')}
+                          className={`px-4 py-2 text-[14px] font-medium transition-colors ${
+                            infoSubTab === 'inscriptions'
+                              ? 'text-blue-600 border-b-2 border-blue-600'
+                              : 'text-gray-600 hover:text-gray-800'
+                          }`}
+                        >
+                          碑文
+                        </button>
+                        <button
+                          onClick={() => setInfoSubTab('statistics')}
+                          className={`px-4 py-2 text-[14px] font-medium transition-colors ${
+                            infoSubTab === 'statistics'
+                              ? 'text-blue-600 border-b-2 border-blue-600'
+                              : 'text-gray-600 hover:text-gray-800'
+                          }`}
+                        >
+                          統計
+                        </button>
+                      </div>
+                    )}
+
                     {/* Display inscription details for selected place */}
-                    {!inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
+                    {infoSubTab === 'inscriptions' && !inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
                       <div className="mt-4">
+                        {/* Statistics filter indicator */}
+                        {statisticsFilter.type && statisticsFilter.value && (
+                          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded flex items-center justify-between">
+                            <div className="text-[13px]">
+                              <span className="text-gray-600">統計フィルタ: </span>
+                              <span className="font-medium text-gray-900">
+                                {statisticsFilter.type === 'nomen' && `氏族名: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'benefactionType' && `恵与行為タイプ: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'objectType' && `対象物: ${statisticsFilter.value}`}
+                              </span>
+                              {statisticsFilterLoading && (
+                                <span className="ml-2 text-gray-500">読み込み中...</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setStatisticsFilter({ type: null, value: null })
+                              }}
+                              className="px-2 py-1 text-[12px] text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded"
+                            >
+                              解除
+                            </button>
+                          </div>
+                        )}
+
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
-                          碑文一覧 ({filteredInscriptions.length}件{selectedFilters.size > 0 ? ` / ${inscriptionData.inscriptions.length}件中` : ''})
+                          碑文一覧 ({filteredInscriptions.length}件{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length}件中` : ''})
                         </h4>
                         <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
                           {filteredInscriptions.map((inscription, index) => (
@@ -903,6 +1485,366 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             </div>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Statistics tab content for multiple places */}
+                    {infoSubTab === 'statistics' && !networkEdcsId && !networkLoading && (
+                      <div>
+                        {/* Statistics sub-tabs */}
+                        <div className="mb-3 flex gap-2 border-b border-gray-200">
+                          <button
+                            onClick={() => setStatisticsTab('age')}
+                            className={`px-4 py-2 text-[13px] font-medium transition-colors ${
+                              statisticsTab === 'age'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                          >
+                            年齢
+                          </button>
+                          <button
+                            onClick={() => setStatisticsTab('clan')}
+                            className={`px-4 py-2 text-[13px] font-medium transition-colors ${
+                              statisticsTab === 'clan'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                          >
+                            氏族名
+                          </button>
+                          <button
+                            onClick={() => setStatisticsTab('benefaction')}
+                            className={`px-4 py-2 text-[13px] font-medium transition-colors ${
+                              statisticsTab === 'benefaction'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                          >
+                            恵与行為
+                          </button>
+                        </div>
+
+                        {/* Age statistics */}
+                        {statisticsTab === 'age' && (
+                          <div className="mt-4">
+                            {ageAtDeathLoading ? (
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
+                            ) : ageAtDeathData ? (
+                              <div className="space-y-3">
+                                <div className="p-3 bg-gray-50 rounded">
+                                  <p className="text-[13px] text-gray-600 mb-1">平均死亡年齢</p>
+                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.averageAge.toFixed(1)}歳</p>
+                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.count}件)</p>
+                                </div>
+                                <div className="p-3 bg-gray-50 rounded">
+                                  <p className="text-[13px] text-gray-600 mb-1">10歳未満の割合</p>
+                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.under10Percentage.toFixed(1)}%</p>
+                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.under10Count}件)</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-[14px] text-[#666]">データがありません</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Clan statistics */}
+                        {statisticsTab === 'clan' && (
+                          <div className="mt-4">
+                            {nomenFrequencyLoading ? (
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
+                            ) : nomenFrequencyData.length > 0 ? (
+                              <div>
+                                <div className="mb-3">
+                                  <p className="text-[13px] text-gray-600">氏族名の出現頻度（上位20件、クリックでフィルタ）</p>
+                                  <p className="text-[12px] text-gray-500 mt-1">全{nomenFrequencyData.length}件</p>
+                                </div>
+                                <div className="bg-white border border-gray-200 rounded-lg p-3 max-h-[400px] overflow-y-auto">
+                                  <div className="space-y-2">
+                                    {nomenFrequencyData.slice(0, 20).map((item, index) => {
+                                      const totalCount = nomenFrequencyData.reduce((sum, d) => sum + d.count, 0)
+                                      const percentage = (item.count / totalCount) * 100
+                                      const barPercentage = (item.count / Math.max(...nomenFrequencyData.map(d => d.count))) * 100
+                                      const isActive = statisticsFilter.type === 'nomen' && statisticsFilter.value === item.nomen
+                                      const label = item.nomen.split('/').pop() || item.nomen
+                                      return (
+                                        <div
+                                          key={index}
+                                          className={`py-2 px-2 rounded cursor-pointer transition-all ${
+                                            isActive
+                                              ? 'bg-blue-50'
+                                              : 'hover:bg-gray-50'
+                                          }`}
+                                          onClick={() => {
+                                            if (isActive) {
+                                              setStatisticsFilter({ type: null, value: null })
+                                            } else {
+                                              setStatisticsFilter({ type: 'nomen', value: item.nomen })
+                                              setInfoSubTab('inscriptions')
+                                            }
+                                          }}
+                                        >
+                                          <div className="flex items-center justify-between mb-1">
+                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-blue-700' : 'text-gray-800'}`}>
+                                              {label}
+                                            </span>
+                                            <span className={`text-[12px] font-medium ${isActive ? 'text-blue-600' : 'text-gray-600'}`}>
+                                              {item.count}件 ({percentage.toFixed(1)}%)
+                                            </span>
+                                          </div>
+                                          <div className="relative w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                                            <div
+                                              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${
+                                                isActive ? 'bg-blue-500' : 'bg-blue-400'
+                                              }`}
+                                              style={{ width: `${barPercentage}%` }}
+                                            />
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-[14px] text-[#666]">データがありません</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Benefaction statistics */}
+                        {statisticsTab === 'benefaction' && (
+                          <div className="mt-4">
+                            {benefactionTypeLoading ? (
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
+                            ) : benefactionTypeData.length > 0 ? (
+                              <div className="space-y-4">
+                                <div>
+                                  <p className="text-[13px] text-gray-600 mb-3">恵与行為タイプの割合（クリックで詳細）</p>
+                                  {/* Pie chart and legend side by side */}
+                                  <div className="flex gap-4 items-center mb-3">
+                                    {/* Pie chart */}
+                                    <div className="flex-shrink-0">
+                                      <svg width="180" height="180" viewBox="0 0 200 200" className="transform -rotate-90">
+                                        {(() => {
+                                          const totalCount = benefactionTypeData.reduce((sum, d) => sum + d.count, 0)
+                                          const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+                                          let currentAngle = 0
+                                          return benefactionTypeData.map((item, index) => {
+                                            const percentage = (item.count / totalCount) * 100
+                                            const angle = (percentage / 100) * 360
+                                            const startAngle = currentAngle
+                                            const endAngle = currentAngle + angle
+                                            currentAngle = endAngle
+
+                                            const startRad = (startAngle * Math.PI) / 180
+                                            const endRad = (endAngle * Math.PI) / 180
+                                            const x1 = 100 + 90 * Math.cos(startRad)
+                                            const y1 = 100 + 90 * Math.sin(startRad)
+                                            const x2 = 100 + 90 * Math.cos(endRad)
+                                            const y2 = 100 + 90 * Math.sin(endRad)
+                                            const largeArcFlag = angle > 180 ? 1 : 0
+
+                                            const isActive = selectedBenefactionType === item.benefactionType
+
+                                            return (
+                                              <path
+                                                key={index}
+                                                d={`M 100 100 L ${x1} ${y1} A 90 90 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                                                fill={colors[index % colors.length]}
+                                                stroke="white"
+                                                strokeWidth="2"
+                                                className="cursor-pointer transition-opacity hover:opacity-80"
+                                                style={{ opacity: isActive ? 1 : 0.9 }}
+                                                onClick={() => {
+                                                  if (isActive) {
+                                                    setSelectedBenefactionType(null)
+                                                    if (statisticsFilter.type === 'benefactionType' && statisticsFilter.value === item.benefactionType) {
+                                                      setStatisticsFilter({ type: null, value: null })
+                                                    }
+                                                  } else {
+                                                    setSelectedBenefactionType(item.benefactionType)
+                                                  }
+                                                }}
+                                              />
+                                            )
+                                          })
+                                        })()}
+                                      </svg>
+                                    </div>
+                                    {/* Legend */}
+                                    <div className="flex-1 space-y-1">
+                                      {benefactionTypeData.map((item, index) => {
+                                        const totalCount = benefactionTypeData.reduce((sum, d) => sum + d.count, 0)
+                                        const percentage = (item.count / totalCount) * 100
+                                        const isActive = selectedBenefactionType === item.benefactionType
+                                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+                                        return (
+                                          <div
+                                            key={index}
+                                            className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                                              isActive ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'
+                                            }`}
+                                            onClick={() => {
+                                              if (isActive) {
+                                                setSelectedBenefactionType(null)
+                                                if (statisticsFilter.type === 'benefactionType' && statisticsFilter.value === item.benefactionType) {
+                                                  setStatisticsFilter({ type: null, value: null })
+                                                }
+                                              } else {
+                                                setSelectedBenefactionType(item.benefactionType)
+                                              }
+                                            }}
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <div
+                                                className="w-3 h-3 rounded-sm flex-shrink-0"
+                                                style={{ backgroundColor: colors[index % colors.length] }}
+                                              />
+                                              <span className="text-[13px] font-medium text-gray-900">{item.benefactionType}</span>
+                                            </div>
+                                            <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                  {/* Filter button */}
+                                  {selectedBenefactionType && !statisticsFilter.type && (
+                                    <button
+                                      onClick={() => {
+                                        setStatisticsFilter({ type: 'benefactionType', value: selectedBenefactionType })
+                                        setInfoSubTab('inscriptions')
+                                      }}
+                                      className="w-full px-3 py-2 text-[13px] bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                    >
+                                      この恵与行為タイプでフィルタ
+                                    </button>
+                                  )}
+                                  {statisticsFilter.type === 'benefactionType' && statisticsFilter.value === selectedBenefactionType && (
+                                    <button
+                                      onClick={() => {
+                                        setStatisticsFilter({ type: null, value: null })
+                                      }}
+                                      className="w-full px-3 py-2 text-[13px] bg-gray-50 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                    >
+                                      フィルタ解除
+                                    </button>
+                                  )}
+                                </div>
+
+                                {/* Object types for selected benefaction type */}
+                                {selectedBenefactionType && (
+                                  <div className="pt-3 border-t border-gray-200">
+                                    <p className="text-[13px] text-gray-600 mb-3">
+                                      {selectedBenefactionType}の対象物（クリックでフィルタ）
+                                    </p>
+                                    {benefactionObjectTypeLoading ? (
+                                      <p className="text-[14px] text-[#666]">データを読み込み中...</p>
+                                    ) : benefactionObjectTypeData.length > 0 ? (
+                                      <div className="flex gap-4 items-center">
+                                        {/* Pie chart */}
+                                        <div className="flex-shrink-0">
+                                          <svg width="180" height="180" viewBox="0 0 200 200" className="transform -rotate-90">
+                                            {(() => {
+                                              const totalCount = benefactionObjectTypeData.reduce((sum, d) => sum + d.count, 0)
+                                              const colors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                                              let currentAngle = 0
+                                              return benefactionObjectTypeData.map((item, index) => {
+                                                const percentage = (item.count / totalCount) * 100
+                                                const angle = (percentage / 100) * 360
+                                                const startAngle = currentAngle
+                                                const endAngle = currentAngle + angle
+                                                currentAngle = endAngle
+
+                                                const startRad = (startAngle * Math.PI) / 180
+                                                const endRad = (endAngle * Math.PI) / 180
+                                                const x1 = 100 + 90 * Math.cos(startRad)
+                                                const y1 = 100 + 90 * Math.sin(startRad)
+                                                const x2 = 100 + 90 * Math.cos(endRad)
+                                                const y2 = 100 + 90 * Math.sin(endRad)
+                                                const largeArcFlag = angle > 180 ? 1 : 0
+
+                                                const isActive = statisticsFilter.type === 'objectType' && statisticsFilter.value === item.objectType
+
+                                                return (
+                                                  <path
+                                                    key={index}
+                                                    d={`M 100 100 L ${x1} ${y1} A 90 90 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                                                    fill={colors[index % colors.length]}
+                                                    stroke="white"
+                                                    strokeWidth="2"
+                                                    className="cursor-pointer transition-opacity hover:opacity-80"
+                                                    style={{ opacity: isActive ? 1 : 0.9 }}
+                                                    onClick={() => {
+                                                      if (isActive) {
+                                                        setStatisticsFilter({ type: null, value: null })
+                                                      } else {
+                                                        setStatisticsFilter({
+                                                          type: 'objectType',
+                                                          value: item.objectType,
+                                                          benefactionTypeForObjectType: selectedBenefactionType
+                                                        })
+                                                        setInfoSubTab('inscriptions')
+                                                      }
+                                                    }}
+                                                  />
+                                                )
+                                              })
+                                            })()}
+                                          </svg>
+                                        </div>
+                                        {/* Legend */}
+                                        <div className="flex-1 space-y-1">
+                                          {benefactionObjectTypeData.map((item, index) => {
+                                            const totalCount = benefactionObjectTypeData.reduce((sum, d) => sum + d.count, 0)
+                                            const percentage = (item.count / totalCount) * 100
+                                            const isActive = statisticsFilter.type === 'objectType' && statisticsFilter.value === item.objectType
+                                            const colors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                                            return (
+                                              <div
+                                                key={index}
+                                                className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                                                  isActive ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'
+                                                }`}
+                                                onClick={() => {
+                                                  if (isActive) {
+                                                    setStatisticsFilter({ type: null, value: null })
+                                                  } else {
+                                                    setStatisticsFilter({
+                                                      type: 'objectType',
+                                                      value: item.objectType,
+                                                      benefactionTypeForObjectType: selectedBenefactionType
+                                                    })
+                                                    setInfoSubTab('inscriptions')
+                                                  }
+                                                }}
+                                              >
+                                                <div className="flex items-center gap-2">
+                                                  <div
+                                                    className="w-3 h-3 rounded-sm flex-shrink-0"
+                                                    style={{ backgroundColor: colors[index % colors.length] }}
+                                                  />
+                                                  <span className="text-[13px] font-medium text-gray-900">{item.objectType}</span>
+                                                </div>
+                                                <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <p className="text-[14px] text-[#666]">データがありません</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-[14px] text-[#666]">データがありません</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 

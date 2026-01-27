@@ -64,6 +64,28 @@ export interface MosaicDetail {
   thumbnail?: string
 }
 
+export interface AgeAtDeathData {
+  averageAge: number
+  count: number
+  under10Count: number
+  under10Percentage: number
+}
+
+export interface NomenFrequency {
+  nomen: string
+  count: number
+}
+
+export interface BenefactionTypeFrequency {
+  benefactionType: string
+  count: number
+}
+
+export interface BenefactionObjectTypeFrequency {
+  objectType: string
+  count: number
+}
+
 /**
  * Query inscriptions by Pleiades ID and/or custom location from SPARQL endpoint
  * This function searches for inscriptions linked via:
@@ -786,6 +808,316 @@ export async function queryMosaicsByPlaceId(pleiadesId: string): Promise<MosaicD
     return []
   } catch (error) {
     console.error('Error querying mosaics from SPARQL endpoint:', error)
+    return []
+  }
+}
+
+/**
+ * Query average age at death for selected places from SPARQL endpoint
+ */
+export async function queryAverageAgeAtDeath(pleiadesIds: string[]): Promise<AgeAtDeathData | null> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+  if (pleiadesIds.length === 0) return null
+
+  const valuesClause = pleiadesIds.map(id => `"${id}"`).join(' ')
+  const query = `
+    PREFIX epig: <http://example.org/epigraphy/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+    SELECT (AVG(?age) AS ?averageAge) (COUNT(?age) AS ?count) (SUM(IF(?age <= 10, 1, 0)) AS ?under10Count)
+    WHERE {
+      VALUES ?pleiadesId { ${valuesClause} }
+      ?inscription a epig:Inscription ; epig:pleiadesId ?pleiadesId ; epig:mentions ?person .
+      ?person a foaf:Person ; epig:ageAtDeath ?age .
+      FILTER(DATATYPE(?age) = xsd:integer)
+    }
+  `
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/sparql-results+json' },
+      body: `query=${encodeURIComponent(query)}`
+    })
+    if (!response.ok) throw new Error(`SPARQL query failed: ${response.status}`)
+    
+    const data = await response.json()
+    if (data.results?.bindings?.[0]) {
+      const b = data.results.bindings[0]
+      if (b.averageAge && b.count) {
+        const count = parseInt(b.count.value, 10)
+        const under10Count = b.under10Count ? parseInt(b.under10Count.value, 10) : 0
+        return {
+          averageAge: parseFloat(b.averageAge.value),
+          count,
+          under10Count,
+          under10Percentage: count > 0 ? (under10Count / count) * 100 : 0
+        }
+      }
+    }
+    return null
+  } catch (error) {
+    console.error('Error querying age at death:', error)
+    return null
+  }
+}
+
+/**
+ * Query nomen frequency for selected places
+ */
+export async function queryNomenFrequency(pleiadesIds: string[]): Promise<NomenFrequency[]> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+  if (pleiadesIds.length === 0) return []
+
+  const valuesClause = pleiadesIds.map(id => `"${id}"`).join(' ')
+  const query = `
+    PREFIX epig: <http://example.org/epigraphy/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    SELECT ?nomen (COUNT(?nomen) AS ?count)
+    WHERE {
+      VALUES ?pleiadesId { ${valuesClause} }
+      ?inscription a epig:Inscription ; epig:pleiadesId ?pleiadesId ; epig:mentions ?person .
+      ?person a foaf:Person ; epig:nomen ?nomen .
+      FILTER(BOUND(?nomen))
+    }
+    GROUP BY ?nomen
+    ORDER BY DESC(?count)
+  `
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/sparql-results+json' },
+      body: `query=${encodeURIComponent(query)}`
+    })
+    if (!response.ok) throw new Error(`SPARQL query failed: ${response.status}`)
+    
+    const data = await response.json()
+    if (data.results?.bindings?.length > 0) {
+      return data.results.bindings.map((b: any) => ({
+        nomen: b.nomen.value,
+        count: parseInt(b.count.value, 10)
+      }))
+    }
+    return []
+  } catch (error) {
+    console.error('Error querying nomen frequency:', error)
+    return []
+  }
+}
+
+/**
+ * Query benefaction type frequency
+ */
+export async function queryBenefactionTypeFrequency(pleiadesIds: string[]): Promise<BenefactionTypeFrequency[]> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+  if (pleiadesIds.length === 0) return []
+
+  const valuesClause = pleiadesIds.map(id => `"${id}"`).join(' ')
+  const query = `
+    PREFIX epig: <http://example.org/epigraphy/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    SELECT ?benefactionType (COUNT(?benefactionType) AS ?count)
+    WHERE {
+      VALUES ?pleiadesId { ${valuesClause} }
+      ?inscription a epig:Inscription ; epig:pleiadesId ?pleiadesId ; epig:mentions ?person .
+      ?person a foaf:Person ; epig:hasBenefaction ?benefaction .
+      ?benefaction epig:benefactionType ?benefactionType .
+      FILTER(BOUND(?benefactionType))
+    }
+    GROUP BY ?benefactionType
+    ORDER BY DESC(?count)
+  `
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/sparql-results+json' },
+      body: `query=${encodeURIComponent(query)}`
+    })
+    if (!response.ok) throw new Error(`SPARQL query failed: ${response.status}`)
+    
+    const data = await response.json()
+    if (data.results?.bindings?.length > 0) {
+      return data.results.bindings.map((b: any) => ({
+        benefactionType: b.benefactionType.value,
+        count: parseInt(b.count.value, 10)
+      }))
+    }
+    return []
+  } catch (error) {
+    console.error('Error querying benefaction type:', error)
+    return []
+  }
+}
+
+/**
+ * Query benefaction object type frequency
+ */
+export async function queryBenefactionObjectTypeFrequency(pleiadesIds: string[], benefactionType: string): Promise<BenefactionObjectTypeFrequency[]> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+  if (pleiadesIds.length === 0) return []
+
+  const valuesClause = pleiadesIds.map(id => `"${id}"`).join(' ')
+  const query = `
+    PREFIX epig: <http://example.org/epigraphy/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    SELECT ?objectType (COUNT(?objectType) AS ?count)
+    WHERE {
+      VALUES ?pleiadesId { ${valuesClause} }
+      ?inscription a epig:Inscription ; epig:pleiadesId ?pleiadesId ; epig:mentions ?person .
+      ?person a foaf:Person ; epig:hasBenefaction ?benefaction .
+      ?benefaction epig:benefactionType "${benefactionType}" ; epig:objectType ?objectType .
+      FILTER(BOUND(?objectType))
+    }
+    GROUP BY ?objectType
+    ORDER BY DESC(?count)
+  `
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/sparql-results+json' },
+      body: `query=${encodeURIComponent(query)}`
+    })
+    if (!response.ok) throw new Error(`SPARQL query failed: ${response.status}`)
+    
+    const data = await response.json()
+    if (data.results?.bindings?.length > 0) {
+      return data.results.bindings.map((b: any) => ({
+        objectType: b.objectType.value,
+        count: parseInt(b.count.value, 10)
+      }))
+    }
+    return []
+  } catch (error) {
+    console.error('Error querying object type:', error)
+    return []
+  }
+}
+
+/**
+ * Query inscriptions by nomen
+ */
+export async function queryInscriptionsByNomen(pleiadesIds: string[], nomen: string): Promise<string[]> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+  if (pleiadesIds.length === 0) return []
+
+  const valuesClause = pleiadesIds.map(id => `"${id}"`).join(' ')
+  const query = `
+    PREFIX epig: <http://example.org/epigraphy/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    SELECT DISTINCT ?edcsId
+    WHERE {
+      VALUES ?pleiadesId { ${valuesClause} }
+      ?inscription a epig:Inscription ; epig:pleiadesId ?pleiadesId ; epig:edcsId ?edcsId ; epig:mentions ?person .
+      ?person a foaf:Person ; epig:nomen <${nomen}> .
+    }
+    ORDER BY ?edcsId
+  `
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/sparql-results+json' },
+      body: `query=${encodeURIComponent(query)}`
+    })
+    if (!response.ok) throw new Error(`SPARQL query failed: ${response.status}`)
+    
+    const data = await response.json()
+    if (data.results?.bindings?.length > 0) {
+      return data.results.bindings.map((b: any) => b.edcsId.value)
+    }
+    return []
+  } catch (error) {
+    console.error('Error querying inscriptions by nomen:', error)
+    return []
+  }
+}
+
+/**
+ * Query inscriptions by benefaction type
+ */
+export async function queryInscriptionsByBenefactionType(pleiadesIds: string[], benefactionType: string): Promise<string[]> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+  if (pleiadesIds.length === 0) return []
+
+  const valuesClause = pleiadesIds.map(id => `"${id}"`).join(' ')
+  const query = `
+    PREFIX epig: <http://example.org/epigraphy/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    SELECT DISTINCT ?edcsId
+    WHERE {
+      VALUES ?pleiadesId { ${valuesClause} }
+      ?inscription a epig:Inscription ; epig:pleiadesId ?pleiadesId ; epig:edcsId ?edcsId ; epig:mentions ?person .
+      ?person a foaf:Person ; epig:hasBenefaction ?benefaction .
+      ?benefaction epig:benefactionType "${benefactionType}" .
+    }
+    ORDER BY ?edcsId
+  `
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/sparql-results+json' },
+      body: `query=${encodeURIComponent(query)}`
+    })
+    if (!response.ok) throw new Error(`SPARQL query failed: ${response.status}`)
+    
+    const data = await response.json()
+    if (data.results?.bindings?.length > 0) {
+      return data.results.bindings.map((b: any) => b.edcsId.value)
+    }
+    return []
+  } catch (error) {
+    console.error('Error querying inscriptions by benefaction type:', error)
+    return []
+  }
+}
+
+/**
+ * Query inscriptions by benefaction object type
+ */
+export async function queryInscriptionsByBenefactionObjectType(pleiadesIds: string[], benefactionType: string, objectType: string): Promise<string[]> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+  if (pleiadesIds.length === 0) return []
+
+  const valuesClause = pleiadesIds.map(id => `"${id}"`).join(' ')
+  const query = `
+    PREFIX epig: <http://example.org/epigraphy/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+
+    SELECT DISTINCT ?edcsId
+    WHERE {
+      VALUES ?pleiadesId { ${valuesClause} }
+      ?inscription a epig:Inscription ; epig:pleiadesId ?pleiadesId ; epig:edcsId ?edcsId ; epig:mentions ?person .
+      ?person a foaf:Person ; epig:hasBenefaction ?benefaction .
+      ?benefaction epig:benefactionType "${benefactionType}" ; epig:objectType <${objectType}> .
+    }
+    ORDER BY ?edcsId
+  `
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/sparql-results+json' },
+      body: `query=${encodeURIComponent(query)}`
+    })
+    if (!response.ok) throw new Error(`SPARQL query failed: ${response.status}`)
+    
+    const data = await response.json()
+    if (data.results?.bindings?.length > 0) {
+      return data.results.bindings.map((b: any) => b.edcsId.value)
+    }
+    return []
+  } catch (error) {
+    console.error('Error querying inscriptions by object type:', error)
     return []
   }
 }
