@@ -516,6 +516,112 @@ export async function queryAllRelationshipTypes(): Promise<string[]> {
 }
 
 /**
+ * Query filter data (social statuses and relationship types) for multiple inscriptions at once
+ * This is much more efficient than querying each inscription individually
+ */
+export async function queryInscriptionsFilterData(edcsIds: string[]): Promise<{ [edcsId: string]: { socialStatuses: string[], relationshipTypes: string[] } }> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+
+  // Build VALUES clause for EDCS IDs
+  const valuesClause = edcsIds.map(id => `"${id}"`).join(' ')
+
+  const query = `
+    PREFIX base: <http://example.org/inscription/>
+    PREFIX epig: <http://example.org/epigraphy/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+
+    SELECT DISTINCT ?edcsId ?social_status ?rel_type
+    WHERE {
+      VALUES ?edcsId { ${valuesClause} }
+
+      ?inscription a epig:Inscription ;
+                   dcterms:identifier ?edcsId .
+
+      OPTIONAL {
+        ?inscription epig:mentions ?person .
+        ?person a foaf:Person .
+        OPTIONAL { ?person epig:socialStatus ?social_status . }
+      }
+
+      OPTIONAL {
+        ?inscription epig:mentions ?relationship .
+        ?relationship a epig:Relationship .
+        OPTIONAL { ?relationship epig:relationshipType ?rel_type . }
+      }
+    }
+  `
+
+  console.log(`Querying filter data for ${edcsIds.length} inscriptions`)
+
+  try {
+    // Add timeout to fetch request
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout for bulk query
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/sparql-results+json'
+      },
+      body: `query=${encodeURIComponent(query)}`,
+      signal: controller.signal
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('SPARQL error response:', errorText)
+      throw new Error(`SPARQL query failed: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    console.log(`Received filter data for ${edcsIds.length} inscriptions`)
+
+    // Group results by EDCS ID
+    const filterDataMap: { [edcsId: string]: { socialStatuses: string[], relationshipTypes: string[] } } = {}
+
+    // Initialize all EDCS IDs with empty arrays
+    edcsIds.forEach(id => {
+      filterDataMap[id] = { socialStatuses: [], relationshipTypes: [] }
+    })
+
+    if (data.results && data.results.bindings && data.results.bindings.length > 0) {
+      data.results.bindings.forEach((binding: any) => {
+        const edcsId = binding.edcsId?.value
+        if (edcsId) {
+          if (!filterDataMap[edcsId]) {
+            filterDataMap[edcsId] = { socialStatuses: [], relationshipTypes: [] }
+          }
+          if (binding.social_status?.value && !filterDataMap[edcsId].socialStatuses.includes(binding.social_status.value)) {
+            filterDataMap[edcsId].socialStatuses.push(binding.social_status.value)
+          }
+          if (binding.rel_type?.value && !filterDataMap[edcsId].relationshipTypes.includes(binding.rel_type.value)) {
+            filterDataMap[edcsId].relationshipTypes.push(binding.rel_type.value)
+          }
+        }
+      })
+    }
+
+    return filterDataMap
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Timeout querying filter data for ${edcsIds.length} inscriptions`)
+    } else {
+      console.error('Error querying filter data from SPARQL endpoint:', error)
+    }
+    // Return empty map to avoid breaking the UI
+    const emptyMap: { [edcsId: string]: { socialStatuses: string[], relationshipTypes: string[] } } = {}
+    edcsIds.forEach(id => {
+      emptyMap[id] = { socialStatuses: [], relationshipTypes: [] }
+    })
+    return emptyMap
+  }
+}
+
+/**
  * Query inscription network data (persons, communities, relationships, careers, benefactions) from SPARQL endpoint
  */
 export async function queryInscriptionNetwork(edcsId: string): Promise<InscriptionNetworkData[]> {
@@ -605,14 +711,21 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
   console.log('Querying inscription network for EDCS ID:', edcsId)
 
   try {
+    // Add timeout to fetch request
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/sparql-results+json'
       },
-      body: `query=${encodeURIComponent(query)}`
+      body: `query=${encodeURIComponent(query)}`,
+      signal: controller.signal
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -657,7 +770,11 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
     console.log('No network data found')
     return []
   } catch (error) {
-    console.error('Error querying inscription network from SPARQL endpoint:', error)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Timeout querying inscription network for EDCS ID ${edcsId}`)
+    } else {
+      console.error('Error querying inscription network from SPARQL endpoint:', error)
+    }
     // Return empty array to avoid breaking the UI
     return []
   }

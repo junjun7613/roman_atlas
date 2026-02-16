@@ -2,7 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { queryInscriptionNetwork, queryMosaicsByPlaceId, queryAverageAgeAtDeath, queryNomenFrequency, queryBenefactionTypeFrequency, queryBenefactionObjectTypeFrequency, queryInscriptionsByNomen, queryInscriptionsByBenefactionType, queryInscriptionsByBenefactionObjectType, type InscriptionNetworkData, type MosaicDetail, type AgeAtDeathData, type NomenFrequency, type BenefactionTypeFrequency, type BenefactionObjectTypeFrequency } from '../utils/sparql'
+import { queryInscriptionNetwork, queryInscriptionsFilterData, queryMosaicsByPlaceId, queryAverageAgeAtDeath, queryNomenFrequency, queryBenefactionTypeFrequency, queryBenefactionObjectTypeFrequency, queryInscriptionsByNomen, queryInscriptionsByBenefactionType, queryInscriptionsByBenefactionObjectType, type InscriptionNetworkData, type MosaicDetail, type AgeAtDeathData, type NomenFrequency, type BenefactionTypeFrequency, type BenefactionObjectTypeFrequency } from '../utils/sparql'
 
 const InscriptionNetwork = dynamic(() => import('./InscriptionNetwork'), {
   ssr: false
@@ -194,6 +194,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set())
   const [availableFilters, setAvailableFilters] = useState<{ [key: string]: string[] }>({})
   const [inscriptionFilterData, setInscriptionFilterData] = useState<{ [edcsId: string]: { socialStatuses: string[], relationshipTypes: string[] } }>({})
+  const [filterDataLoading, setFilterDataLoading] = useState(false)
+  const [filterDataProgress, setFilterDataProgress] = useState({ current: 0, total: 0 })
 
 
   // Load available filters from FilteringData.json
@@ -216,52 +218,51 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
     const loadFilterData = async () => {
       if (!inscriptionData?.inscriptions || inscriptionData.inscriptions.length === 0) {
         setInscriptionFilterData({})
+        setFilterDataLoading(false)
+        setFilterDataProgress({ current: 0, total: 0 })
         return
       }
 
-      const filterDataMap: { [edcsId: string]: { socialStatuses: string[], relationshipTypes: string[] } } = {}
+      const inscriptions = inscriptionData.inscriptions
+      setFilterDataLoading(true)
+      setFilterDataProgress({ current: 0, total: inscriptions.length })
+      console.log(`Loading filter data for ${inscriptions.length} inscriptions using bulk query`)
 
-      // Load data for all inscriptions in parallel
-      const promises = inscriptionData.inscriptions.map(async (inscription) => {
-        try {
-          const networkData = await queryInscriptionNetwork(inscription.edcsId)
-          const socialStatuses = new Set<string>()
-          const relationshipTypes = new Set<string>()
+      try {
+        // Query all inscriptions at once with bulk query - much faster!
+        const batchSize = 100 // Process 100 inscriptions per SPARQL query
+        let allFilterData: { [edcsId: string]: { socialStatuses: string[], relationshipTypes: string[] } } = {}
 
-          networkData.forEach(data => {
-            if (data.social_status) {
-              // Store full URI
-              socialStatuses.add(data.social_status)
-            }
-            if (data.rel_type) {
-              // Store full URI
-              relationshipTypes.add(data.rel_type)
-            }
-          })
+        for (let i = 0; i < inscriptions.length; i += batchSize) {
+          const batch = inscriptions.slice(i, i + batchSize)
+          const edcsIds = batch.map(ins => ins.edcsId)
 
-          return {
-            edcsId: inscription.edcsId,
-            socialStatuses: Array.from(socialStatuses),
-            relationshipTypes: Array.from(relationshipTypes)
+          console.log(`Querying batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(inscriptions.length / batchSize)} (${edcsIds.length} inscriptions)`)
+
+          const batchData = await queryInscriptionsFilterData(edcsIds)
+
+          // Merge batch data into all filter data
+          Object.assign(allFilterData, batchData)
+
+          // Update progress
+          const processedCount = Math.min(i + batchSize, inscriptions.length)
+          setFilterDataProgress({ current: processedCount, total: inscriptions.length })
+          console.log(`Processed ${processedCount} / ${inscriptions.length} inscriptions`)
+
+          // Small delay between batches to avoid overwhelming the endpoint
+          if (i + batchSize < inscriptions.length) {
+            await new Promise(resolve => setTimeout(resolve, 500))
           }
-        } catch (error) {
-          console.error(`Error loading filter data for ${inscription.edcsId}:`, error)
-          return { edcsId: inscription.edcsId, socialStatuses: [], relationshipTypes: [] }
         }
-      })
 
-      // Wait for all queries to complete
-      const results = await Promise.all(promises)
-
-      // Build filterDataMap from results
-      results.forEach(result => {
-        filterDataMap[result.edcsId] = {
-          socialStatuses: result.socialStatuses,
-          relationshipTypes: result.relationshipTypes
-        }
-      })
-
-      setInscriptionFilterData(filterDataMap)
+        console.log('Filter data loading complete')
+        setInscriptionFilterData(allFilterData)
+      } catch (error) {
+        console.error('Error loading filter data:', error)
+        setInscriptionFilterData({})
+      } finally {
+        setFilterDataLoading(false)
+      }
     }
 
     loadFilterData()
@@ -628,12 +629,26 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 value={filterType}
                                 onChange={(e) => setFilterType(e.target.value as 'SocialStatus' | 'RelationshipType')}
                                 className="w-full px-2 py-1 border border-gray-300 rounded text-[13px] bg-white"
+                                disabled={filterDataLoading}
                               >
                                 <option value="SocialStatus">社会的身分で絞り込み</option>
                                 <option value="RelationshipType">関係性で絞り込み</option>
                               </select>
                             </div>
-                            {availableFilters[filterType]?.length > 0 ? (
+                            {filterDataLoading ? (
+                              <div className="text-[13px] text-gray-600">
+                                <p className="mb-1">フィルタデータを読み込み中...</p>
+                                <p className="text-[12px] text-gray-500">
+                                  {filterDataProgress.current} / {filterDataProgress.total} 件処理済み
+                                </p>
+                                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${filterDataProgress.total > 0 ? (filterDataProgress.current / filterDataProgress.total) * 100 : 0}%` }}
+                                  />
+                                </div>
+                              </div>
+                            ) : availableFilters[filterType]?.length > 0 ? (
                               <div className="space-y-2 max-h-[120px] overflow-y-auto">
                                 {availableFilters[filterType].map(filterUri => {
                                   // Extract label from URI (e.g., "http://example.org/status/emperor" -> "emperor")
