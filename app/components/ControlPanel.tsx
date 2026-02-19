@@ -1283,11 +1283,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                 <span className="text-[11px] font-bold text-yellow-700">#{index + 1}</span>
                                                 <button
                                                   onClick={() => {
-                                                    const inscription = filteredInscriptions.find(i => i.edcsId === item.edcsId)
-                                                    if (inscription) {
-                                                      setSelectedInscription(inscription)
-                                                      setShowInscriptionDetail(true)
-                                                    }
+                                                    handleShowInscriptionDetail(item.edcsId)
                                                   }}
                                                   className="text-[12px] text-blue-600 hover:text-blue-800 hover:underline font-medium"
                                                 >
@@ -2235,11 +2231,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                 <span className="text-[11px] font-bold text-yellow-700">#{index + 1}</span>
                                                 <button
                                                   onClick={() => {
-                                                    const inscription = filteredInscriptions.find(i => i.edcsId === item.edcsId)
-                                                    if (inscription) {
-                                                      setSelectedInscription(inscription)
-                                                      setShowInscriptionDetail(true)
-                                                    }
+                                                    handleShowInscriptionDetail(item.edcsId)
                                                   }}
                                                   className="text-[12px] text-blue-600 hover:text-blue-800 hover:underline font-medium"
                                                 >
