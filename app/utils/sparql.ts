@@ -516,6 +516,90 @@ export async function queryAllRelationshipTypes(): Promise<string[]> {
 }
 
 /**
+ * Query detailed inscription data by EDCS ID
+ */
+export async function queryInscriptionByEdcsId(edcsId: string): Promise<{
+  edcsId: string
+  text: string
+  comment: string
+  bibliographicCitation: string
+  datingFrom: number | null
+  datingTo: number | null
+  province: string
+  place: string
+} | null> {
+  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+
+  const query = `
+    PREFIX epig: <http://example.org/epigraphy/>
+    PREFIX dcterms: <http://purl.org/dc/terms/>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+    SELECT ?text ?comment ?bibliographicCitation ?datingFrom ?datingTo ?province ?place
+    WHERE {
+      ?inscription a epig:Inscription ;
+                   dcterms:identifier "${edcsId}" .
+
+      OPTIONAL { ?inscription epig:text ?text }
+      OPTIONAL { ?inscription rdfs:comment ?comment }
+      OPTIONAL { ?inscription dcterms:bibliographicCitation ?bibliographicCitation }
+      OPTIONAL { ?inscription epig:datingFrom ?datingFrom }
+      OPTIONAL { ?inscription epig:datingTo ?datingTo }
+      OPTIONAL { ?inscription epig:province ?province }
+      OPTIONAL { ?inscription epig:place ?place }
+    }
+  `
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/sparql-results+json'
+      },
+      body: `query=${encodeURIComponent(query)}`
+    })
+
+    if (!response.ok) {
+      throw new Error(`SPARQL query failed: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    if (data.results && data.results.bindings && data.results.bindings.length > 0) {
+      const binding = data.results.bindings[0]
+
+      // Helper function to extract and decode URI components
+      const extractLabel = (uri: string): string => {
+        if (!uri) return ''
+        // Get the last part of the URI
+        const lastPart = uri.split('/').pop() || uri
+        // Decode URI encoding (%20 -> space, etc.)
+        const decoded = decodeURIComponent(lastPart)
+        // Replace remaining encoded spaces with actual spaces
+        return decoded.replace(/%20/g, ' ')
+      }
+
+      return {
+        edcsId,
+        text: binding.text?.value || '',
+        comment: binding.comment?.value || '',
+        bibliographicCitation: binding.bibliographicCitation?.value || '',
+        datingFrom: binding.datingFrom?.value ? parseInt(binding.datingFrom.value) : null,
+        datingTo: binding.datingTo?.value ? parseInt(binding.datingTo.value) : null,
+        province: binding.province?.value ? extractLabel(binding.province.value) : '',
+        place: binding.place?.value ? extractLabel(binding.place.value) : ''
+      }
+    }
+
+    return null
+  } catch (error) {
+    console.error('Error querying inscription by EDCS ID:', error)
+    return null
+  }
+}
+
+/**
  * Query filter data (social statuses and relationship types) for multiple inscriptions at once
  * This is much more efficient than querying each inscription individually
  */
@@ -991,6 +1075,7 @@ export async function queryNomenFrequency(pleiadesIds: string[]): Promise<NomenF
   const query = `
     PREFIX epig: <http://example.org/epigraphy/>
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    PREFIX status: <http://example.org/status/>
 
     SELECT ?nomen (COUNT(?nomen) AS ?count)
     WHERE {
@@ -998,6 +1083,13 @@ export async function queryNomenFrequency(pleiadesIds: string[]): Promise<NomenF
       ?inscription a epig:Inscription ; epig:pleiadesId ?pleiadesId ; epig:mentions ?person .
       ?person a foaf:Person ; epig:nomen ?nomen .
       FILTER(BOUND(?nomen))
+
+      # Exclude imperial persons (Emperor, Empress, ImperialFamily) - COMMENTED OUT
+      OPTIONAL { ?person epig:socialStatus ?status }
+      FILTER(!BOUND(?status) ||
+             (?status != status:emperor &&
+              ?status != status:empress &&
+              ?status != status:imperial-family))
     }
     GROUP BY ?nomen
     ORDER BY DESC(?count)

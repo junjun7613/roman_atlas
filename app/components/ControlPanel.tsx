@@ -2,7 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { queryInscriptionNetwork, queryInscriptionsFilterData, queryMosaicsByPlaceId, queryAverageAgeAtDeath, queryNomenFrequency, queryBenefactionTypeFrequency, queryBenefactionObjectTypeFrequency, queryInscriptionsByNomen, queryInscriptionsByBenefactionType, queryInscriptionsByBenefactionObjectType, type InscriptionNetworkData, type MosaicDetail, type AgeAtDeathData, type NomenFrequency, type BenefactionTypeFrequency, type BenefactionObjectTypeFrequency } from '../utils/sparql'
+import { queryInscriptionNetwork, queryInscriptionsFilterData, queryInscriptionByEdcsId, queryMosaicsByPlaceId, queryAverageAgeAtDeath, queryNomenFrequency, queryBenefactionTypeFrequency, queryBenefactionObjectTypeFrequency, queryInscriptionsByNomen, queryInscriptionsByBenefactionType, queryInscriptionsByBenefactionObjectType, type InscriptionNetworkData, type MosaicDetail, type AgeAtDeathData, type NomenFrequency, type BenefactionTypeFrequency, type BenefactionObjectTypeFrequency } from '../utils/sparql'
 
 const InscriptionNetwork = dynamic(() => import('./InscriptionNetwork'), {
   ssr: false
@@ -54,6 +54,20 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [networkLoading, setNetworkLoading] = useState(false)
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
   const inscriptionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
+
+  // Inscription detail view (similar to network view)
+  const [detailViewEdcsId, setDetailViewEdcsId] = useState<string | null>(null)
+  const [detailViewData, setDetailViewData] = useState<{
+    edcsId: string
+    text: string
+    comment: string
+    bibliographicCitation: string
+    datingFrom: number | null
+    datingTo: number | null
+    province: string
+    place: string
+  } | null>(null)
+  const [detailViewLoading, setDetailViewLoading] = useState(false)
 
   // Store multiple places data when switching to single place view
   const [savedMultiplePlacesData, setSavedMultiplePlacesData] = useState<InscriptionData | null>(null)
@@ -359,6 +373,38 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
       }
       return newSet
     })
+  }
+
+  const handleShowInscriptionDetail = async (edcsId: string) => {
+    setDetailViewLoading(true)
+    setDetailViewEdcsId(edcsId)
+    setDetailViewData(null)
+
+    try {
+      const data = await queryInscriptionByEdcsId(edcsId)
+      setDetailViewData(data)
+    } catch (error) {
+      console.error('Error loading inscription detail:', error)
+      setDetailViewData(null)
+    } finally {
+      setDetailViewLoading(false)
+    }
+  }
+
+  const handleCloseInscriptionDetail = () => {
+    const previousEdcsId = detailViewEdcsId
+    setDetailViewEdcsId(null)
+    setDetailViewData(null)
+
+    // Scroll to the inscription card after state update
+    if (previousEdcsId) {
+      setTimeout(() => {
+        const element = inscriptionRefs.current[previousEdcsId]
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 100)
+    }
   }
 
   const toggleSection = (sectionId: string) => {
@@ -696,7 +742,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     )}
 
                     {/* Display inscription details */}
-                    {infoSubTab === 'inscriptions' && !inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
+                    {infoSubTab === 'inscriptions' && !inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && !detailViewEdcsId && !detailViewLoading && (
                       <div className="mt-4">
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
                           碑文一覧 ({filteredInscriptions.length}件{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length}件中` : ''})
@@ -735,14 +781,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
                             >
                               <div className="mb-2">
-                                <a
-                                  href={inscription.edcsUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[13px] font-semibold text-blue-600 hover:text-blue-800 no-underline"
+                                <button
+                                  onClick={() => handleShowInscriptionDetail(inscription.edcsId)}
+                                  className="text-[13px] font-semibold text-blue-600 hover:text-blue-800 no-underline cursor-pointer bg-transparent border-none p-0"
                                 >
                                   {inscription.edcsId}
-                                </a>
+                                </button>
                               </div>
                               {inscription.description && inscription.description.trim() !== '' && (
                                 <div className="mb-2">
@@ -1280,6 +1324,101 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       </div>
                     )}
 
+                    {/* Display inscription detail view when active */}
+                    {detailViewEdcsId && !detailViewLoading && detailViewData && (
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-[16px] font-semibold text-[#333]">碑文詳細</h4>
+                          <button
+                            onClick={handleCloseInscriptionDetail}
+                            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded transition-colors text-[13px]"
+                          >
+                            一覧に戻る
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Metadata Section */}
+                          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                            <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">メタデータ</h5>
+
+                            <div className="flex text-[13px]">
+                              <span className="font-medium text-gray-700 w-24">EDCS ID:</span>
+                              <span className="text-gray-600">{detailViewData.edcsId}</span>
+                            </div>
+
+                            {detailViewData.datingFrom !== null && detailViewData.datingTo !== null && (
+                              <div className="flex text-[13px]">
+                                <span className="font-medium text-gray-700 w-24">年代:</span>
+                                <span className="text-gray-600">
+                                  {detailViewData.datingFrom} - {detailViewData.datingTo}
+                                </span>
+                              </div>
+                            )}
+
+                            {detailViewData.province && (
+                              <div className="flex text-[13px]">
+                                <span className="font-medium text-gray-700 w-24">属州:</span>
+                                <span className="text-gray-600">{detailViewData.province}</span>
+                              </div>
+                            )}
+
+                            {detailViewData.place && (
+                              <div className="flex text-[13px]">
+                                <span className="font-medium text-gray-700 w-24">場所:</span>
+                                <span className="text-gray-600">{detailViewData.place}</span>
+                              </div>
+                            )}
+
+                            {detailViewData.bibliographicCitation && (
+                              <div className="flex text-[13px]">
+                                <span className="font-medium text-gray-700 w-24">出典:</span>
+                                <span className="text-gray-600">{detailViewData.bibliographicCitation}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Text Section */}
+                          {detailViewData.text && (
+                            <div>
+                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">碑文テキスト</h5>
+                              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                                {detailViewData.text.split('//').map((block: string, blockIndex: number) => (
+                                  <div key={blockIndex} className="mb-4 last:mb-0">
+                                    {block.split('/').map((line: string, lineIndex: number) => (
+                                      <div key={lineIndex} className="text-gray-800 leading-relaxed text-[13px]">
+                                        {line.trim()}
+                                      </div>
+                                    ))}
+                                    {blockIndex < detailViewData.text.split('//').length - 1 && (
+                                      <div className="border-t border-blue-300 my-3"></div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Comment Section */}
+                          {detailViewData.comment && (
+                            <div>
+                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">コメント</h5>
+                              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[13px]">
+                                  {detailViewData.comment}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {detailViewLoading && (
+                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-[14px] text-[#666]">碑文データを読み込み中...</p>
+                      </div>
+                    )}
+
                     {/* Display network visualization when active */}
                     {networkEdcsId && !networkLoading && (
                       <InscriptionNetwork
@@ -1371,7 +1510,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     )}
 
                     {/* Display inscription details for selected place */}
-                    {infoSubTab === 'inscriptions' && !inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && (
+                    {infoSubTab === 'inscriptions' && !inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && !detailViewEdcsId && !detailViewLoading && (
                       <div className="mt-4">
                         {/* Statistics filter indicator */}
                         {statisticsFilter.type && statisticsFilter.value && (
@@ -1409,14 +1548,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
                             >
                               <div className="mb-2">
-                                <a
-                                  href={inscription.edcsUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[13px] font-semibold text-blue-600 hover:text-blue-800 no-underline"
+                                <button
+                                  onClick={() => handleShowInscriptionDetail(inscription.edcsId)}
+                                  className="text-[13px] font-semibold text-blue-600 hover:text-blue-800 no-underline cursor-pointer bg-transparent border-none p-0"
                                 >
                                   {inscription.edcsId}
-                                </a>
+                                </button>
                               </div>
                               {inscription.description && inscription.description.trim() !== '' && (
                                 <div className="mb-2">
@@ -1860,6 +1997,101 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             )}
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Display inscription detail view when active (multiple places) */}
+                    {detailViewEdcsId && !detailViewLoading && detailViewData && (
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-[16px] font-semibold text-[#333]">碑文詳細</h4>
+                          <button
+                            onClick={handleCloseInscriptionDetail}
+                            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded transition-colors text-[13px]"
+                          >
+                            一覧に戻る
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Metadata Section */}
+                          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                            <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">メタデータ</h5>
+
+                            <div className="flex text-[13px]">
+                              <span className="font-medium text-gray-700 w-24">EDCS ID:</span>
+                              <span className="text-gray-600">{detailViewData.edcsId}</span>
+                            </div>
+
+                            {detailViewData.datingFrom !== null && detailViewData.datingTo !== null && (
+                              <div className="flex text-[13px]">
+                                <span className="font-medium text-gray-700 w-24">年代:</span>
+                                <span className="text-gray-600">
+                                  {detailViewData.datingFrom} - {detailViewData.datingTo}
+                                </span>
+                              </div>
+                            )}
+
+                            {detailViewData.province && (
+                              <div className="flex text-[13px]">
+                                <span className="font-medium text-gray-700 w-24">属州:</span>
+                                <span className="text-gray-600">{detailViewData.province}</span>
+                              </div>
+                            )}
+
+                            {detailViewData.place && (
+                              <div className="flex text-[13px]">
+                                <span className="font-medium text-gray-700 w-24">場所:</span>
+                                <span className="text-gray-600">{detailViewData.place}</span>
+                              </div>
+                            )}
+
+                            {detailViewData.bibliographicCitation && (
+                              <div className="flex text-[13px]">
+                                <span className="font-medium text-gray-700 w-24">出典:</span>
+                                <span className="text-gray-600">{detailViewData.bibliographicCitation}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Text Section */}
+                          {detailViewData.text && (
+                            <div>
+                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">碑文テキスト</h5>
+                              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                                {detailViewData.text.split('//').map((block: string, blockIndex: number) => (
+                                  <div key={blockIndex} className="mb-4 last:mb-0">
+                                    {block.split('/').map((line: string, lineIndex: number) => (
+                                      <div key={lineIndex} className="text-gray-800 leading-relaxed text-[13px]">
+                                        {line.trim()}
+                                      </div>
+                                    ))}
+                                    {blockIndex < detailViewData.text.split('//').length - 1 && (
+                                      <div className="border-t border-blue-300 my-3"></div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Comment Section */}
+                          {detailViewData.comment && (
+                            <div>
+                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">コメント</h5>
+                              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[13px]">
+                                  {detailViewData.comment}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {detailViewLoading && (
+                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-[14px] text-[#666]">碑文データを読み込み中...</p>
                       </div>
                     )}
 
