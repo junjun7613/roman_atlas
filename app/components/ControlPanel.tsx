@@ -2,7 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { queryInscriptionNetwork, queryInscriptionsFilterData, queryInscriptionByEdcsId, queryMosaicsByPlaceId, queryAverageAgeAtDeath, queryNomenFrequency, queryBenefactionTypeFrequency, queryBenefactionObjectTypeFrequency, queryInscriptionsByNomen, queryInscriptionsByBenefactionType, queryInscriptionsByBenefactionObjectType, type InscriptionNetworkData, type MosaicDetail, type AgeAtDeathData, type NomenFrequency, type BenefactionTypeFrequency, type BenefactionObjectTypeFrequency } from '../utils/sparql'
+import { queryInscriptionNetwork, queryInscriptionsFilterData, queryInscriptionByEdcsId, queryMosaicsByPlaceId, queryAverageAgeAtDeath, queryNomenFrequency, queryBenefactionTypeFrequency, queryBenefactionObjectTypeFrequency, queryDivinityTypeFrequency, queryBenefactionCostStatistics, queryBenefactionObjectCostStatistics, queryTopBenefactionsByCost, queryInscriptionsByCostRange, queryInscriptionsByNomen, queryInscriptionsByBenefactionType, queryInscriptionsByBenefactionObjectType, queryInscriptionsByDivinityType, type InscriptionNetworkData, type MosaicDetail, type AgeAtDeathData, type NomenFrequency, type BenefactionTypeFrequency, type BenefactionObjectTypeFrequency, type DivinityTypeFrequency, type BenefactionCostStatistics, type BenefactionObjectCostStatistics, type TopBenefaction } from '../utils/sparql'
 
 const InscriptionNetwork = dynamic(() => import('./InscriptionNetwork'), {
   ssr: false
@@ -47,7 +47,7 @@ interface ControlPanelProps {
 export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState<'settings' | 'info'>('settings')
   const [infoSubTab, setInfoSubTab] = useState<'inscriptions' | 'mosaics' | 'statistics'>('inscriptions')
-  const [statisticsTab, setStatisticsTab] = useState<'age' | 'clan' | 'benefaction'>('age')
+  const [statisticsTab, setStatisticsTab] = useState<'age' | 'clan' | 'benefaction' | 'divinity'>('age')
   const [selectedPlaceIndex, setSelectedPlaceIndex] = useState<number>(0)
   const [networkEdcsId, setNetworkEdcsId] = useState<string | null>(null)
   const [networkData, setNetworkData] = useState<InscriptionNetworkData[]>([])
@@ -82,10 +82,23 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [selectedBenefactionType, setSelectedBenefactionType] = useState<string | null>(null)
   const [benefactionObjectTypeData, setBenefactionObjectTypeData] = useState<BenefactionObjectTypeFrequency[]>([])
   const [benefactionObjectTypeLoading, setBenefactionObjectTypeLoading] = useState(false)
+  const [divinityTypeData, setDivinityTypeData] = useState<DivinityTypeFrequency[]>([])
+  const [divinityTypeLoading, setDivinityTypeLoading] = useState(false)
+
+  // Cost statistics data
+  const [benefactionCostData, setBenefactionCostData] = useState<BenefactionCostStatistics[]>([])
+  const [benefactionCostLoading, setBenefactionCostLoading] = useState(false)
+  const [benefactionObjectCostData, setBenefactionObjectCostData] = useState<BenefactionObjectCostStatistics[]>([])
+  const [benefactionObjectCostLoading, setBenefactionObjectCostLoading] = useState(false)
+  const [topBenefactionsData, setTopBenefactionsData] = useState<TopBenefaction[]>([])
+  const [topBenefactionsLoading, setTopBenefactionsLoading] = useState(false)
+
+  // Cost filter
+  const [costFilter, setCostFilter] = useState<{ min: number | null; max: number | null }>({ min: null, max: null })
 
   // Statistics filter
   const [statisticsFilter, setStatisticsFilter] = useState<{
-    type: 'nomen' | 'benefactionType' | 'objectType' | null
+    type: 'nomen' | 'benefactionType' | 'objectType' | 'divinityType' | 'costRange' | null
     value: string | null
     benefactionTypeForObjectType?: string | null
   }>({ type: null, value: null, benefactionTypeForObjectType: null })
@@ -130,6 +143,25 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
       const benefData = await queryBenefactionTypeFrequency(pleiadesIds)
       setBenefactionTypeData(benefData)
       setBenefactionTypeLoading(false)
+
+      // Load divinity data
+      setDivinityTypeLoading(true)
+      const divinityData = await queryDivinityTypeFrequency(pleiadesIds)
+      setDivinityTypeData(divinityData)
+      setDivinityTypeLoading(false)
+
+      // Load benefaction cost statistics
+      setBenefactionCostLoading(true)
+      const costData = await queryBenefactionCostStatistics(pleiadesIds)
+      console.log('Benefaction cost data:', costData)
+      setBenefactionCostData(costData)
+      setBenefactionCostLoading(false)
+
+      // Load top benefactions by cost
+      setTopBenefactionsLoading(true)
+      const topData = await queryTopBenefactionsByCost(pleiadesIds, 10)
+      setTopBenefactionsData(topData)
+      setTopBenefactionsLoading(false)
     }
 
     loadData()
@@ -153,6 +185,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
       const data = await queryBenefactionObjectTypeFrequency(pleiadesIds, selectedBenefactionType)
       setBenefactionObjectTypeData(data)
       setBenefactionObjectTypeLoading(false)
+
+      // Load object cost statistics
+      setBenefactionObjectCostLoading(true)
+      const costData = await queryBenefactionObjectCostStatistics(pleiadesIds, selectedBenefactionType)
+      setBenefactionObjectCostData(costData)
+      setBenefactionObjectCostLoading(false)
     }
 
     loadObjectTypes()
@@ -184,6 +222,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
         ids = await queryInscriptionsByBenefactionType(pleiadesIds, statisticsFilter.value)
       } else if (statisticsFilter.type === 'objectType' && statisticsFilter.benefactionTypeForObjectType) {
         ids = await queryInscriptionsByBenefactionObjectType(pleiadesIds, statisticsFilter.benefactionTypeForObjectType, statisticsFilter.value)
+      } else if (statisticsFilter.type === 'divinityType') {
+        ids = await queryInscriptionsByDivinityType(pleiadesIds, statisticsFilter.value)
+      } else if (statisticsFilter.type === 'costRange' && (costFilter.min !== null || costFilter.max !== null)) {
+        ids = await queryInscriptionsByCostRange(pleiadesIds, costFilter.min ?? undefined, costFilter.max ?? undefined)
       }
 
       setStatisticsFilteredEdcsIds(ids)
@@ -191,7 +233,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
     }
 
     loadFiltered()
-  }, [statisticsFilter, inscriptionData?.type, inscriptionData?.placeId, inscriptionData?.places])
+  }, [statisticsFilter, costFilter.min, costFilter.max, inscriptionData?.type, inscriptionData?.placeId, inscriptionData?.places])
 
   // Function to return to multiple places list
   const returnToMultiplePlacesList = () => {
@@ -757,6 +799,17 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 {statisticsFilter.type === 'nomen' && `氏族名: ${statisticsFilter.value}`}
                                 {statisticsFilter.type === 'benefactionType' && `恵与行為タイプ: ${statisticsFilter.value}`}
                                 {statisticsFilter.type === 'objectType' && `対象物: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'divinityType' && `神格タイプ: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'costRange' && (() => {
+                                  if (costFilter.min !== null && costFilter.max !== null) {
+                                    return `コスト範囲: ${costFilter.min.toLocaleString()} - ${costFilter.max.toLocaleString()} HS`
+                                  } else if (costFilter.min !== null) {
+                                    return `コスト範囲: ${costFilter.min.toLocaleString()} HS以上`
+                                  } else if (costFilter.max !== null) {
+                                    return `コスト範囲: ${costFilter.max.toLocaleString()} HS以下`
+                                  }
+                                  return ''
+                                })()}
                               </span>
                               {statisticsFilterLoading && (
                                 <span className="ml-2 text-gray-500">読み込み中...</span>
@@ -989,6 +1042,16 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           >
                             恵与行為
                           </button>
+                          <button
+                            onClick={() => setStatisticsTab('divinity')}
+                            className={`px-4 py-2 text-[13px] font-medium transition-colors ${
+                              statisticsTab === 'divinity'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                          >
+                            神格
+                          </button>
                         </div>
 
                         {/* Age statistics */}
@@ -1090,6 +1153,174 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                             ) : benefactionTypeData.length > 0 ? (
                               <div className="space-y-4">
+                                {/* Overall cost statistics */}
+                                {benefactionCostData.length > 0 && (() => {
+                                  const totalBenefactions = benefactionCostData.reduce((sum, d) => sum + d.count, 0)
+                                  const totalWithCost = benefactionCostData.reduce((sum, d) => sum + d.countWithCost, 0)
+                                  const allCosts = benefactionCostData.filter(d => d.totalCost !== null)
+                                  const grandTotal = allCosts.reduce((sum, d) => sum + (d.totalCost || 0), 0)
+                                  const overallAvg = totalWithCost > 0 ? grandTotal / totalWithCost : 0
+                                  const allMinCosts = benefactionCostData.filter(d => d.minCost !== null).map(d => d.minCost!)
+                                  const allMaxCosts = benefactionCostData.filter(d => d.maxCost !== null).map(d => d.maxCost!)
+                                  const minCost = allMinCosts.length > 0 ? Math.min(...allMinCosts) : null
+                                  const maxCost = allMaxCosts.length > 0 ? Math.max(...allMaxCosts) : null
+
+                                  console.log('Cost calculation:', {
+                                    totalBenefactions,
+                                    totalWithCost,
+                                    allCostsCount: allCosts.length,
+                                    grandTotal,
+                                    overallAvg,
+                                    sampleData: benefactionCostData.slice(0, 3)
+                                  })
+
+                                  return totalWithCost > 0 ? (
+                                    <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                                      <p className="text-[13px] font-semibold text-green-800 mb-2">コスト統計概要</p>
+                                      <div className="grid grid-cols-2 gap-2 text-[12px]">
+                                        <div>
+                                          <span className="text-gray-600">総恵与行為数:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()}件</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-600">コストデータあり:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{totalWithCost.toLocaleString()}件</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-600">総コスト:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{Math.round(grandTotal).toLocaleString()} HS</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-600">平均コスト:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{Math.round(overallAvg).toLocaleString()} HS</span>
+                                        </div>
+                                        {minCost !== null && (
+                                          <div>
+                                            <span className="text-gray-600">最小:</span>
+                                            <span className="ml-1 font-semibold text-gray-900">{Math.round(minCost).toLocaleString()} HS</span>
+                                          </div>
+                                        )}
+                                        {maxCost !== null && (
+                                          <div>
+                                            <span className="text-gray-600">最大:</span>
+                                            <span className="ml-1 font-semibold text-gray-900">{Math.round(maxCost).toLocaleString()} HS</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ) : null
+                                })()}
+
+                                {/* Cost range filter */}
+                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                  <p className="text-[13px] font-semibold text-blue-800 mb-2">コスト範囲でフィルタ</p>
+                                  <div className="flex gap-2 items-center">
+                                    <input
+                                      type="number"
+                                      placeholder="最小 (HS)"
+                                      value={costFilter.min ?? ''}
+                                      onChange={(e) => setCostFilter(prev => ({ ...prev, min: e.target.value ? Number(e.target.value) : null }))}
+                                      className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
+                                    />
+                                    <span className="text-gray-500">〜</span>
+                                    <input
+                                      type="number"
+                                      placeholder="最大 (HS)"
+                                      value={costFilter.max ?? ''}
+                                      onChange={(e) => setCostFilter(prev => ({ ...prev, max: e.target.value ? Number(e.target.value) : null }))}
+                                      className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        if (costFilter.min !== null || costFilter.max !== null) {
+                                          setStatisticsFilter({ type: 'costRange', value: costFilter })
+                                          if (inscriptionData?.type === 'single') {
+                                            setInfoSubTab('inscriptions')
+                                          }
+                                        }
+                                      }}
+                                      disabled={costFilter.min === null && costFilter.max === null}
+                                      className="px-3 py-1 text-[12px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      適用
+                                    </button>
+                                    {statisticsFilter.type === 'costRange' && (
+                                      <button
+                                        onClick={() => {
+                                          setStatisticsFilter({ type: null, value: null })
+                                          setCostFilter({ min: null, max: null })
+                                        }}
+                                        className="px-3 py-1 text-[12px] bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                                      >
+                                        解除
+                                      </button>
+                                    )}
+                                  </div>
+                                  {statisticsFilter.type === 'costRange' && (
+                                    <p className="text-[11px] text-blue-700 mt-1">
+                                      フィルタ中: {costFilter.min ?? '最小値なし'} 〜 {costFilter.max ?? '最大値なし'} HS
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Top benefactions ranking */}
+                                {topBenefactionsLoading ? (
+                                  <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                                    <p className="text-[13px] text-gray-600">高額恵与行為を読み込み中...</p>
+                                  </div>
+                                ) : topBenefactionsData.length > 0 ? (
+                                  <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                                    <p className="text-[13px] font-semibold text-yellow-800 mb-2">高額恵与行為トップ10</p>
+                                    <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                                      {topBenefactionsData.map((item, index) => (
+                                        <div
+                                          key={index}
+                                          className="bg-white p-2 rounded border border-yellow-200 hover:border-yellow-400 transition-colors"
+                                        >
+                                          <div className="flex items-start justify-between gap-2">
+                                            <div className="flex-1">
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-[11px] font-bold text-yellow-700">#{index + 1}</span>
+                                                <button
+                                                  onClick={() => {
+                                                    const inscription = filteredInscriptions.find(i => i.edcsId === item.edcsId)
+                                                    if (inscription) {
+                                                      setSelectedInscription(inscription)
+                                                      setShowInscriptionDetail(true)
+                                                    }
+                                                  }}
+                                                  className="text-[12px] text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                >
+                                                  {item.edcsId}
+                                                </button>
+                                                <span className="text-[11px] text-gray-600">{item.personName}</span>
+                                              </div>
+                                              <div className="text-[11px] text-gray-600 mt-0.5">
+                                                {item.benefactionType} → {item.objectType}
+                                              </div>
+                                              {item.description && (
+                                                <div className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">
+                                                  {item.description}
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className="text-right flex-shrink-0">
+                                              <div className="text-[13px] font-bold text-yellow-700">
+                                                {Math.round(item.cost).toLocaleString()} HS
+                                              </div>
+                                              {item.costOriginalText && (
+                                                <div className="text-[10px] text-gray-500">
+                                                  ({item.costOriginalText})
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : null}
+
                                 <div>
                                   <p className="text-[13px] text-gray-600 mb-3">恵与行為タイプの割合（クリックで詳細）</p>
                                   {/* Pie chart and legend side by side */}
@@ -1150,10 +1381,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         const percentage = (item.count / totalCount) * 100
                                         const isActive = selectedBenefactionType === item.benefactionType
                                         const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+                                        const costData = benefactionCostData.find(c => c.benefactionType === item.benefactionType)
                                         return (
                                           <div
                                             key={index}
-                                            className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                                            className={`p-2 rounded cursor-pointer transition-colors ${
                                               isActive ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'
                                             }`}
                                             onClick={() => {
@@ -1167,14 +1399,23 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                               }
                                             }}
                                           >
-                                            <div className="flex items-center gap-2">
-                                              <div
-                                                className="w-3 h-3 rounded-sm flex-shrink-0"
-                                                style={{ backgroundColor: colors[index % colors.length] }}
-                                              />
-                                              <span className="text-[13px] font-medium text-gray-900">{item.benefactionType}</span>
+                                            <div className="flex items-center justify-between mb-1">
+                                              <div className="flex items-center gap-2">
+                                                <div
+                                                  className="w-3 h-3 rounded-sm flex-shrink-0"
+                                                  style={{ backgroundColor: colors[index % colors.length] }}
+                                                />
+                                                <span className="text-[13px] font-medium text-gray-900">{item.benefactionType}</span>
+                                              </div>
+                                              <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
                                             </div>
-                                            <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
+                                            {costData && costData.countWithCost > 0 && (
+                                              <div className="ml-5 text-[11px] text-gray-500">
+                                                平均: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
+                                                {costData.totalCost && ` (合計: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
+                                                <span className="ml-1">({costData.countWithCost}件にデータあり)</span>
+                                              </div>
+                                            )}
                                           </div>
                                         )
                                       })}
@@ -1276,10 +1517,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                             const percentage = (item.count / totalCount) * 100
                                             const isActive = statisticsFilter.type === 'objectType' && statisticsFilter.value === item.objectType
                                             const colors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                                            const costData = benefactionObjectCostData.find(c => c.objectType === item.objectType)
                                             return (
                                               <div
                                                 key={index}
-                                                className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                                                className={`p-2 rounded cursor-pointer transition-colors ${
                                                   isActive ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'
                                                 }`}
                                                 onClick={() => {
@@ -1297,14 +1539,23 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                   }
                                                 }}
                                               >
-                                                <div className="flex items-center gap-2">
-                                                  <div
-                                                    className="w-3 h-3 rounded-sm flex-shrink-0"
-                                                    style={{ backgroundColor: colors[index % colors.length] }}
-                                                  />
-                                                  <span className="text-[13px] font-medium text-gray-900">{item.objectType}</span>
+                                                <div className="flex items-center justify-between mb-1">
+                                                  <div className="flex items-center gap-2">
+                                                    <div
+                                                      className="w-3 h-3 rounded-sm flex-shrink-0"
+                                                      style={{ backgroundColor: colors[index % colors.length] }}
+                                                    />
+                                                    <span className="text-[13px] font-medium text-gray-900">{item.objectType}</span>
+                                                  </div>
+                                                  <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
                                                 </div>
-                                                <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
+                                                {costData && costData.countWithCost > 0 && (
+                                                  <div className="ml-5 text-[11px] text-gray-500">
+                                                    平均: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
+                                                    {costData.totalCost && ` (合計: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
+                                                    <span className="ml-1">({costData.countWithCost}件にデータあり)</span>
+                                                  </div>
+                                                )}
                                               </div>
                                             )
                                           })}
@@ -1315,6 +1566,67 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     )}
                                   </div>
                                 )}
+                              </div>
+                            ) : (
+                              <p className="text-[14px] text-[#666]">データがありません</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Divinity statistics */}
+                        {statisticsTab === 'divinity' && (
+                          <div className="mt-4">
+                            {divinityTypeLoading ? (
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
+                            ) : divinityTypeData.length > 0 ? (
+                              <div>
+                                <p className="text-[13px] text-gray-600 mb-3">神格タイプの割合（クリックでフィルタ）</p>
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                  <div className="space-y-2">
+                                    {divinityTypeData.map((item, index) => {
+                                      const totalCount = divinityTypeData.reduce((sum, d) => sum + d.count, 0)
+                                      const percentage = (item.count / totalCount) * 100
+                                      const barPercentage = (item.count / Math.max(...divinityTypeData.map(d => d.count))) * 100
+                                      const isActive = statisticsFilter.type === 'divinityType' && statisticsFilter.value === item.divinityType
+                                      const label = item.divinityType.split('/').pop() || item.divinityType
+                                      return (
+                                        <div
+                                          key={index}
+                                          className={`py-2.5 px-3 rounded-md cursor-pointer transition-all border ${
+                                            isActive
+                                              ? 'bg-green-50 border-green-300 shadow-sm'
+                                              : 'bg-gray-50 border-transparent hover:bg-gray-100 hover:border-gray-200'
+                                          }`}
+                                          onClick={() => {
+                                            if (isActive) {
+                                              setStatisticsFilter({ type: null, value: null })
+                                            } else {
+                                              setStatisticsFilter({ type: 'divinityType', value: item.divinityType })
+                                              setInfoSubTab('inscriptions')
+                                            }
+                                          }}
+                                        >
+                                          <div className="flex items-center justify-between mb-1.5">
+                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-green-700' : 'text-gray-800'}`}>
+                                              {label}
+                                            </span>
+                                            <span className={`text-[12px] font-semibold ${isActive ? 'text-green-600' : 'text-gray-600'}`}>
+                                              {item.count}件 ({percentage.toFixed(1)}%)
+                                            </span>
+                                          </div>
+                                          <div className="relative w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                                            <div
+                                              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${
+                                                isActive ? 'bg-green-500' : 'bg-green-400'
+                                              }`}
+                                              style={{ width: `${barPercentage}%` }}
+                                            />
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
                               </div>
                             ) : (
                               <p className="text-[14px] text-[#666]">データがありません</p>
@@ -1521,6 +1833,17 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 {statisticsFilter.type === 'nomen' && `氏族名: ${statisticsFilter.value}`}
                                 {statisticsFilter.type === 'benefactionType' && `恵与行為タイプ: ${statisticsFilter.value}`}
                                 {statisticsFilter.type === 'objectType' && `対象物: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'divinityType' && `神格タイプ: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'costRange' && (() => {
+                                  if (costFilter.min !== null && costFilter.max !== null) {
+                                    return `コスト範囲: ${costFilter.min.toLocaleString()} - ${costFilter.max.toLocaleString()} HS`
+                                  } else if (costFilter.min !== null) {
+                                    return `コスト範囲: ${costFilter.min.toLocaleString()} HS以上`
+                                  } else if (costFilter.max !== null) {
+                                    return `コスト範囲: ${costFilter.max.toLocaleString()} HS以下`
+                                  }
+                                  return ''
+                                })()}
                               </span>
                               {statisticsFilterLoading && (
                                 <span className="ml-2 text-gray-500">読み込み中...</span>
@@ -1675,6 +1998,16 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           >
                             恵与行為
                           </button>
+                          <button
+                            onClick={() => setStatisticsTab('divinity')}
+                            className={`px-4 py-2 text-[13px] font-medium transition-colors ${
+                              statisticsTab === 'divinity'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                          >
+                            神格
+                          </button>
                         </div>
 
                         {/* Age statistics */}
@@ -1772,6 +2105,174 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                             ) : benefactionTypeData.length > 0 ? (
                               <div className="space-y-4">
+                                {/* Overall cost statistics */}
+                                {benefactionCostData.length > 0 && (() => {
+                                  const totalBenefactions = benefactionCostData.reduce((sum, d) => sum + d.count, 0)
+                                  const totalWithCost = benefactionCostData.reduce((sum, d) => sum + d.countWithCost, 0)
+                                  const allCosts = benefactionCostData.filter(d => d.totalCost !== null)
+                                  const grandTotal = allCosts.reduce((sum, d) => sum + (d.totalCost || 0), 0)
+                                  const overallAvg = totalWithCost > 0 ? grandTotal / totalWithCost : 0
+                                  const allMinCosts = benefactionCostData.filter(d => d.minCost !== null).map(d => d.minCost!)
+                                  const allMaxCosts = benefactionCostData.filter(d => d.maxCost !== null).map(d => d.maxCost!)
+                                  const minCost = allMinCosts.length > 0 ? Math.min(...allMinCosts) : null
+                                  const maxCost = allMaxCosts.length > 0 ? Math.max(...allMaxCosts) : null
+
+                                  console.log('Cost calculation:', {
+                                    totalBenefactions,
+                                    totalWithCost,
+                                    allCostsCount: allCosts.length,
+                                    grandTotal,
+                                    overallAvg,
+                                    sampleData: benefactionCostData.slice(0, 3)
+                                  })
+
+                                  return totalWithCost > 0 ? (
+                                    <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                                      <p className="text-[13px] font-semibold text-green-800 mb-2">コスト統計概要</p>
+                                      <div className="grid grid-cols-2 gap-2 text-[12px]">
+                                        <div>
+                                          <span className="text-gray-600">総恵与行為数:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()}件</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-600">コストデータあり:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{totalWithCost.toLocaleString()}件</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-600">総コスト:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{Math.round(grandTotal).toLocaleString()} HS</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-600">平均コスト:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{Math.round(overallAvg).toLocaleString()} HS</span>
+                                        </div>
+                                        {minCost !== null && (
+                                          <div>
+                                            <span className="text-gray-600">最小:</span>
+                                            <span className="ml-1 font-semibold text-gray-900">{Math.round(minCost).toLocaleString()} HS</span>
+                                          </div>
+                                        )}
+                                        {maxCost !== null && (
+                                          <div>
+                                            <span className="text-gray-600">最大:</span>
+                                            <span className="ml-1 font-semibold text-gray-900">{Math.round(maxCost).toLocaleString()} HS</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ) : null
+                                })()}
+
+                                {/* Cost range filter */}
+                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                  <p className="text-[13px] font-semibold text-blue-800 mb-2">コスト範囲でフィルタ</p>
+                                  <div className="flex gap-2 items-center">
+                                    <input
+                                      type="number"
+                                      placeholder="最小 (HS)"
+                                      value={costFilter.min ?? ''}
+                                      onChange={(e) => setCostFilter(prev => ({ ...prev, min: e.target.value ? Number(e.target.value) : null }))}
+                                      className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
+                                    />
+                                    <span className="text-gray-500">〜</span>
+                                    <input
+                                      type="number"
+                                      placeholder="最大 (HS)"
+                                      value={costFilter.max ?? ''}
+                                      onChange={(e) => setCostFilter(prev => ({ ...prev, max: e.target.value ? Number(e.target.value) : null }))}
+                                      className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        if (costFilter.min !== null || costFilter.max !== null) {
+                                          setStatisticsFilter({ type: 'costRange', value: costFilter })
+                                          if (inscriptionData?.type === 'single') {
+                                            setInfoSubTab('inscriptions')
+                                          }
+                                        }
+                                      }}
+                                      disabled={costFilter.min === null && costFilter.max === null}
+                                      className="px-3 py-1 text-[12px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                      適用
+                                    </button>
+                                    {statisticsFilter.type === 'costRange' && (
+                                      <button
+                                        onClick={() => {
+                                          setStatisticsFilter({ type: null, value: null })
+                                          setCostFilter({ min: null, max: null })
+                                        }}
+                                        className="px-3 py-1 text-[12px] bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                                      >
+                                        解除
+                                      </button>
+                                    )}
+                                  </div>
+                                  {statisticsFilter.type === 'costRange' && (
+                                    <p className="text-[11px] text-blue-700 mt-1">
+                                      フィルタ中: {costFilter.min ?? '最小値なし'} 〜 {costFilter.max ?? '最大値なし'} HS
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Top benefactions ranking */}
+                                {topBenefactionsLoading ? (
+                                  <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                                    <p className="text-[13px] text-gray-600">高額恵与行為を読み込み中...</p>
+                                  </div>
+                                ) : topBenefactionsData.length > 0 ? (
+                                  <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                                    <p className="text-[13px] font-semibold text-yellow-800 mb-2">高額恵与行為トップ10</p>
+                                    <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                                      {topBenefactionsData.map((item, index) => (
+                                        <div
+                                          key={index}
+                                          className="bg-white p-2 rounded border border-yellow-200 hover:border-yellow-400 transition-colors"
+                                        >
+                                          <div className="flex items-start justify-between gap-2">
+                                            <div className="flex-1">
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-[11px] font-bold text-yellow-700">#{index + 1}</span>
+                                                <button
+                                                  onClick={() => {
+                                                    const inscription = filteredInscriptions.find(i => i.edcsId === item.edcsId)
+                                                    if (inscription) {
+                                                      setSelectedInscription(inscription)
+                                                      setShowInscriptionDetail(true)
+                                                    }
+                                                  }}
+                                                  className="text-[12px] text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                >
+                                                  {item.edcsId}
+                                                </button>
+                                                <span className="text-[11px] text-gray-600">{item.personName}</span>
+                                              </div>
+                                              <div className="text-[11px] text-gray-600 mt-0.5">
+                                                {item.benefactionType} → {item.objectType}
+                                              </div>
+                                              {item.description && (
+                                                <div className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">
+                                                  {item.description}
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className="text-right flex-shrink-0">
+                                              <div className="text-[13px] font-bold text-yellow-700">
+                                                {Math.round(item.cost).toLocaleString()} HS
+                                              </div>
+                                              {item.costOriginalText && (
+                                                <div className="text-[10px] text-gray-500">
+                                                  ({item.costOriginalText})
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ) : null}
+
                                 <div>
                                   <p className="text-[13px] text-gray-600 mb-3">恵与行為タイプの割合（クリックで詳細）</p>
                                   {/* Pie chart and legend side by side */}
@@ -1832,10 +2333,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         const percentage = (item.count / totalCount) * 100
                                         const isActive = selectedBenefactionType === item.benefactionType
                                         const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316']
+                                        const costData = benefactionCostData.find(c => c.benefactionType === item.benefactionType)
                                         return (
                                           <div
                                             key={index}
-                                            className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                                            className={`p-2 rounded cursor-pointer transition-colors ${
                                               isActive ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'
                                             }`}
                                             onClick={() => {
@@ -1849,14 +2351,23 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                               }
                                             }}
                                           >
-                                            <div className="flex items-center gap-2">
-                                              <div
-                                                className="w-3 h-3 rounded-sm flex-shrink-0"
-                                                style={{ backgroundColor: colors[index % colors.length] }}
-                                              />
-                                              <span className="text-[13px] font-medium text-gray-900">{item.benefactionType}</span>
+                                            <div className="flex items-center justify-between mb-1">
+                                              <div className="flex items-center gap-2">
+                                                <div
+                                                  className="w-3 h-3 rounded-sm flex-shrink-0"
+                                                  style={{ backgroundColor: colors[index % colors.length] }}
+                                                />
+                                                <span className="text-[13px] font-medium text-gray-900">{item.benefactionType}</span>
+                                              </div>
+                                              <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
                                             </div>
-                                            <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
+                                            {costData && costData.countWithCost > 0 && (
+                                              <div className="ml-5 text-[11px] text-gray-500">
+                                                平均: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
+                                                {costData.totalCost && ` (合計: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
+                                                <span className="ml-1">({costData.countWithCost}件にデータあり)</span>
+                                              </div>
+                                            )}
                                           </div>
                                         )
                                       })}
@@ -1954,10 +2465,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                             const percentage = (item.count / totalCount) * 100
                                             const isActive = statisticsFilter.type === 'objectType' && statisticsFilter.value === item.objectType
                                             const colors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                                            const costData = benefactionObjectCostData.find(c => c.objectType === item.objectType)
                                             return (
                                               <div
                                                 key={index}
-                                                className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${
+                                                className={`p-2 rounded cursor-pointer transition-colors ${
                                                   isActive ? 'bg-blue-100 border border-blue-300' : 'hover:bg-gray-50'
                                                 }`}
                                                 onClick={() => {
@@ -1973,14 +2485,23 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                   }
                                                 }}
                                               >
-                                                <div className="flex items-center gap-2">
-                                                  <div
-                                                    className="w-3 h-3 rounded-sm flex-shrink-0"
-                                                    style={{ backgroundColor: colors[index % colors.length] }}
-                                                  />
-                                                  <span className="text-[13px] font-medium text-gray-900">{item.objectType}</span>
+                                                <div className="flex items-center justify-between mb-1">
+                                                  <div className="flex items-center gap-2">
+                                                    <div
+                                                      className="w-3 h-3 rounded-sm flex-shrink-0"
+                                                      style={{ backgroundColor: colors[index % colors.length] }}
+                                                    />
+                                                    <span className="text-[13px] font-medium text-gray-900">{item.objectType}</span>
+                                                  </div>
+                                                  <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
                                                 </div>
-                                                <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
+                                                {costData && costData.countWithCost > 0 && (
+                                                  <div className="ml-5 text-[11px] text-gray-500">
+                                                    平均: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
+                                                    {costData.totalCost && ` (合計: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
+                                                    <span className="ml-1">({costData.countWithCost}件にデータあり)</span>
+                                                  </div>
+                                                )}
                                               </div>
                                             )
                                           })}
@@ -1991,6 +2512,67 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     )}
                                   </div>
                                 )}
+                              </div>
+                            ) : (
+                              <p className="text-[14px] text-[#666]">データがありません</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Divinity statistics */}
+                        {statisticsTab === 'divinity' && (
+                          <div className="mt-4">
+                            {divinityTypeLoading ? (
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
+                            ) : divinityTypeData.length > 0 ? (
+                              <div>
+                                <p className="text-[13px] text-gray-600 mb-3">神格タイプの割合（クリックでフィルタ）</p>
+                                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                  <div className="space-y-2">
+                                    {divinityTypeData.map((item, index) => {
+                                      const totalCount = divinityTypeData.reduce((sum, d) => sum + d.count, 0)
+                                      const percentage = (item.count / totalCount) * 100
+                                      const barPercentage = (item.count / Math.max(...divinityTypeData.map(d => d.count))) * 100
+                                      const isActive = statisticsFilter.type === 'divinityType' && statisticsFilter.value === item.divinityType
+                                      const label = item.divinityType.split('/').pop() || item.divinityType
+                                      return (
+                                        <div
+                                          key={index}
+                                          className={`py-2.5 px-3 rounded-md cursor-pointer transition-all border ${
+                                            isActive
+                                              ? 'bg-green-50 border-green-300 shadow-sm'
+                                              : 'bg-gray-50 border-transparent hover:bg-gray-100 hover:border-gray-200'
+                                          }`}
+                                          onClick={() => {
+                                            if (isActive) {
+                                              setStatisticsFilter({ type: null, value: null })
+                                            } else {
+                                              setStatisticsFilter({ type: 'divinityType', value: item.divinityType })
+                                              setInfoSubTab('inscriptions')
+                                            }
+                                          }}
+                                        >
+                                          <div className="flex items-center justify-between mb-1.5">
+                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-green-700' : 'text-gray-800'}`}>
+                                              {label}
+                                            </span>
+                                            <span className={`text-[12px] font-semibold ${isActive ? 'text-green-600' : 'text-gray-600'}`}>
+                                              {item.count}件 ({percentage.toFixed(1)}%)
+                                            </span>
+                                          </div>
+                                          <div className="relative w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                                            <div
+                                              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-300 ${
+                                                isActive ? 'bg-green-500' : 'bg-green-400'
+                                              }`}
+                                              style={{ width: `${barPercentage}%` }}
+                                            />
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
                               </div>
                             ) : (
                               <p className="text-[14px] text-[#666]">データがありません</p>
