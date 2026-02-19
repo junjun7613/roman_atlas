@@ -99,7 +99,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   // Statistics filter
   const [statisticsFilter, setStatisticsFilter] = useState<{
     type: 'nomen' | 'benefactionType' | 'objectType' | 'divinityType' | 'costRange' | null
-    value: string | null
+    value: string | { min: number | null; max: number | null } | null
     benefactionTypeForObjectType?: string | null
   }>({ type: null, value: null, benefactionTypeForObjectType: null })
   const [statisticsFilteredEdcsIds, setStatisticsFilteredEdcsIds] = useState<string[]>([])
@@ -216,13 +216,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
       setStatisticsFilterLoading(true)
       let ids: string[] = []
 
-      if (statisticsFilter.type === 'nomen') {
+      if (statisticsFilter.type === 'nomen' && typeof statisticsFilter.value === 'string') {
         ids = await queryInscriptionsByNomen(pleiadesIds, statisticsFilter.value)
-      } else if (statisticsFilter.type === 'benefactionType') {
+      } else if (statisticsFilter.type === 'benefactionType' && typeof statisticsFilter.value === 'string') {
         ids = await queryInscriptionsByBenefactionType(pleiadesIds, statisticsFilter.value)
-      } else if (statisticsFilter.type === 'objectType' && statisticsFilter.benefactionTypeForObjectType) {
+      } else if (statisticsFilter.type === 'objectType' && statisticsFilter.benefactionTypeForObjectType && typeof statisticsFilter.value === 'string') {
         ids = await queryInscriptionsByBenefactionObjectType(pleiadesIds, statisticsFilter.benefactionTypeForObjectType, statisticsFilter.value)
-      } else if (statisticsFilter.type === 'divinityType') {
+      } else if (statisticsFilter.type === 'divinityType' && typeof statisticsFilter.value === 'string') {
         ids = await queryInscriptionsByDivinityType(pleiadesIds, statisticsFilter.value)
       } else if (statisticsFilter.type === 'costRange' && (costFilter.min !== null || costFilter.max !== null)) {
         ids = await queryInscriptionsByCostRange(pleiadesIds, costFilter.min ?? undefined, costFilter.max ?? undefined)
