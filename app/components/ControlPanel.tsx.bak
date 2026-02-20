@@ -2,7 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { queryInscriptionNetwork, queryInscriptionsFilterData, queryInscriptionByEdcsId, queryMosaicsByPlaceId, queryAverageAgeAtDeath, queryNomenFrequency, queryBenefactionTypeFrequency, queryBenefactionObjectTypeFrequency, queryDivinityTypeFrequency, queryBenefactionCostStatistics, queryBenefactionObjectCostStatistics, queryTopBenefactionsByCost, queryInscriptionsByCostRange, queryInscriptionsByNomen, queryInscriptionsByBenefactionType, queryInscriptionsByBenefactionObjectType, queryInscriptionsByDivinityType, type InscriptionNetworkData, type MosaicDetail, type AgeAtDeathData, type NomenFrequency, type BenefactionTypeFrequency, type BenefactionObjectTypeFrequency, type DivinityTypeFrequency, type BenefactionCostStatistics, type BenefactionObjectCostStatistics, type TopBenefaction } from '../utils/sparql'
+import { queryInscriptionNetwork, queryInscriptionsFilterData, queryInscriptionByEdcsId, queryMosaicsByPlaceId, queryAverageAgeAtDeath, queryNomenFrequency, queryBenefactionTypeFrequency, queryBenefactionObject TypeFrequency, queryDivinityTypeFrequency, queryBenefactionCostStatistics, queryBenefactionObjectCostStatistics, queryTopBenefactionsByCost, queryInscriptionsByCostRange, queryInscriptionsByNomen, queryInscriptionsByBenefactionType, queryInscriptionsByBenefactionObject Type, queryInscriptionsByDivinityType, type InscriptionNetworkData, type MosaicDetail, type AgeAtDeathData, type NomenFrequency, type BenefactionTypeFrequency, type BenefactionObject TypeFrequency, type DivinityTypeFrequency, type BenefactionCostStatistics, type BenefactionObjectCostStatistics, type TopBenefaction } from '../utils/sparql'
 
 const InscriptionNetwork = dynamic(() => import('./InscriptionNetwork'), {
   ssr: false
@@ -80,8 +80,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [benefactionTypeData, setBenefactionTypeData] = useState<BenefactionTypeFrequency[]>([])
   const [benefactionTypeLoading, setBenefactionTypeLoading] = useState(false)
   const [selectedBenefactionType, setSelectedBenefactionType] = useState<string | null>(null)
-  const [benefactionObjectTypeData, setBenefactionObjectTypeData] = useState<BenefactionObjectTypeFrequency[]>([])
-  const [benefactionObjectTypeLoading, setBenefactionObjectTypeLoading] = useState(false)
+  const [benefactionObject TypeData, setBenefactionObject TypeData] = useState<BenefactionObject TypeFrequency[]>([])
+  const [benefactionObject TypeLoading, setBenefactionObject TypeLoading] = useState(false)
   const [divinityTypeData, setDivinityTypeData] = useState<DivinityTypeFrequency[]>([])
   const [divinityTypeLoading, setDivinityTypeLoading] = useState(false)
 
@@ -100,8 +100,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [statisticsFilter, setStatisticsFilter] = useState<{
     type: 'nomen' | 'benefactionType' | 'objectType' | 'divinityType' | 'costRange' | null
     value: string | { min: number | null; max: number | null } | null
-    benefactionTypeForObjectType?: string | null
-  }>({ type: null, value: null, benefactionTypeForObjectType: null })
+    benefactionTypeForObject Type?: string | null
+  }>({ type: null, value: null, benefactionTypeForObject Type: null })
   const [statisticsFilteredEdcsIds, setStatisticsFilteredEdcsIds] = useState<string[]>([])
   const [statisticsFilterLoading, setStatisticsFilterLoading] = useState(false)
 
@@ -169,7 +169,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
   // Load object types when benefaction type selected
   useEffect(() => {
-    const loadObjectTypes = async () => {
+    const loadObject Types = async () => {
       if (!selectedBenefactionType || !inscriptionData) return
 
       let pleiadesIds: string[] = []
@@ -181,10 +181,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
       if (pleiadesIds.length === 0) return
 
-      setBenefactionObjectTypeLoading(true)
-      const data = await queryBenefactionObjectTypeFrequency(pleiadesIds, selectedBenefactionType)
-      setBenefactionObjectTypeData(data)
-      setBenefactionObjectTypeLoading(false)
+      setBenefactionObject TypeLoading(true)
+      const data = await queryBenefactionObject TypeFrequency(pleiadesIds, selectedBenefactionType)
+      setBenefactionObject TypeData(data)
+      setBenefactionObject TypeLoading(false)
 
       // Load object cost statistics
       setBenefactionObjectCostLoading(true)
@@ -193,7 +193,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
       setBenefactionObjectCostLoading(false)
     }
 
-    loadObjectTypes()
+    loadObject Types()
   }, [selectedBenefactionType, inscriptionData?.type, inscriptionData?.placeId, inscriptionData?.places])
 
   // Load filtered inscriptions
@@ -220,8 +220,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
         ids = await queryInscriptionsByNomen(pleiadesIds, statisticsFilter.value)
       } else if (statisticsFilter.type === 'benefactionType' && typeof statisticsFilter.value === 'string') {
         ids = await queryInscriptionsByBenefactionType(pleiadesIds, statisticsFilter.value)
-      } else if (statisticsFilter.type === 'objectType' && statisticsFilter.benefactionTypeForObjectType && typeof statisticsFilter.value === 'string') {
-        ids = await queryInscriptionsByBenefactionObjectType(pleiadesIds, statisticsFilter.benefactionTypeForObjectType, statisticsFilter.value)
+      } else if (statisticsFilter.type === 'objectType' && statisticsFilter.benefactionTypeForObject Type && typeof statisticsFilter.value === 'string') {
+        ids = await queryInscriptionsByBenefactionObject Type(pleiadesIds, statisticsFilter.benefactionTypeForObject Type, statisticsFilter.value)
       } else if (statisticsFilter.type === 'divinityType' && typeof statisticsFilter.value === 'string') {
         ids = await queryInscriptionsByDivinityType(pleiadesIds, statisticsFilter.value)
       } else if (statisticsFilter.type === 'costRange' && (costFilter.min !== null || costFilter.max !== null)) {
@@ -700,11 +700,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             </p>
                             {inscriptionData.loading ? (
                               <p className="text-[14px] text-[#666]">
-                                Inscriptions Loading data...
+                                InscriptionsLoading data...
                               </p>
                             ) : (
                               <p className="text-[14px] text-[#666] mb-0">
-                                <strong>Inscriptions Count:</strong> {inscriptionData.count} items
+                                <strong>Inscriptions Count:</strong> {inscriptionData.count}items
                               </p>
                             )}
                           </div>
@@ -725,9 +725,9 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             </div>
                             {filterDataLoading ? (
                               <div className="text-[13px] text-gray-600">
-                                <p className="mb-1">Filter Loading data...</p>
+                                <p className="mb-1">FilterLoading data...</p>
                                 <p className="text-[12px] text-gray-500">
-                                  {filterDataProgress.current} / {filterDataProgress.total} items processed
+                                  {filterDataProgress.current} / {filterDataProgress.total} itemsprocessed
                                 </p>
                                 <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
                                   <div
@@ -755,7 +755,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 })}
                               </div>
                             ) : (
-                              <p className="text-[12px] text-[#666]">Filter No data available</p>
+                              <p className="text-[12px] text-[#666]">FilterNo data available</p>
                             )}
                           </div>
                         </div>
@@ -776,7 +776,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             </p>
                           ) : (
                             <p className="text-[14px] text-[#666] mb-0">
-                              <strong>Mosaics Count:</strong> {inscriptionData.mosaics?.length || 0} items
+                              <strong>Mosaics Count:</strong> {inscriptionData.mosaics?.length || 0}items
                             </p>
                           )}
                         </div>
@@ -787,7 +787,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {infoSubTab === 'inscriptions' && !inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && !detailViewEdcsId && !detailViewLoading && (
                       <div className="mt-4">
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
-                          Inscriptions List ({filteredInscriptions.length} items{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length} items total` : ''})
+                          Inscriptions List ({filteredInscriptions.length}items{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length}items total` : ''})
                         </h4>
 
                         {/* Statistics filter indicator */}
@@ -930,7 +930,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {infoSubTab === 'mosaics' && !inscriptionData.mosaicsLoading && inscriptionData.mosaics && !networkEdcsId && !networkLoading && (
                       <div className="mt-4">
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
-                          MosaicsList ({inscriptionData.mosaics.length} items)
+                          MosaicsList ({inscriptionData.mosaics.length}items)
                         </h4>
                         {inscriptionData.mosaics.length > 0 ? (
                           <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
@@ -960,7 +960,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1.5 hover:opacity-70 transition-opacity inline-flex rounded hover:bg-gray-100"
-                                    title="IIIF Manifest (click forJSONDisplay and drag to viewer)"
+                                    title="IIIF Manifest (Click forJSONDisplay and drag to viewer)"
                                     aria-label="IIIF Manifest"
                                     draggable="true"
                                     onDragStart={(e) => {
@@ -1086,9 +1086,9 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             ) : nomenFrequencyData.length > 0 ? (
                               <div>
                                 <div className="mb-3">
-                                  <p className="text-[13px] font-medium text-gray-700">Clan Names Frequency of（Top 20 items, click to filter）</p>
+                                  <p className="text-[13px] font-medium text-gray-700">Clan NamesFrequency of（Top20 items, Click to filter）</p>
                                   <p className="text-[12px] text-gray-500 mt-1">
-                                    Clan Names with Inscriptions: {nomenFrequencyData.reduce((sum, d) => sum + d.count, 0)} items / Unique Clan Names: {nomenFrequencyData.length} items
+                                    Clan Names with Inscriptions: {nomenFrequencyData.reduce((sum, d) => sum + d.count, 0)}items / Unique Clan Names: {nomenFrequencyData.length}items
                                   </p>
                                 </div>
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 max-h-[400px] overflow-y-auto shadow-sm">
@@ -1123,7 +1123,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                               {label}
                                             </span>
                                             <span className={`text-[12px] font-semibold ${isActive ? 'text-blue-600' : 'text-gray-600'}`}>
-                                              {item.count} items ({percentage.toFixed(1)}%)
+                                              {item.count}items ({percentage.toFixed(1)}%)
                                             </span>
                                           </div>
                                           <div className="relative w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
@@ -1176,10 +1176,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                                   return totalWithCost > 0 ? (
                                     <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                                      <p className="text-[13px] font-semibold text-green-800 mb-2">Cost Statistics Overview</p>
+                                      <p className="text-[13px] font-semibold text-green-800 mb-2">CostStatisticsOverview</p>
                                       <div className="grid grid-cols-2 gap-2 text-[12px]">
                                         <div>
-                                          <span className="text-gray-600">Total Benefactions Count:</span>
+                                          <span className="text-gray-600">TotalBenefactionsCount:</span>
                                           <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()}items</span>
                                         </div>
                                         <div>
@@ -1449,18 +1449,18 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     <p className="text-[13px] text-gray-600 mb-3">
                                       {selectedBenefactionType}Object Types for（Click to filter）
                                     </p>
-                                    {benefactionObjectTypeLoading ? (
+                                    {benefactionObject TypeLoading ? (
                                       <p className="text-[14px] text-[#666]">Loading data...</p>
-                                    ) : benefactionObjectTypeData.length > 0 ? (
+                                    ) : benefactionObject TypeData.length > 0 ? (
                                       <div className="flex gap-4 items-center">
                                         {/* Pie chart */}
                                         <div className="flex-shrink-0">
                                           <svg width="180" height="180" viewBox="0 0 200 200" className="transform -rotate-90">
                                             {(() => {
-                                              const totalCount = benefactionObjectTypeData.reduce((sum, d) => sum + d.count, 0)
+                                              const totalCount = benefactionObject TypeData.reduce((sum, d) => sum + d.count, 0)
                                               const colors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
                                               let currentAngle = 0
-                                              return benefactionObjectTypeData.map((item, index) => {
+                                              return benefactionObject TypeData.map((item, index) => {
                                                 const percentage = (item.count / totalCount) * 100
                                                 const angle = (percentage / 100) * 360
                                                 const startAngle = currentAngle
@@ -1493,7 +1493,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                         setStatisticsFilter({
                                                           type: 'objectType',
                                                           value: item.objectType,
-                                                          benefactionTypeForObjectType: selectedBenefactionType
+                                                          benefactionTypeForObject Type: selectedBenefactionType
                                                         })
                                                         if (inscriptionData?.type === 'single') {
                                                           setInfoSubTab('inscriptions')
@@ -1508,8 +1508,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         </div>
                                         {/* Legend */}
                                         <div className="flex-1 space-y-1">
-                                          {benefactionObjectTypeData.map((item, index) => {
-                                            const totalCount = benefactionObjectTypeData.reduce((sum, d) => sum + d.count, 0)
+                                          {benefactionObject TypeData.map((item, index) => {
+                                            const totalCount = benefactionObject TypeData.reduce((sum, d) => sum + d.count, 0)
                                             const percentage = (item.count / totalCount) * 100
                                             const isActive = statisticsFilter.type === 'objectType' && statisticsFilter.value === item.objectType
                                             const colors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
@@ -1527,7 +1527,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                     setStatisticsFilter({
                                                       type: 'objectType',
                                                       value: item.objectType,
-                                                      benefactionTypeForObjectType: selectedBenefactionType
+                                                      benefactionTypeForObject Type: selectedBenefactionType
                                                     })
                                                     if (inscriptionData?.type === 'single') {
                                                       setInfoSubTab('inscriptions')
@@ -1723,7 +1723,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     )}
                     {detailViewLoading && (
                       <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="text-[14px] text-[#666]">Inscriptions Loading data...</p>
+                        <p className="text-[14px] text-[#666]">InscriptionsLoading data...</p>
                       </div>
                     )}
 
@@ -1749,15 +1749,15 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
                       {inscriptionData.loading ? (
                         <p className="text-[14px] text-[#666]">
-                          Inscriptions Loading data...
+                          InscriptionsLoading data...
                         </p>
                       ) : (
                         <>
                           <p className="text-[14px] text-[#666] mb-4">
-                            <strong>Total Inscriptions Count:</strong> {inscriptionData.count} items
+                            <strong>TotalInscriptions Count:</strong> {inscriptionData.count}items
                           </p>
                           <p className="text-[14px] text-[#666] mb-2">
-                            <strong>Selected locations:</strong> {inscriptionData.places?.length || 0} locations
+                            <strong>Selected locations:</strong> {inscriptionData.places?.length || 0}locations
                           </p>
 
                           {/* Place selector for multiple places */}
@@ -1781,7 +1781,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               >
                                 {inscriptionData.places.map((place, index) => (
                                   <option key={index} value={index}>
-                                    {place.placeName} ({place.count} items)
+                                    {place.placeName} ({place.count}items)
                                   </option>
                                 ))}
                               </select>
@@ -1857,7 +1857,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         )}
 
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
-                          Inscriptions List ({filteredInscriptions.length}items{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length} items total` : ''})
+                          Inscriptions List ({filteredInscriptions.length}items{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length}items total` : ''})
                         </h4>
                         <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
                           {filteredInscriptions.map((inscription, index) => (
@@ -2014,7 +2014,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             ) : ageAtDeathData ? (
                               <div className="space-y-3">
                                 <div className="p-3 bg-gray-50 rounded">
-                                  <p className="text-[13px] text-gray-600 mb-1">Average death Age</p>
+                                  <p className="text-[13px] text-gray-600 mb-1">Average deathAge</p>
                                   <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.averageAge.toFixed(1)} years old</p>
                                   <p className="text-[12px] text-gray-500">({ageAtDeathData.count} items)</p>
                                 </div>
@@ -2038,7 +2038,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             ) : nomenFrequencyData.length > 0 ? (
                               <div>
                                 <div className="mb-3">
-                                  <p className="text-[13px] text-gray-600">Clan NamesFrequency of（Top20 items, click to filter）</p>
+                                  <p className="text-[13px] text-gray-600">Clan NamesFrequency of（Top20 items, Click to filter）</p>
                                   <p className="text-[12px] text-gray-500 mt-1">All{nomenFrequencyData.length}items</p>
                                 </div>
                                 <div className="bg-white border border-gray-200 rounded-lg p-3 max-h-[400px] overflow-y-auto">
@@ -2127,12 +2127,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       <p className="text-[13px] font-semibold text-green-800 mb-2">CostStatisticsOverview</p>
                                       <div className="grid grid-cols-2 gap-2 text-[12px]">
                                         <div>
-                                          <span className="text-gray-600">Total Benefactions Count:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()} items</span>
+                                          <span className="text-gray-600">TotalBenefactionsCount:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()}items</span>
                                         </div>
                                         <div>
                                           <span className="text-gray-600">With Cost Data:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{totalWithCost.toLocaleString()} items</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{totalWithCost.toLocaleString()}items</span>
                                         </div>
                                         <div>
                                           <span className="text-gray-600">Total Cost:</span>
@@ -2218,7 +2218,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                   </div>
                                 ) : topBenefactionsData.length > 0 ? (
                                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                                    <p className="text-[13px] font-semibold text-yellow-800 mb-2">High-value Benefactions Top 10</p>
+                                    <p className="text-[13px] font-semibold text-yellow-800 mb-2">High-valueBenefactionsTop10</p>
                                     <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
                                       {topBenefactionsData.map((item, index) => (
                                         <div
@@ -2395,18 +2395,18 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     <p className="text-[13px] text-gray-600 mb-3">
                                       {selectedBenefactionType}Object Types for（Click to filter）
                                     </p>
-                                    {benefactionObjectTypeLoading ? (
+                                    {benefactionObject TypeLoading ? (
                                       <p className="text-[14px] text-[#666]">Loading data...</p>
-                                    ) : benefactionObjectTypeData.length > 0 ? (
+                                    ) : benefactionObject TypeData.length > 0 ? (
                                       <div className="flex gap-4 items-center">
                                         {/* Pie chart */}
                                         <div className="flex-shrink-0">
                                           <svg width="180" height="180" viewBox="0 0 200 200" className="transform -rotate-90">
                                             {(() => {
-                                              const totalCount = benefactionObjectTypeData.reduce((sum, d) => sum + d.count, 0)
+                                              const totalCount = benefactionObject TypeData.reduce((sum, d) => sum + d.count, 0)
                                               const colors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
                                               let currentAngle = 0
-                                              return benefactionObjectTypeData.map((item, index) => {
+                                              return benefactionObject TypeData.map((item, index) => {
                                                 const percentage = (item.count / totalCount) * 100
                                                 const angle = (percentage / 100) * 360
                                                 const startAngle = currentAngle
@@ -2439,7 +2439,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                         setStatisticsFilter({
                                                           type: 'objectType',
                                                           value: item.objectType,
-                                                          benefactionTypeForObjectType: selectedBenefactionType
+                                                          benefactionTypeForObject Type: selectedBenefactionType
                                                         })
                                                         setInfoSubTab('inscriptions')
                                                       }
@@ -2452,8 +2452,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         </div>
                                         {/* Legend */}
                                         <div className="flex-1 space-y-1">
-                                          {benefactionObjectTypeData.map((item, index) => {
-                                            const totalCount = benefactionObjectTypeData.reduce((sum, d) => sum + d.count, 0)
+                                          {benefactionObject TypeData.map((item, index) => {
+                                            const totalCount = benefactionObject TypeData.reduce((sum, d) => sum + d.count, 0)
                                             const percentage = (item.count / totalCount) * 100
                                             const isActive = statisticsFilter.type === 'objectType' && statisticsFilter.value === item.objectType
                                             const colors = ['#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
@@ -2471,7 +2471,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                     setStatisticsFilter({
                                                       type: 'objectType',
                                                       value: item.objectType,
-                                                      benefactionTypeForObjectType: selectedBenefactionType
+                                                      benefactionTypeForObject Type: selectedBenefactionType
                                                     })
                                                     setInfoSubTab('inscriptions')
                                                   }
@@ -2549,7 +2549,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                               {label}
                                             </span>
                                             <span className={`text-[12px] font-semibold ${isActive ? 'text-green-600' : 'text-gray-600'}`}>
-                                              {item.count} items ({percentage.toFixed(1)}%)
+                                              {item.count}items ({percentage.toFixed(1)}%)
                                             </span>
                                           </div>
                                           <div className="relative w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
@@ -2665,7 +2665,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     )}
                     {detailViewLoading && (
                       <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="text-[14px] text-[#666]">Inscriptions Loading data...</p>
+                        <p className="text-[14px] text-[#666]">InscriptionsLoading data...</p>
                       </div>
                     )}
 

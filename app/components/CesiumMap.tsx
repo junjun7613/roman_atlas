@@ -487,19 +487,19 @@ export default function CesiumMap() {
               ? 'bg-purple-500 text-white hover:bg-purple-600'
               : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
-          title="時代フィルタ表示切替"
+          title="Toggle Time Filter"
         >
-          {showTimeSlider ? 'フィルタ非表示' : '時代フィルタ'}
+          {showTimeSlider ? 'Hide Filter' : 'Time Filter'}
         </button>
       </div>
 
       {/* Time Filter */}
       {showTimeSlider && (
         <div className="absolute bottom-4 left-4 z-[1000] bg-white px-6 py-3 rounded-lg shadow-lg" style={{ width: '300px' }}>
-          <div className="text-sm font-medium text-gray-700 mb-3">時代範囲フィルタ</div>
+          <div className="text-sm font-medium text-gray-700 mb-3">Time Range Filter</div>
           <div className="flex gap-4 items-center">
             <div className="flex-1">
-              <label className="text-xs text-gray-600 block mb-1">開始年</label>
+              <label className="text-xs text-gray-600 block mb-1">Start Year</label>
               <input
                 type="text"
                 value={timeStartInput}
@@ -529,7 +529,7 @@ export default function CesiumMap() {
             </div>
             <div className="text-gray-500 mt-5">〜</div>
             <div className="flex-1">
-              <label className="text-xs text-gray-600 block mb-1">終了年</label>
+              <label className="text-xs text-gray-600 block mb-1">End Year</label>
               <input
                 type="text"
                 value={timeEndInput}
@@ -825,22 +825,22 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
       })
 
       const typeConfigs = [
-        { key: 'settlement', color: Cesium.Color.GOLD, name: '都市・集落', toggle: 'toggleSettlements' },
-        { key: 'villa', color: Cesium.Color.LIGHTGREEN, name: 'ヴィラ', toggle: 'toggleVillas' },
-        { key: 'fort', color: Cesium.Color.RED, name: '要塞', toggle: 'toggleForts' },
-        { key: 'temple', color: Cesium.Color.PURPLE, name: '神殿', toggle: 'toggleTemples' },
-        { key: 'station', color: Cesium.Color.ORANGE, name: '駅', toggle: 'toggleStations' },
-        { key: 'archaeological', color: Cesium.Color.BROWN, name: '遺跡', toggle: 'toggleArchaeological' },
-        { key: 'cemetery', color: Cesium.Color.GRAY, name: '墓地', toggle: 'toggleCemetery' },
-        { key: 'sanctuary', color: Cesium.Color.VIOLET, name: '聖域', toggle: 'toggleSanctuary' },
-        { key: 'bridge', color: Cesium.Color.SILVER, name: '橋', toggle: 'toggleBridge' },
-        { key: 'aqueduct', color: Cesium.Color.CYAN, name: '水道橋', toggle: 'toggleAqueduct' },
-        { key: 'church', color: Cesium.Color.PINK, name: '教会', toggle: 'toggleChurch' },
-        { key: 'bath', color: Cesium.Color.AQUA, name: '浴場', toggle: 'toggleBath' },
-        { key: 'quarry', color: Cesium.Color.SANDYBROWN, name: '採石場', toggle: 'toggleQuarry' },
-        { key: 'port', color: Cesium.Color.NAVY, name: '港', toggle: 'togglePort' },
-        { key: 'theater', color: Cesium.Color.CORAL, name: '劇場', toggle: 'toggleTheater' },
-        { key: 'amphitheatre', color: Cesium.Color.CRIMSON, name: '円形闘技場', toggle: 'toggleAmphitheatre' }
+        { key: 'settlement', color: Cesium.Color.GOLD, name: 'Cities & Settlements', toggle: 'toggleSettlements' },
+        { key: 'villa', color: Cesium.Color.LIGHTGREEN, name: 'Villas', toggle: 'toggleVillas' },
+        { key: 'fort', color: Cesium.Color.RED, name: 'Forts', toggle: 'toggleForts' },
+        { key: 'temple', color: Cesium.Color.PURPLE, name: 'Temples', toggle: 'toggleTemples' },
+        { key: 'station', color: Cesium.Color.ORANGE, name: 'Stations', toggle: 'toggleStations' },
+        { key: 'archaeological', color: Cesium.Color.BROWN, name: 'Archaeological Sites', toggle: 'toggleArchaeological' },
+        { key: 'cemetery', color: Cesium.Color.GRAY, name: 'Cemeteries', toggle: 'toggleCemetery' },
+        { key: 'sanctuary', color: Cesium.Color.VIOLET, name: 'Sanctuaries', toggle: 'toggleSanctuary' },
+        { key: 'bridge', color: Cesium.Color.SILVER, name: 'Bridges', toggle: 'toggleBridge' },
+        { key: 'aqueduct', color: Cesium.Color.CYAN, name: 'Aqueducts', toggle: 'toggleAqueduct' },
+        { key: 'church', color: Cesium.Color.PINK, name: 'Churches', toggle: 'toggleChurch' },
+        { key: 'bath', color: Cesium.Color.AQUA, name: 'Baths', toggle: 'toggleBath' },
+        { key: 'quarry', color: Cesium.Color.SANDYBROWN, name: 'Quarries', toggle: 'toggleQuarry' },
+        { key: 'port', color: Cesium.Color.NAVY, name: 'Harbors', toggle: 'togglePort' },
+        { key: 'theater', color: Cesium.Color.CORAL, name: 'Theaters', toggle: 'toggleTheater' },
+        { key: 'amphitheatre', color: Cesium.Color.CRIMSON, name: 'Amphitheaters', toggle: 'toggleAmphitheatre' }
       ]
 
       // Log filtering results
@@ -931,7 +931,7 @@ function loadPleiadesPlaces(Cesium: any, viewer: any, addEventListenerTracked: (
                   dateStr = `- ${endDate}`
                 }
                 if (dateStr) {
-                  descriptionHtml += `<p style="margin: 5px 0; color: #666;">年代: ${dateStr}</p>`
+                  descriptionHtml += `<p style="margin: 5px 0; color: #666;">Dating: ${dateStr}</p>`
                 }
               }
 
@@ -1040,24 +1040,24 @@ function loadCustomPlaces(Cesium: any, viewer: any, addEventListenerTracked: (el
       })
 
       const typeConfigs = [
-        { key: 'settlement', color: Cesium.Color.GOLD, name: '都市・集落', toggle: 'toggleSettlements' },
-        { key: 'villa', color: Cesium.Color.LIGHTGREEN, name: 'ヴィラ', toggle: 'toggleVillas' },
-        { key: 'fort', color: Cesium.Color.RED, name: '要塞', toggle: 'toggleForts' },
-        { key: 'temple', color: Cesium.Color.PURPLE, name: '神殿', toggle: 'toggleTemples' },
-        { key: 'station', color: Cesium.Color.ORANGE, name: '駅', toggle: 'toggleStations' },
-        { key: 'archaeological', color: Cesium.Color.BROWN, name: '遺跡', toggle: 'toggleArchaeological' },
-        { key: 'cemetery', color: Cesium.Color.GRAY, name: '墓地', toggle: 'toggleCemetery' },
-        { key: 'sanctuary', color: Cesium.Color.VIOLET, name: '聖域', toggle: 'toggleSanctuary' },
-        { key: 'bridge', color: Cesium.Color.SILVER, name: '橋', toggle: 'toggleBridge' },
-        { key: 'aqueduct', color: Cesium.Color.CYAN, name: '水道橋', toggle: 'toggleAqueduct' },
-        { key: 'church', color: Cesium.Color.PINK, name: '教会', toggle: 'toggleChurch' },
-        { key: 'bath', color: Cesium.Color.AQUA, name: '浴場', toggle: 'toggleBath' },
-        { key: 'quarry', color: Cesium.Color.SANDYBROWN, name: '採石場', toggle: 'toggleQuarry' },
-        { key: 'port', color: Cesium.Color.NAVY, name: '港', toggle: 'togglePort' },
-        { key: 'theater', color: Cesium.Color.CORAL, name: '劇場', toggle: 'toggleTheater' },
-        { key: 'amphitheatre', color: Cesium.Color.CRIMSON, name: '円形闘技場', toggle: 'toggleAmphitheatre' },
-        { key: 'residence', color: Cesium.Color.YELLOW, name: '住居', toggle: 'toggleResidence' },
-        { key: 'forum', color: Cesium.Color.MAGENTA, name: 'フォルム', toggle: 'toggleForum' }
+        { key: 'settlement', color: Cesium.Color.GOLD, name: 'Cities & Settlements', toggle: 'toggleSettlements' },
+        { key: 'villa', color: Cesium.Color.LIGHTGREEN, name: 'Villas', toggle: 'toggleVillas' },
+        { key: 'fort', color: Cesium.Color.RED, name: 'Forts', toggle: 'toggleForts' },
+        { key: 'temple', color: Cesium.Color.PURPLE, name: 'Temples', toggle: 'toggleTemples' },
+        { key: 'station', color: Cesium.Color.ORANGE, name: 'Stations', toggle: 'toggleStations' },
+        { key: 'archaeological', color: Cesium.Color.BROWN, name: 'Archaeological Sites', toggle: 'toggleArchaeological' },
+        { key: 'cemetery', color: Cesium.Color.GRAY, name: 'Cemeteries', toggle: 'toggleCemetery' },
+        { key: 'sanctuary', color: Cesium.Color.VIOLET, name: 'Sanctuaries', toggle: 'toggleSanctuary' },
+        { key: 'bridge', color: Cesium.Color.SILVER, name: 'Bridges', toggle: 'toggleBridge' },
+        { key: 'aqueduct', color: Cesium.Color.CYAN, name: 'Aqueducts', toggle: 'toggleAqueduct' },
+        { key: 'church', color: Cesium.Color.PINK, name: 'Churches', toggle: 'toggleChurch' },
+        { key: 'bath', color: Cesium.Color.AQUA, name: 'Baths', toggle: 'toggleBath' },
+        { key: 'quarry', color: Cesium.Color.SANDYBROWN, name: 'Quarries', toggle: 'toggleQuarry' },
+        { key: 'port', color: Cesium.Color.NAVY, name: 'Harbors', toggle: 'togglePort' },
+        { key: 'theater', color: Cesium.Color.CORAL, name: 'Theaters', toggle: 'toggleTheater' },
+        { key: 'amphitheatre', color: Cesium.Color.CRIMSON, name: 'Amphitheaters', toggle: 'toggleAmphitheatre' },
+        { key: 'residence', color: Cesium.Color.YELLOW, name: 'Residences', toggle: 'toggleResidence' },
+        { key: 'forum', color: Cesium.Color.MAGENTA, name: 'Forums', toggle: 'toggleForum' }
       ]
 
       typeConfigs.forEach(config => {

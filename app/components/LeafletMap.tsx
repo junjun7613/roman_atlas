@@ -542,22 +542,22 @@ export default function LeafletMap() {
         })
 
         const typeConfigs = [
-          { key: 'settlement', color: '#FFD700', name: '都市・集落', toggle: 'toggleSettlements' },
-          { key: 'villa', color: '#90EE90', name: 'ヴィラ', toggle: 'toggleVillas' },
-          { key: 'fort', color: '#FF0000', name: '要塞', toggle: 'toggleForts' },
-          { key: 'temple', color: '#800080', name: '神殿', toggle: 'toggleTemples' },
-          { key: 'station', color: '#FFA500', name: '駅', toggle: 'toggleStations' },
-          { key: 'archaeological', color: '#A52A2A', name: '遺跡', toggle: 'toggleArchaeological' },
-          { key: 'cemetery', color: '#808080', name: '墓地', toggle: 'toggleCemetery' },
-          { key: 'sanctuary', color: '#EE82EE', name: '聖域', toggle: 'toggleSanctuary' },
-          { key: 'bridge', color: '#C0C0C0', name: '橋', toggle: 'toggleBridge' },
-          { key: 'aqueduct', color: '#00FFFF', name: '水道橋', toggle: 'toggleAqueduct' },
-          { key: 'church', color: '#FFC0CB', name: '教会', toggle: 'toggleChurch' },
-          { key: 'bath', color: '#00FFFF', name: '浴場', toggle: 'toggleBath' },
-          { key: 'quarry', color: '#F4A460', name: '採石場', toggle: 'toggleQuarry' },
-          { key: 'port', color: '#000080', name: '港', toggle: 'togglePort' },
-          { key: 'theater', color: '#FF7F50', name: '劇場', toggle: 'toggleTheater' },
-          { key: 'amphitheatre', color: '#DC143C', name: '円形闘技場', toggle: 'toggleAmphitheatre' }
+          { key: 'settlement', color: '#FFD700', name: 'Cities & Settlements', toggle: 'toggleSettlements' },
+          { key: 'villa', color: '#90EE90', name: 'Villas', toggle: 'toggleVillas' },
+          { key: 'fort', color: '#FF0000', name: 'Forts', toggle: 'toggleForts' },
+          { key: 'temple', color: '#800080', name: 'Temples', toggle: 'toggleTemples' },
+          { key: 'station', color: '#FFA500', name: 'Stations', toggle: 'toggleStations' },
+          { key: 'archaeological', color: '#A52A2A', name: 'Archaeological Sites', toggle: 'toggleArchaeological' },
+          { key: 'cemetery', color: '#808080', name: 'Cemeteries', toggle: 'toggleCemetery' },
+          { key: 'sanctuary', color: '#EE82EE', name: 'Sanctuaries', toggle: 'toggleSanctuary' },
+          { key: 'bridge', color: '#C0C0C0', name: 'Bridges', toggle: 'toggleBridge' },
+          { key: 'aqueduct', color: '#00FFFF', name: 'Aqueducts', toggle: 'toggleAqueduct' },
+          { key: 'church', color: '#FFC0CB', name: 'Churches', toggle: 'toggleChurch' },
+          { key: 'bath', color: '#00FFFF', name: 'Baths', toggle: 'toggleBath' },
+          { key: 'quarry', color: '#F4A460', name: 'Quarries', toggle: 'toggleQuarry' },
+          { key: 'port', color: '#000080', name: 'Harbors', toggle: 'togglePort' },
+          { key: 'theater', color: '#FF7F50', name: 'Theaters', toggle: 'toggleTheater' },
+          { key: 'amphitheatre', color: '#DC143C', name: 'Amphitheaters', toggle: 'toggleAmphitheatre' }
         ]
 
         typeConfigs.forEach(config => {
@@ -620,7 +620,7 @@ export default function LeafletMap() {
                     dateStr = `- ${endDate}`
                   }
                   if (dateStr) {
-                    popupHtml += `<p style="margin: 5px 0; color: #666;">年代: ${dateStr}</p>`
+                    popupHtml += `<p style="margin: 5px 0; color: #666;">Dating: ${dateStr}</p>`
                   }
                 }
 
@@ -767,24 +767,24 @@ export default function LeafletMap() {
         })
 
         const typeConfigs = [
-          { key: 'settlement', color: '#FFD700', name: '都市・集落', toggle: 'toggleSettlements' },
-          { key: 'villa', color: '#90EE90', name: 'ヴィラ', toggle: 'toggleVillas' },
-          { key: 'fort', color: '#FF0000', name: '要塞', toggle: 'toggleForts' },
-          { key: 'temple', color: '#800080', name: '神殿', toggle: 'toggleTemples' },
-          { key: 'station', color: '#FFA500', name: '駅', toggle: 'toggleStations' },
-          { key: 'archaeological', color: '#A52A2A', name: '遺跡', toggle: 'toggleArchaeological' },
-          { key: 'cemetery', color: '#808080', name: '墓地', toggle: 'toggleCemetery' },
-          { key: 'sanctuary', color: '#EE82EE', name: '聖域', toggle: 'toggleSanctuary' },
-          { key: 'bridge', color: '#C0C0C0', name: '橋', toggle: 'toggleBridge' },
-          { key: 'aqueduct', color: '#00FFFF', name: '水道橋', toggle: 'toggleAqueduct' },
-          { key: 'church', color: '#FFC0CB', name: '教会', toggle: 'toggleChurch' },
-          { key: 'bath', color: '#00FFFF', name: '浴場', toggle: 'toggleBath' },
-          { key: 'quarry', color: '#F4A460', name: '採石場', toggle: 'toggleQuarry' },
-          { key: 'port', color: '#000080', name: '港', toggle: 'togglePort' },
-          { key: 'theater', color: '#FF7F50', name: '劇場', toggle: 'toggleTheater' },
-          { key: 'amphitheatre', color: '#DC143C', name: '円形闘技場', toggle: 'toggleAmphitheatre' },
-          { key: 'residence', color: '#FFFF00', name: '住居', toggle: 'toggleResidence' },
-          { key: 'forum', color: '#FF00FF', name: 'フォルム', toggle: 'toggleForum' }
+          { key: 'settlement', color: '#FFD700', name: 'Cities & Settlements', toggle: 'toggleSettlements' },
+          { key: 'villa', color: '#90EE90', name: 'Villas', toggle: 'toggleVillas' },
+          { key: 'fort', color: '#FF0000', name: 'Forts', toggle: 'toggleForts' },
+          { key: 'temple', color: '#800080', name: 'Temples', toggle: 'toggleTemples' },
+          { key: 'station', color: '#FFA500', name: 'Stations', toggle: 'toggleStations' },
+          { key: 'archaeological', color: '#A52A2A', name: 'Archaeological Sites', toggle: 'toggleArchaeological' },
+          { key: 'cemetery', color: '#808080', name: 'Cemeteries', toggle: 'toggleCemetery' },
+          { key: 'sanctuary', color: '#EE82EE', name: 'Sanctuaries', toggle: 'toggleSanctuary' },
+          { key: 'bridge', color: '#C0C0C0', name: 'Bridges', toggle: 'toggleBridge' },
+          { key: 'aqueduct', color: '#00FFFF', name: 'Aqueducts', toggle: 'toggleAqueduct' },
+          { key: 'church', color: '#FFC0CB', name: 'Churches', toggle: 'toggleChurch' },
+          { key: 'bath', color: '#00FFFF', name: 'Baths', toggle: 'toggleBath' },
+          { key: 'quarry', color: '#F4A460', name: 'Quarries', toggle: 'toggleQuarry' },
+          { key: 'port', color: '#000080', name: 'Harbors', toggle: 'togglePort' },
+          { key: 'theater', color: '#FF7F50', name: 'Theaters', toggle: 'toggleTheater' },
+          { key: 'amphitheatre', color: '#DC143C', name: 'Amphitheaters', toggle: 'toggleAmphitheatre' },
+          { key: 'residence', color: '#FFFF00', name: 'Residences', toggle: 'toggleResidence' },
+          { key: 'forum', color: '#FF00FF', name: 'Forums', toggle: 'toggleForum' }
         ]
 
         typeConfigs.forEach(config => {
@@ -1439,9 +1439,9 @@ export default function LeafletMap() {
               ? 'bg-red-500 text-white hover:bg-red-600'
               : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
-          title={hasRectangle ? '矩形解除' : '矩形選択モード'}
+          title={hasRectangle ? 'Clear Rectangle' : 'Rectangle Selection Mode'}
         >
-          {isDrawingMode ? '選択中...' : hasRectangle ? '矩形解除' : '矩形選択'}
+          {isDrawingMode ? 'Selecting...' : hasRectangle ? 'Clear Rectangle' : 'Rect Selection'}
         </button>
 
         {/* Circle selection button */}
@@ -1454,9 +1454,9 @@ export default function LeafletMap() {
               ? 'bg-red-500 text-white hover:bg-red-600'
               : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
-          title={hasCircle ? '円形解除' : '円形選択モード'}
+          title={hasCircle ? 'Clear Circle' : 'Circle Selection Mode'}
         >
-          {isCircleDrawingMode ? '選択中...' : hasCircle ? '円形解除' : '円形選択'}
+          {isCircleDrawingMode ? 'Selecting...' : hasCircle ? 'Clear Circle' : 'Circle Selection'}
         </button>
 
         {/* Time filter toggle button */}
@@ -1467,9 +1467,9 @@ export default function LeafletMap() {
               ? 'bg-purple-500 text-white hover:bg-purple-600'
               : 'bg-white text-gray-700 hover:bg-gray-100'
           }`}
-          title="時代フィルタ表示切替"
+          title="Toggle Time Filter"
         >
-          {showTimeSlider ? 'フィルタ非表示' : '時代フィルタ'}
+          {showTimeSlider ? 'Hide Filter' : 'Time Filter'}
         </button>
       </div>
 
@@ -1507,10 +1507,10 @@ export default function LeafletMap() {
       {/* Time Filter */}
       {showTimeSlider && (
         <div className="absolute bottom-4 left-4 z-[1000] bg-white px-6 py-3 rounded-lg shadow-lg" style={{ width: '300px' }}>
-          <div className="text-sm font-medium text-gray-700 mb-3">時代範囲フィルタ</div>
+          <div className="text-sm font-medium text-gray-700 mb-3">Time Range Filter</div>
           <div className="flex gap-4 items-center">
             <div className="flex-1">
-              <label className="text-xs text-gray-600 block mb-1">開始年</label>
+              <label className="text-xs text-gray-600 block mb-1">Start Year</label>
               <input
                 type="text"
                 value={timeStartInput}
@@ -1540,7 +1540,7 @@ export default function LeafletMap() {
             </div>
             <div className="text-gray-500 mt-5">〜</div>
             <div className="flex-1">
-              <label className="text-xs text-gray-600 block mb-1">終了年</label>
+              <label className="text-xs text-gray-600 block mb-1">End Year</label>
               <input
                 type="text"
                 value={timeEndInput}

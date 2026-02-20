@@ -246,7 +246,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   }
 
   // Filter states
-  const [filterType, setFilterType] = useState<'Social Status' | 'Relationship Type'>('Social Status')
+  const [filterType, setFilterType] = useState<'SocialStatus' | 'RelationshipType'>('SocialStatus')
   const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set())
   const [availableFilters, setAvailableFilters] = useState<{ [key: string]: string[] }>({})
   const [inscriptionFilterData, setInscriptionFilterData] = useState<{ [edcsId: string]: { socialStatuses: string[], relationshipTypes: string[] } }>({})
@@ -344,7 +344,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
       if (!filterData) return false
 
       // Get the appropriate filter values based on filter type
-      const values = filterType === 'Social Status'
+      const values = filterType === 'SocialStatus'
         ? filterData.socialStatuses
         : filterData.relationshipTypes
 
@@ -466,7 +466,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
   return (
     <div className="w-full h-full bg-white font-sans flex flex-col">
-      {/* Tab Header */}
+      {/* タブヘッダー */}
       <div className="flex border-b border-gray-300">
         <button
           onClick={() => setActiveTab('settings')}
@@ -476,7 +476,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
               : 'text-[#888] bg-gray-50 hover:bg-gray-100'
           }`}
         >
-          Display Settings
+          表示設定
         </button>
         <button
           onClick={() => setActiveTab('info')}
@@ -486,21 +486,21 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
               : 'text-[#888] bg-gray-50 hover:bg-gray-100'
           }`}
         >
-          Information
+          情報
         </button>
       </div>
 
-      {/* Tab Content */}
+      {/* タブコンテンツ */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
         <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
-          {/* Base Layers */}
+          {/* 基本レイヤー */}
           <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <h3
                   className="m-0 text-[#555] text-[18px] font-semibold cursor-pointer"
                   onClick={() => toggleSection('baseLayersContent')}
                 >
-                  ▼ Base Layers
+                  ▼ 基本レイヤー
                 </h3>
                 <div className="text-[10px]">
                   <a
@@ -508,14 +508,14 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     onClick={(e) => { e.preventDefault(); toggleAll('baseLayersContent', true) }}
                     className="text-[#6688ff] no-underline mr-1.5"
                   >
-                    Select All
+                    全選択
                   </a>
                   <a
                     href="#"
                     onClick={(e) => { e.preventDefault(); toggleAll('baseLayersContent', false) }}
                     className="text-[#6688ff] no-underline"
                   >
-                    Deselect All
+                    全解除
                   </a>
                 </div>
               </div>
@@ -526,14 +526,14 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                   <span className="text-[14px] text-[#555]">Province</span>
                 </label>
 
-                {/* Roads & Rivers Subsection */}
+                {/* 道路・河川サブセクション */}
                 <div className="mb-3">
                   <div className="flex justify-between items-center mb-2">
                     <h4
                       className="m-0 text-[#666] text-[15px] font-medium cursor-pointer"
                       onClick={() => toggleSection('routesContent')}
                     >
-                      ▼ Roads & Rivers
+                      ▼ 道路・河川
                     </h4>
                     <div className="text-[10px]">
                       <a
@@ -541,14 +541,14 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         onClick={(e) => { e.preventDefault(); toggleAll('routesContent', true) }}
                         className="text-[#6688ff] no-underline mr-1.5"
                       >
-                        Select All
+                        全選択
                       </a>
                       <a
                         href="#"
                         onClick={(e) => { e.preventDefault(); toggleAll('routesContent', false) }}
                         className="text-[#6688ff] no-underline"
                       >
-                        Deselect All
+                        全解除
                       </a>
                     </div>
                   </div>
@@ -578,7 +578,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                 <label className="flex items-center cursor-pointer mb-2">
                   <input type="checkbox" id="toggleElevation" defaultChecked className="mr-3 cursor-pointer w-4 h-4" />
-                  <span className="text-[14px] text-[#555]">Elevation Map</span>
+                  <span className="text-[14px] text-[#555]">標高マップ</span>
                 </label>
               </div>
             </div>
@@ -598,37 +598,37 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     onClick={(e) => { e.preventDefault(); toggleAll('pleiadesContent', true) }}
                     className="text-[#6688ff] no-underline mr-1.5"
                   >
-                    Select All
+                    全選択
                   </a>
                   <a
                     href="#"
                     onClick={(e) => { e.preventDefault(); toggleAll('pleiadesContent', false) }}
                     className="text-[#6688ff] no-underline"
                   >
-                    Deselect All
+                    全解除
                   </a>
                 </div>
               </div>
 
               <div id="pleiadesContent" className="pl-4">
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleSettlements" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Cities & Settlements</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleVillas" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Villas</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleForts" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Forts</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleTemples" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Temples</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleStations" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Stations</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleArchaeological" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Archaeological Sites</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleCemetery" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Cemeteries</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleSanctuary" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Sanctuaries</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleBridge" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Bridges</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleAqueduct" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Aqueducts</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleChurch" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Churches</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleBath" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Baths</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleQuarry" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Quarries</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="togglePort" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Harbors</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleTheater" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Theaters</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleAmphitheatre" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Amphitheaters</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleResidence" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Residences</span></label>
-                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleForum" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">Forums</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleSettlements" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">都市・集落</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleVillas" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">ヴィラ</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleForts" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">要塞</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleTemples" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">神殿</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleStations" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">駅</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleArchaeological" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">遺跡</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleCemetery" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">墓地</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleSanctuary" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">聖域</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleBridge" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">橋</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleAqueduct" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">水道橋</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleChurch" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">教会</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleBath" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">浴場</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleQuarry" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">採石場</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="togglePort" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">港</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleTheater" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">劇場</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleAmphitheatre" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">円形闘技場</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleResidence" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">住居</span></label>
+                <label className="flex items-center cursor-pointer mb-2"><input type="checkbox" id="toggleForum" className="mr-3 cursor-pointer w-4 h-4" /><span className="text-[14px] text-[#555]">フォルム</span></label>
               </div>
           </div>
         </div>
@@ -647,7 +647,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           onClick={returnToMultiplePlacesList}
                           className="px-3 py-1 text-[13px] bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors"
                         >
-                          ← Back to List
+                          ← 一覧に戻る
                         </button>
                       )}
                     </div>
@@ -663,7 +663,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               : 'text-gray-600 hover:text-gray-800'
                           }`}
                         >
-                          Inscriptions {inscriptionData.inscriptions ? `(${inscriptionData.inscriptions.length})` : '(0)'}
+                          碑文 {inscriptionData.inscriptions ? `(${inscriptionData.inscriptions.length})` : '(0)'}
                         </button>
                         <button
                           onClick={() => setInfoSubTab('mosaics')}
@@ -673,7 +673,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               : 'text-gray-600 hover:text-gray-800'
                           }`}
                         >
-                          Mosaics {inscriptionData.mosaics ? `(${inscriptionData.mosaics.length})` : '(0)'}
+                          モザイク {inscriptionData.mosaics ? `(${inscriptionData.mosaics.length})` : '(0)'}
                         </button>
                         <button
                           onClick={() => setInfoSubTab('statistics')}
@@ -683,7 +683,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               : 'text-gray-600 hover:text-gray-800'
                           }`}
                         >
-                          Statistics
+                          統計
                         </button>
                       </div>
                     )}
@@ -691,43 +691,43 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {/* Tab content for Inscriptions */}
                     {infoSubTab === 'inscriptions' && !networkEdcsId && !networkLoading && (
                       <div>
-                        {/* InformationLayout Information and Filter side by side */}
+                        {/* 情報とフィルタを横並びに配置 */}
                         <div className="flex gap-4 mb-4">
-                          {/* Left: Basic Information */}
+                          {/* 左側: 基本情報 */}
                           <div className="flex-1 bg-gray-50 p-4 rounded-lg">
                             <p className="text-[14px] text-[#666] mb-2">
                               <strong>PLACE ID:</strong> {inscriptionData.placeId}
                             </p>
                             {inscriptionData.loading ? (
                               <p className="text-[14px] text-[#666]">
-                                Inscriptions Loading data...
+                                碑文データを読み込み中...
                               </p>
                             ) : (
                               <p className="text-[14px] text-[#666] mb-0">
-                                <strong>Inscriptions Count:</strong> {inscriptionData.count} items
+                                <strong>碑文数:</strong> {inscriptionData.count}件
                               </p>
                             )}
                           </div>
 
-                          {/* Right: Filters */}
+                          {/* 右側: フィルタ */}
                           <div className="flex-1 bg-blue-50 p-4 rounded-lg">
                             {/* Filter type selector */}
                             <div className="mb-3">
                               <select
                                 value={filterType}
-                                onChange={(e) => setFilterType(e.target.value as 'Social Status' | 'Relationship Type')}
+                                onChange={(e) => setFilterType(e.target.value as 'SocialStatus' | 'RelationshipType')}
                                 className="w-full px-2 py-1 border border-gray-300 rounded text-[13px] bg-white"
                                 disabled={filterDataLoading}
                               >
-                                <option value="Social Status">Filter by Social Status</option>
-                                <option value="Relationship Type">Filter by Relationship</option>
+                                <option value="SocialStatus">社会的身分で絞り込み</option>
+                                <option value="RelationshipType">関係性で絞り込み</option>
                               </select>
                             </div>
                             {filterDataLoading ? (
                               <div className="text-[13px] text-gray-600">
-                                <p className="mb-1">Filter Loading data...</p>
+                                <p className="mb-1">フィルタデータを読み込み中...</p>
                                 <p className="text-[12px] text-gray-500">
-                                  {filterDataProgress.current} / {filterDataProgress.total} items processed
+                                  {filterDataProgress.current} / {filterDataProgress.total} 件処理済み
                                 </p>
                                 <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
                                   <div
@@ -755,7 +755,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 })}
                               </div>
                             ) : (
-                              <p className="text-[12px] text-[#666]">Filter No data available</p>
+                              <p className="text-[12px] text-[#666]">フィルタデータがありません</p>
                             )}
                           </div>
                         </div>
@@ -765,18 +765,18 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {/* Tab content for Mosaics */}
                     {infoSubTab === 'mosaics' && !networkEdcsId && !networkLoading && (
                       <div>
-                        {/* Basic Information */}
+                        {/* 基本情報 */}
                         <div className="bg-gray-50 p-4 rounded-lg mb-4">
                           <p className="text-[14px] text-[#666] mb-2">
                             <strong>PLACE ID:</strong> {inscriptionData.placeId}
                           </p>
                           {inscriptionData.mosaicsLoading ? (
                             <p className="text-[14px] text-[#666]">
-                              MosaicsLoading data...
+                              モザイクデータを読み込み中...
                             </p>
                           ) : (
                             <p className="text-[14px] text-[#666] mb-0">
-                              <strong>Mosaics Count:</strong> {inscriptionData.mosaics?.length || 0} items
+                              <strong>モザイク数:</strong> {inscriptionData.mosaics?.length || 0}件
                             </p>
                           )}
                         </div>
@@ -787,32 +787,32 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {infoSubTab === 'inscriptions' && !inscriptionData.loading && inscriptionData.inscriptions && inscriptionData.inscriptions.length > 0 && !networkEdcsId && !networkLoading && !detailViewEdcsId && !detailViewLoading && (
                       <div className="mt-4">
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
-                          Inscriptions List ({filteredInscriptions.length} items{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length} items total` : ''})
+                          碑文一覧 ({filteredInscriptions.length}件{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length}件中` : ''})
                         </h4>
 
                         {/* Statistics filter indicator */}
                         {statisticsFilter.type && statisticsFilter.value && (
                           <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded flex items-center justify-between">
                             <div className="text-[13px]">
-                              <span className="text-gray-600">StatisticsFilter: </span>
+                              <span className="text-gray-600">統計フィルタ: </span>
                               <span className="font-medium text-gray-900">
-                                {statisticsFilter.type === 'nomen' && `Clan Names: ${statisticsFilter.value}`}
-                                {statisticsFilter.type === 'benefactionType' && `Benefactions Type: ${statisticsFilter.value}`}
-                                {statisticsFilter.type === 'objectType' && `Object Type: ${statisticsFilter.value}`}
-                                {statisticsFilter.type === 'divinityType' && `Divinities Type: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'nomen' && `氏族名: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'benefactionType' && `恵与行為タイプ: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'objectType' && `対象物: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'divinityType' && `神格タイプ: ${statisticsFilter.value}`}
                                 {statisticsFilter.type === 'costRange' && (() => {
                                   if (costFilter.min !== null && costFilter.max !== null) {
-                                    return `Cost Range: ${costFilter.min.toLocaleString()} - ${costFilter.max.toLocaleString()} HS`
+                                    return `コスト範囲: ${costFilter.min.toLocaleString()} - ${costFilter.max.toLocaleString()} HS`
                                   } else if (costFilter.min !== null) {
-                                    return `Cost Range: ${costFilter.min.toLocaleString()} HS or more`
+                                    return `コスト範囲: ${costFilter.min.toLocaleString()} HS以上`
                                   } else if (costFilter.max !== null) {
-                                    return `Cost Range: ${costFilter.max.toLocaleString()} HS or less`
+                                    return `コスト範囲: ${costFilter.max.toLocaleString()} HS以下`
                                   }
                                   return ''
                                 })()}
                               </span>
                               {statisticsFilterLoading && (
-                                <span className="ml-2 text-gray-500">Loading...</span>
+                                <span className="ml-2 text-gray-500">読み込み中...</span>
                               )}
                             </div>
                             <button
@@ -821,7 +821,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               }}
                               className="px-2 py-1 text-[12px] text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded"
                             >
-                              Clear
+                              解除
                             </button>
                           </div>
                         )}
@@ -859,25 +859,25 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     onClick={() => toggleDescription(inscription.edcsId)}
                                     className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline mt-1"
                                   >
-                                    {expandedDescriptions.has(inscription.edcsId) ? 'Close' : 'Show More'}
+                                    {expandedDescriptions.has(inscription.edcsId) ? '閉じる' : 'もっと見る'}
                                   </button>
                                 </div>
                               )}
                               <p className="text-[11px] text-[#888] mb-2">
-                                <strong>Dating:</strong> {inscription.dating && inscription.dating.trim() !== '' ? inscription.dating : '-'}
+                                <strong>年代:</strong> {inscription.dating && inscription.dating.trim() !== '' ? inscription.dating : '-'}
                               </p>
                               <div className="grid grid-cols-2 gap-1 text-[10px] text-[#666] mb-2">
-                                <div><strong>Persons:</strong> {inscription.personCount || 0}</div>
-                                <div><strong>Relationships:</strong> {inscription.relationshipCount || 0}</div>
-                                <div><strong>Careers:</strong> {inscription.careerCount || 0}</div>
-                                <div><strong>Benefaction:</strong> {inscription.benefactionCount || 0}</div>
+                                <div><strong>人物:</strong> {inscription.personCount || 0}</div>
+                                <div><strong>関係性:</strong> {inscription.relationshipCount || 0}</div>
+                                <div><strong>経歴:</strong> {inscription.careerCount || 0}</div>
+                                <div><strong>恵与:</strong> {inscription.benefactionCount || 0}</div>
                               </div>
                               <div className="flex gap-1">
                                 <button
                                   onClick={() => handleShowNetwork(inscription.edcsId)}
                                   className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                                  title="Network View"
-                                  aria-label="Network View"
+                                  title="ネットワーク表示"
+                                  aria-label="ネットワーク表示"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
                                     <circle cx="12" cy="12" r="2" />
@@ -897,8 +897,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors inline-flex"
-                                    title="3DModel Display"
-                                    aria-label="3DModel Display"
+                                    title="3Dモデル表示"
+                                    aria-label="3Dモデル表示"
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -913,7 +913,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1 hover:opacity-70 transition-opacity inline-flex"
-                                    title="Mirador Viewerdisplay by"
+                                    title="Mirador Viewerで表示"
                                     aria-label="Mirador Viewer"
                                   >
                                     <img src="/img/mirador.png" alt="Mirador" style={{ width: '16px', height: '16px' }} />
@@ -930,7 +930,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {infoSubTab === 'mosaics' && !inscriptionData.mosaicsLoading && inscriptionData.mosaics && !networkEdcsId && !networkLoading && (
                       <div className="mt-4">
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
-                          MosaicsList ({inscriptionData.mosaics.length} items)
+                          モザイク一覧 ({inscriptionData.mosaics.length}件)
                         </h4>
                         {inscriptionData.mosaics.length > 0 ? (
                           <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
@@ -960,7 +960,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1.5 hover:opacity-70 transition-opacity inline-flex rounded hover:bg-gray-100"
-                                    title="IIIF Manifest (click forJSONDisplay and drag to viewer)"
+                                    title="IIIF Manifest (クリックでJSONを表示、ドラッグでビューアに投げ込み)"
                                     aria-label="IIIF Manifest"
                                     draggable="true"
                                     onDragStart={(e) => {
@@ -979,7 +979,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1.5 hover:opacity-70 transition-opacity inline-flex rounded hover:bg-gray-100"
-                                    title="Mirador Viewerdisplay by"
+                                    title="Mirador Viewerで表示"
                                     aria-label="Mirador Viewer"
                                   >
                                     <img
@@ -993,7 +993,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             ))}
                           </div>
                         ) : (
-                          <p className="text-[14px] text-[#666]">This location hasMosaicsNo data available</p>
+                          <p className="text-[14px] text-[#666]">この地名にはモザイクデータがありません。</p>
                         )}
                       </div>
                     )}
@@ -1002,7 +1002,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {infoSubTab === 'mosaics' && inscriptionData.mosaicsLoading && (
                       <div className="mt-4">
                         <p className="text-[14px] text-[#666]">
-                          MosaicsLoading data...
+                          モザイクデータを読み込み中...
                         </p>
                       </div>
                     )}
@@ -1020,7 +1020,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 : 'text-gray-600 hover:text-gray-800'
                             }`}
                           >
-                            Age
+                            年齢
                           </button>
                           <button
                             onClick={() => setStatisticsTab('clan')}
@@ -1030,7 +1030,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 : 'text-gray-600 hover:text-gray-800'
                             }`}
                           >
-                            Clan Names
+                            氏族名
                           </button>
                           <button
                             onClick={() => setStatisticsTab('benefaction')}
@@ -1040,7 +1040,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 : 'text-gray-600 hover:text-gray-800'
                             }`}
                           >
-                            Benefactions
+                            恵与行為
                           </button>
                           <button
                             onClick={() => setStatisticsTab('divinity')}
@@ -1050,7 +1050,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 : 'text-gray-600 hover:text-gray-800'
                             }`}
                           >
-                            Divinities
+                            神格
                           </button>
                         </div>
 
@@ -1058,22 +1058,22 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         {statisticsTab === 'age' && (
                           <div className="mt-4">
                             {ageAtDeathLoading ? (
-                              <p className="text-[14px] text-[#666]">Loading data...</p>
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                             ) : ageAtDeathData ? (
                               <div className="space-y-3">
                                 <div className="p-3 bg-gray-50 rounded">
-                                  <p className="text-[13px] text-gray-600 mb-1">Average deathAge</p>
-                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.averageAge.toFixed(1)} years old</p>
-                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.count} items)</p>
+                                  <p className="text-[13px] text-gray-600 mb-1">平均死亡年齢</p>
+                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.averageAge.toFixed(1)}歳</p>
+                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.count}件)</p>
                                 </div>
                                 <div className="p-3 bg-gray-50 rounded">
-                                  <p className="text-[13px] text-gray-600 mb-1">Percentage under 10 years old</p>
+                                  <p className="text-[13px] text-gray-600 mb-1">10歳未満の割合</p>
                                   <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.under10Percentage.toFixed(1)}%</p>
-                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.under10Count} items)</p>
+                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.under10Count}件)</p>
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-[14px] text-[#666]">No data available</p>
+                              <p className="text-[14px] text-[#666]">データがありません</p>
                             )}
                           </div>
                         )}
@@ -1082,13 +1082,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         {statisticsTab === 'clan' && (
                           <div className="mt-4">
                             {nomenFrequencyLoading ? (
-                              <p className="text-[14px] text-[#666]">Loading data...</p>
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                             ) : nomenFrequencyData.length > 0 ? (
                               <div>
                                 <div className="mb-3">
-                                  <p className="text-[13px] font-medium text-gray-700">Clan Names Frequency of（Top 20 items, click to filter）</p>
+                                  <p className="text-[13px] font-medium text-gray-700">氏族名の出現頻度（上位20件、クリックでフィルタ）</p>
                                   <p className="text-[12px] text-gray-500 mt-1">
-                                    Clan Names with Inscriptions: {nomenFrequencyData.reduce((sum, d) => sum + d.count, 0)} items / Unique Clan Names: {nomenFrequencyData.length} items
+                                    氏族名を持つ碑文: {nomenFrequencyData.reduce((sum, d) => sum + d.count, 0)}件 / ユニークな氏族名: {nomenFrequencyData.length}件
                                   </p>
                                 </div>
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 max-h-[400px] overflow-y-auto shadow-sm">
@@ -1123,7 +1123,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                               {label}
                                             </span>
                                             <span className={`text-[12px] font-semibold ${isActive ? 'text-blue-600' : 'text-gray-600'}`}>
-                                              {item.count} items ({percentage.toFixed(1)}%)
+                                              {item.count}件 ({percentage.toFixed(1)}%)
                                             </span>
                                           </div>
                                           <div className="relative w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
@@ -1141,7 +1141,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-[14px] text-[#666]">No data available</p>
+                              <p className="text-[14px] text-[#666]">データがありません</p>
                             )}
                           </div>
                         )}
@@ -1150,7 +1150,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         {statisticsTab === 'benefaction' && (
                           <div className="mt-4">
                             {benefactionTypeLoading ? (
-                              <p className="text-[14px] text-[#666]">Loading data...</p>
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                             ) : benefactionTypeData.length > 0 ? (
                               <div className="space-y-4">
                                 {/* Overall cost statistics */}
@@ -1176,33 +1176,33 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                                   return totalWithCost > 0 ? (
                                     <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                                      <p className="text-[13px] font-semibold text-green-800 mb-2">Cost Statistics Overview</p>
+                                      <p className="text-[13px] font-semibold text-green-800 mb-2">コスト統計概要</p>
                                       <div className="grid grid-cols-2 gap-2 text-[12px]">
                                         <div>
-                                          <span className="text-gray-600">Total Benefactions Count:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()}items</span>
+                                          <span className="text-gray-600">総恵与行為数:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()}件</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">With Cost Data:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{totalWithCost.toLocaleString()}items</span>
+                                          <span className="text-gray-600">コストデータあり:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{totalWithCost.toLocaleString()}件</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">Total Cost:</span>
+                                          <span className="text-gray-600">総コスト:</span>
                                           <span className="ml-1 font-semibold text-gray-900">{Math.round(grandTotal).toLocaleString()} HS</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">Average Cost:</span>
+                                          <span className="text-gray-600">平均コスト:</span>
                                           <span className="ml-1 font-semibold text-gray-900">{Math.round(overallAvg).toLocaleString()} HS</span>
                                         </div>
                                         {minCost !== null && (
                                           <div>
-                                            <span className="text-gray-600">Min:</span>
+                                            <span className="text-gray-600">最小:</span>
                                             <span className="ml-1 font-semibold text-gray-900">{Math.round(minCost).toLocaleString()} HS</span>
                                           </div>
                                         )}
                                         {maxCost !== null && (
                                           <div>
-                                            <span className="text-gray-600">Max:</span>
+                                            <span className="text-gray-600">最大:</span>
                                             <span className="ml-1 font-semibold text-gray-900">{Math.round(maxCost).toLocaleString()} HS</span>
                                           </div>
                                         )}
@@ -1213,11 +1213,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                                 {/* Cost range filter */}
                                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                                  <p className="text-[13px] font-semibold text-blue-800 mb-2">Filter by Cost Range</p>
+                                  <p className="text-[13px] font-semibold text-blue-800 mb-2">コスト範囲でフィルタ</p>
                                   <div className="flex gap-2 items-center">
                                     <input
                                       type="number"
-                                      placeholder="Min (HS)"
+                                      placeholder="最小 (HS)"
                                       value={costFilter.min ?? ''}
                                       onChange={(e) => setCostFilter(prev => ({ ...prev, min: e.target.value ? Number(e.target.value) : null }))}
                                       className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
@@ -1225,7 +1225,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     <span className="text-gray-500">〜</span>
                                     <input
                                       type="number"
-                                      placeholder="Max (HS)"
+                                      placeholder="最大 (HS)"
                                       value={costFilter.max ?? ''}
                                       onChange={(e) => setCostFilter(prev => ({ ...prev, max: e.target.value ? Number(e.target.value) : null }))}
                                       className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
@@ -1242,7 +1242,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       disabled={costFilter.min === null && costFilter.max === null}
                                       className="px-3 py-1 text-[12px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                                     >
-                                      Apply
+                                      適用
                                     </button>
                                     {statisticsFilter.type === 'costRange' && (
                                       <button
@@ -1252,13 +1252,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         }}
                                         className="px-3 py-1 text-[12px] bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
                                       >
-                                        Clear
+                                        解除
                                       </button>
                                     )}
                                   </div>
                                   {statisticsFilter.type === 'costRange' && (
                                     <p className="text-[11px] text-blue-700 mt-1">
-                                      Filtering: {costFilter.min ?? 'MinNo value'} 〜 {costFilter.max ?? 'MaxNo value'} HS
+                                      フィルタ中: {costFilter.min ?? '最小値なし'} 〜 {costFilter.max ?? '最大値なし'} HS
                                     </p>
                                   )}
                                 </div>
@@ -1266,11 +1266,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 {/* Top benefactions ranking */}
                                 {topBenefactionsLoading ? (
                                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                                    <p className="text-[13px] text-gray-600">Loading top Benefactions...</p>
+                                    <p className="text-[13px] text-gray-600">高額恵与行為を読み込み中...</p>
                                   </div>
                                 ) : topBenefactionsData.length > 0 ? (
                                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                                    <p className="text-[13px] font-semibold text-yellow-800 mb-2">High-valueBenefactionsTop10</p>
+                                    <p className="text-[13px] font-semibold text-yellow-800 mb-2">高額恵与行為トップ10</p>
                                     <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
                                       {topBenefactionsData.map((item, index) => (
                                         <div
@@ -1318,7 +1318,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 ) : null}
 
                                 <div>
-                                  <p className="text-[13px] text-gray-600 mb-3">Distribution of Benefactions Types（Click for details）</p>
+                                  <p className="text-[13px] text-gray-600 mb-3">恵与行為タイプの割合（クリックで詳細）</p>
                                   {/* Pie chart and legend side by side */}
                                   <div className="flex gap-4 items-center mb-3">
                                     {/* Pie chart */}
@@ -1403,13 +1403,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                 />
                                                 <span className="text-[13px] font-medium text-gray-900">{item.benefactionType}</span>
                                               </div>
-                                              <span className="text-[12px] text-gray-600">{item.count}items ({percentage.toFixed(1)}%)</span>
+                                              <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
                                             </div>
                                             {costData && costData.countWithCost > 0 && (
                                               <div className="ml-5 text-[11px] text-gray-500">
-                                                Average: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
-                                                {costData.totalCost && ` (Total: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
-                                                <span className="ml-1">({costData.countWithCost}itemswith data)</span>
+                                                平均: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
+                                                {costData.totalCost && ` (合計: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
+                                                <span className="ml-1">({costData.countWithCost}件にデータあり)</span>
                                               </div>
                                             )}
                                           </div>
@@ -1428,7 +1428,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       }}
                                       className="w-full px-3 py-2 text-[13px] bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
                                     >
-                                      Filter by this Benefactions type
+                                      この恵与行為タイプでフィルタ
                                     </button>
                                   )}
                                   {statisticsFilter.type === 'benefactionType' && statisticsFilter.value === selectedBenefactionType && (
@@ -1438,7 +1438,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       }}
                                       className="w-full px-3 py-2 text-[13px] bg-gray-50 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                                     >
-                                      Clear Filter
+                                      フィルタ解除
                                     </button>
                                   )}
                                 </div>
@@ -1447,10 +1447,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 {selectedBenefactionType && (
                                   <div className="pt-3 border-t border-gray-200">
                                     <p className="text-[13px] text-gray-600 mb-3">
-                                      {selectedBenefactionType}Object Types for（Click to filter）
+                                      {selectedBenefactionType}の対象物（クリックでフィルタ）
                                     </p>
                                     {benefactionObjectTypeLoading ? (
-                                      <p className="text-[14px] text-[#666]">Loading data...</p>
+                                      <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                                     ) : benefactionObjectTypeData.length > 0 ? (
                                       <div className="flex gap-4 items-center">
                                         {/* Pie chart */}
@@ -1543,13 +1543,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                     />
                                                     <span className="text-[13px] font-medium text-gray-900">{item.objectType}</span>
                                                   </div>
-                                                  <span className="text-[12px] text-gray-600">{item.count}items ({percentage.toFixed(1)}%)</span>
+                                                  <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
                                                 </div>
                                                 {costData && costData.countWithCost > 0 && (
                                                   <div className="ml-5 text-[11px] text-gray-500">
-                                                    Average: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
-                                                    {costData.totalCost && ` (Total: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
-                                                    <span className="ml-1">({costData.countWithCost}itemswith data)</span>
+                                                    平均: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
+                                                    {costData.totalCost && ` (合計: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
+                                                    <span className="ml-1">({costData.countWithCost}件にデータあり)</span>
                                                   </div>
                                                 )}
                                               </div>
@@ -1558,13 +1558,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         </div>
                                       </div>
                                     ) : (
-                                      <p className="text-[14px] text-[#666]">No data available</p>
+                                      <p className="text-[14px] text-[#666]">データがありません</p>
                                     )}
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              <p className="text-[14px] text-[#666]">No data available</p>
+                              <p className="text-[14px] text-[#666]">データがありません</p>
                             )}
                           </div>
                         )}
@@ -1573,10 +1573,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         {statisticsTab === 'divinity' && (
                           <div className="mt-4">
                             {divinityTypeLoading ? (
-                              <p className="text-[14px] text-[#666]">Loading data...</p>
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                             ) : divinityTypeData.length > 0 ? (
                               <div>
-                                <p className="text-[13px] text-gray-600 mb-3">Distribution of Divinities Types（Click to filter）</p>
+                                <p className="text-[13px] text-gray-600 mb-3">神格タイプの割合（クリックでフィルタ）</p>
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                   <div className="space-y-2">
                                     {divinityTypeData.map((item, index) => {
@@ -1607,7 +1607,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                               {label}
                                             </span>
                                             <span className={`text-[12px] font-semibold ${isActive ? 'text-green-600' : 'text-gray-600'}`}>
-                                              {item.count}items ({percentage.toFixed(1)}%)
+                                              {item.count}件 ({percentage.toFixed(1)}%)
                                             </span>
                                           </div>
                                           <div className="relative w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
@@ -1625,7 +1625,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-[14px] text-[#666]">No data available</p>
+                              <p className="text-[14px] text-[#666]">データがありません</p>
                             )}
                           </div>
                         )}
@@ -1636,19 +1636,19 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {detailViewEdcsId && !detailViewLoading && detailViewData && (
                       <div className="mt-4">
                         <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-[16px] font-semibold text-[#333]">InscriptionsDetails</h4>
+                          <h4 className="text-[16px] font-semibold text-[#333]">碑文詳細</h4>
                           <button
                             onClick={handleCloseInscriptionDetail}
                             className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded transition-colors text-[13px]"
                           >
-                            Back to List
+                            一覧に戻る
                           </button>
                         </div>
 
                         <div className="space-y-4">
                           {/* Metadata Section */}
                           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                            <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">Metadata</h5>
+                            <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">メタデータ</h5>
 
                             <div className="flex text-[13px]">
                               <span className="font-medium text-gray-700 w-24">EDCS ID:</span>
@@ -1657,7 +1657,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                             {detailViewData.datingFrom !== null && detailViewData.datingTo !== null && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Dating:</span>
+                                <span className="font-medium text-gray-700 w-24">年代:</span>
                                 <span className="text-gray-600">
                                   {detailViewData.datingFrom} - {detailViewData.datingTo}
                                 </span>
@@ -1666,21 +1666,21 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                             {detailViewData.province && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Province:</span>
+                                <span className="font-medium text-gray-700 w-24">属州:</span>
                                 <span className="text-gray-600">{detailViewData.province}</span>
                               </div>
                             )}
 
                             {detailViewData.place && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Place:</span>
+                                <span className="font-medium text-gray-700 w-24">場所:</span>
                                 <span className="text-gray-600">{detailViewData.place}</span>
                               </div>
                             )}
 
                             {detailViewData.bibliographicCitation && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Source:</span>
+                                <span className="font-medium text-gray-700 w-24">出典:</span>
                                 <span className="text-gray-600">{detailViewData.bibliographicCitation}</span>
                               </div>
                             )}
@@ -1689,7 +1689,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           {/* Text Section */}
                           {detailViewData.text && (
                             <div>
-                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">InscriptionsText</h5>
+                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">碑文テキスト</h5>
                               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                                 {detailViewData.text.split('//').map((block: string, blockIndex: number) => (
                                   <div key={blockIndex} className="mb-4 last:mb-0">
@@ -1710,7 +1710,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           {/* Comment Section */}
                           {detailViewData.comment && (
                             <div>
-                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">Comments</h5>
+                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">コメント</h5>
                               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                                 <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[13px]">
                                   {detailViewData.comment}
@@ -1723,7 +1723,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     )}
                     {detailViewLoading && (
                       <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="text-[14px] text-[#666]">Inscriptions Loading data...</p>
+                        <p className="text-[14px] text-[#666]">碑文データを読み込み中...</p>
                       </div>
                     )}
 
@@ -1737,34 +1737,34 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     )}
                     {networkLoading && (
                       <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="text-[14px] text-[#666]">NetworkLoading data...</p>
+                        <p className="text-[14px] text-[#666]">ネットワークデータを読み込み中...</p>
                       </div>
                     )}
                   </div>
                 ) : (
                   <div>
                     <h3 className="text-[18px] font-semibold mb-4 text-[#333]">
-                      Selected area
+                      選択された領域
                     </h3>
                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
                       {inscriptionData.loading ? (
                         <p className="text-[14px] text-[#666]">
-                          Inscriptions Loading data...
+                          碑文データを読み込み中...
                         </p>
                       ) : (
                         <>
                           <p className="text-[14px] text-[#666] mb-4">
-                            <strong>Total Inscriptions Count:</strong> {inscriptionData.count} items
+                            <strong>合計碑文数:</strong> {inscriptionData.count}件
                           </p>
                           <p className="text-[14px] text-[#666] mb-2">
-                            <strong>Selected locations:</strong> {inscriptionData.places?.length || 0} locations
+                            <strong>選択された地点:</strong> {inscriptionData.places?.length || 0}箇所
                           </p>
 
                           {/* Place selector for multiple places */}
                           {inscriptionData.places && inscriptionData.places.length > 0 && (
                             <div className="mt-4">
                               <label className="block text-[14px] font-semibold mb-2 text-[#333]">
-                                Select locations:
+                                地点を選択:
                               </label>
                               <select
                                 value={selectedPlaceIndex}
@@ -1781,7 +1781,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               >
                                 {inscriptionData.places.map((place, index) => (
                                   <option key={index} value={index}>
-                                    {place.placeName} ({place.count} items)
+                                    {place.placeName} ({place.count}件)
                                   </option>
                                 ))}
                               </select>
@@ -1802,7 +1802,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               : 'text-gray-600 hover:text-gray-800'
                           }`}
                         >
-                          Inscriptions
+                          碑文
                         </button>
                         <button
                           onClick={() => setInfoSubTab('statistics')}
@@ -1812,7 +1812,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               : 'text-gray-600 hover:text-gray-800'
                           }`}
                         >
-                          Statistics
+                          統計
                         </button>
                       </div>
                     )}
@@ -1824,25 +1824,25 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         {statisticsFilter.type && statisticsFilter.value && (
                           <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded flex items-center justify-between">
                             <div className="text-[13px]">
-                              <span className="text-gray-600">StatisticsFilter: </span>
+                              <span className="text-gray-600">統計フィルタ: </span>
                               <span className="font-medium text-gray-900">
-                                {statisticsFilter.type === 'nomen' && `Clan Names: ${statisticsFilter.value}`}
-                                {statisticsFilter.type === 'benefactionType' && `Benefactions Type: ${statisticsFilter.value}`}
-                                {statisticsFilter.type === 'objectType' && `Object Type: ${statisticsFilter.value}`}
-                                {statisticsFilter.type === 'divinityType' && `Divinities Type: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'nomen' && `氏族名: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'benefactionType' && `恵与行為タイプ: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'objectType' && `対象物: ${statisticsFilter.value}`}
+                                {statisticsFilter.type === 'divinityType' && `神格タイプ: ${statisticsFilter.value}`}
                                 {statisticsFilter.type === 'costRange' && (() => {
                                   if (costFilter.min !== null && costFilter.max !== null) {
-                                    return `Cost Range: ${costFilter.min.toLocaleString()} - ${costFilter.max.toLocaleString()} HS`
+                                    return `コスト範囲: ${costFilter.min.toLocaleString()} - ${costFilter.max.toLocaleString()} HS`
                                   } else if (costFilter.min !== null) {
-                                    return `Cost Range: ${costFilter.min.toLocaleString()} HS or more`
+                                    return `コスト範囲: ${costFilter.min.toLocaleString()} HS以上`
                                   } else if (costFilter.max !== null) {
-                                    return `Cost Range: ${costFilter.max.toLocaleString()} HS or less`
+                                    return `コスト範囲: ${costFilter.max.toLocaleString()} HS以下`
                                   }
                                   return ''
                                 })()}
                               </span>
                               {statisticsFilterLoading && (
-                                <span className="ml-2 text-gray-500">Loading...</span>
+                                <span className="ml-2 text-gray-500">読み込み中...</span>
                               )}
                             </div>
                             <button
@@ -1851,13 +1851,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               }}
                               className="px-2 py-1 text-[12px] text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded"
                             >
-                              Clear
+                              解除
                             </button>
                           </div>
                         )}
 
                         <h4 className="text-[16px] font-semibold mb-3 text-[#333]">
-                          Inscriptions List ({filteredInscriptions.length}items{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length} items total` : ''})
+                          碑文一覧 ({filteredInscriptions.length}件{selectedFilters.size > 0 || statisticsFilteredEdcsIds.length > 0 ? ` / ${inscriptionData.inscriptions.length}件中` : ''})
                         </h4>
                         <div className="grid grid-cols-2 gap-3 max-h-[600px] overflow-y-auto">
                           {filteredInscriptions.map((inscription, index) => (
@@ -1892,25 +1892,25 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     onClick={() => toggleDescription(inscription.edcsId)}
                                     className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline mt-1"
                                   >
-                                    {expandedDescriptions.has(inscription.edcsId) ? 'Close' : 'Show More'}
+                                    {expandedDescriptions.has(inscription.edcsId) ? '閉じる' : 'もっと見る'}
                                   </button>
                                 </div>
                               )}
                               <p className="text-[11px] text-[#888] mb-2">
-                                <strong>Dating:</strong> {inscription.dating && inscription.dating.trim() !== '' ? inscription.dating : '-'}
+                                <strong>年代:</strong> {inscription.dating && inscription.dating.trim() !== '' ? inscription.dating : '-'}
                               </p>
                               <div className="grid grid-cols-2 gap-1 text-[10px] text-[#666] mb-2">
-                                <div><strong>Persons:</strong> {inscription.personCount || 0}</div>
-                                <div><strong>Relationships:</strong> {inscription.relationshipCount || 0}</div>
-                                <div><strong>Careers:</strong> {inscription.careerCount || 0}</div>
-                                <div><strong>Benefaction:</strong> {inscription.benefactionCount || 0}</div>
+                                <div><strong>人物:</strong> {inscription.personCount || 0}</div>
+                                <div><strong>関係性:</strong> {inscription.relationshipCount || 0}</div>
+                                <div><strong>経歴:</strong> {inscription.careerCount || 0}</div>
+                                <div><strong>恵与:</strong> {inscription.benefactionCount || 0}</div>
                               </div>
                               <div className="flex gap-1">
                                 <button
                                   onClick={() => handleShowNetwork(inscription.edcsId)}
                                   className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                                  title="Network View"
-                                  aria-label="Network View"
+                                  title="ネットワーク表示"
+                                  aria-label="ネットワーク表示"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>
                                     <circle cx="12" cy="12" r="2" />
@@ -1930,8 +1930,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors inline-flex"
-                                    title="3DModel Display"
-                                    aria-label="3DModel Display"
+                                    title="3Dモデル表示"
+                                    aria-label="3Dモデル表示"
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
@@ -1946,7 +1946,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-1 hover:opacity-70 transition-opacity inline-flex"
-                                    title="Mirador Viewerdisplay by"
+                                    title="Mirador Viewerで表示"
                                     aria-label="Mirador Viewer"
                                   >
                                     <img src="/img/mirador.png" alt="Mirador" style={{ width: '16px', height: '16px' }} />
@@ -1972,7 +1972,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 : 'text-gray-600 hover:text-gray-800'
                             }`}
                           >
-                            Age
+                            年齢
                           </button>
                           <button
                             onClick={() => setStatisticsTab('clan')}
@@ -1982,7 +1982,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 : 'text-gray-600 hover:text-gray-800'
                             }`}
                           >
-                            Clan Names
+                            氏族名
                           </button>
                           <button
                             onClick={() => setStatisticsTab('benefaction')}
@@ -1992,7 +1992,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 : 'text-gray-600 hover:text-gray-800'
                             }`}
                           >
-                            Benefactions
+                            恵与行為
                           </button>
                           <button
                             onClick={() => setStatisticsTab('divinity')}
@@ -2002,7 +2002,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 : 'text-gray-600 hover:text-gray-800'
                             }`}
                           >
-                            Divinities
+                            神格
                           </button>
                         </div>
 
@@ -2010,22 +2010,22 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         {statisticsTab === 'age' && (
                           <div className="mt-4">
                             {ageAtDeathLoading ? (
-                              <p className="text-[14px] text-[#666]">Loading data...</p>
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                             ) : ageAtDeathData ? (
                               <div className="space-y-3">
                                 <div className="p-3 bg-gray-50 rounded">
-                                  <p className="text-[13px] text-gray-600 mb-1">Average death Age</p>
-                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.averageAge.toFixed(1)} years old</p>
-                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.count} items)</p>
+                                  <p className="text-[13px] text-gray-600 mb-1">平均死亡年齢</p>
+                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.averageAge.toFixed(1)}歳</p>
+                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.count}件)</p>
                                 </div>
                                 <div className="p-3 bg-gray-50 rounded">
-                                  <p className="text-[13px] text-gray-600 mb-1">Percentage under 10 years old</p>
+                                  <p className="text-[13px] text-gray-600 mb-1">10歳未満の割合</p>
                                   <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.under10Percentage.toFixed(1)}%</p>
-                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.under10Count} items)</p>
+                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.under10Count}件)</p>
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-[14px] text-[#666]">No data available</p>
+                              <p className="text-[14px] text-[#666]">データがありません</p>
                             )}
                           </div>
                         )}
@@ -2034,12 +2034,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         {statisticsTab === 'clan' && (
                           <div className="mt-4">
                             {nomenFrequencyLoading ? (
-                              <p className="text-[14px] text-[#666]">Loading data...</p>
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                             ) : nomenFrequencyData.length > 0 ? (
                               <div>
                                 <div className="mb-3">
-                                  <p className="text-[13px] text-gray-600">Clan NamesFrequency of（Top20 items, click to filter）</p>
-                                  <p className="text-[12px] text-gray-500 mt-1">All{nomenFrequencyData.length}items</p>
+                                  <p className="text-[13px] text-gray-600">氏族名の出現頻度（上位20件、クリックでフィルタ）</p>
+                                  <p className="text-[12px] text-gray-500 mt-1">全{nomenFrequencyData.length}件</p>
                                 </div>
                                 <div className="bg-white border border-gray-200 rounded-lg p-3 max-h-[400px] overflow-y-auto">
                                   <div className="space-y-2">
@@ -2071,7 +2071,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                               {label}
                                             </span>
                                             <span className={`text-[12px] font-medium ${isActive ? 'text-blue-600' : 'text-gray-600'}`}>
-                                              {item.count}items ({percentage.toFixed(1)}%)
+                                              {item.count}件 ({percentage.toFixed(1)}%)
                                             </span>
                                           </div>
                                           <div className="relative w-full h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -2089,7 +2089,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-[14px] text-[#666]">No data available</p>
+                              <p className="text-[14px] text-[#666]">データがありません</p>
                             )}
                           </div>
                         )}
@@ -2098,7 +2098,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         {statisticsTab === 'benefaction' && (
                           <div className="mt-4">
                             {benefactionTypeLoading ? (
-                              <p className="text-[14px] text-[#666]">Loading data...</p>
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                             ) : benefactionTypeData.length > 0 ? (
                               <div className="space-y-4">
                                 {/* Overall cost statistics */}
@@ -2124,33 +2124,33 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                                   return totalWithCost > 0 ? (
                                     <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                                      <p className="text-[13px] font-semibold text-green-800 mb-2">CostStatisticsOverview</p>
+                                      <p className="text-[13px] font-semibold text-green-800 mb-2">コスト統計概要</p>
                                       <div className="grid grid-cols-2 gap-2 text-[12px]">
                                         <div>
-                                          <span className="text-gray-600">Total Benefactions Count:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()} items</span>
+                                          <span className="text-gray-600">総恵与行為数:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()}件</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">With Cost Data:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{totalWithCost.toLocaleString()} items</span>
+                                          <span className="text-gray-600">コストデータあり:</span>
+                                          <span className="ml-1 font-semibold text-gray-900">{totalWithCost.toLocaleString()}件</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">Total Cost:</span>
+                                          <span className="text-gray-600">総コスト:</span>
                                           <span className="ml-1 font-semibold text-gray-900">{Math.round(grandTotal).toLocaleString()} HS</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">Average Cost:</span>
+                                          <span className="text-gray-600">平均コスト:</span>
                                           <span className="ml-1 font-semibold text-gray-900">{Math.round(overallAvg).toLocaleString()} HS</span>
                                         </div>
                                         {minCost !== null && (
                                           <div>
-                                            <span className="text-gray-600">Min:</span>
+                                            <span className="text-gray-600">最小:</span>
                                             <span className="ml-1 font-semibold text-gray-900">{Math.round(minCost).toLocaleString()} HS</span>
                                           </div>
                                         )}
                                         {maxCost !== null && (
                                           <div>
-                                            <span className="text-gray-600">Max:</span>
+                                            <span className="text-gray-600">最大:</span>
                                             <span className="ml-1 font-semibold text-gray-900">{Math.round(maxCost).toLocaleString()} HS</span>
                                           </div>
                                         )}
@@ -2161,11 +2161,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                                 {/* Cost range filter */}
                                 <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                                  <p className="text-[13px] font-semibold text-blue-800 mb-2">Filter by Cost Range</p>
+                                  <p className="text-[13px] font-semibold text-blue-800 mb-2">コスト範囲でフィルタ</p>
                                   <div className="flex gap-2 items-center">
                                     <input
                                       type="number"
-                                      placeholder="Min (HS)"
+                                      placeholder="最小 (HS)"
                                       value={costFilter.min ?? ''}
                                       onChange={(e) => setCostFilter(prev => ({ ...prev, min: e.target.value ? Number(e.target.value) : null }))}
                                       className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
@@ -2173,7 +2173,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     <span className="text-gray-500">〜</span>
                                     <input
                                       type="number"
-                                      placeholder="Max (HS)"
+                                      placeholder="最大 (HS)"
                                       value={costFilter.max ?? ''}
                                       onChange={(e) => setCostFilter(prev => ({ ...prev, max: e.target.value ? Number(e.target.value) : null }))}
                                       className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
@@ -2190,7 +2190,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       disabled={costFilter.min === null && costFilter.max === null}
                                       className="px-3 py-1 text-[12px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                                     >
-                                      Apply
+                                      適用
                                     </button>
                                     {statisticsFilter.type === 'costRange' && (
                                       <button
@@ -2200,13 +2200,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         }}
                                         className="px-3 py-1 text-[12px] bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
                                       >
-                                        Clear
+                                        解除
                                       </button>
                                     )}
                                   </div>
                                   {statisticsFilter.type === 'costRange' && (
                                     <p className="text-[11px] text-blue-700 mt-1">
-                                      Filtering: {costFilter.min ?? 'MinNo value'} 〜 {costFilter.max ?? 'MaxNo value'} HS
+                                      フィルタ中: {costFilter.min ?? '最小値なし'} 〜 {costFilter.max ?? '最大値なし'} HS
                                     </p>
                                   )}
                                 </div>
@@ -2214,11 +2214,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 {/* Top benefactions ranking */}
                                 {topBenefactionsLoading ? (
                                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                                    <p className="text-[13px] text-gray-600">Loading top Benefactions...</p>
+                                    <p className="text-[13px] text-gray-600">高額恵与行為を読み込み中...</p>
                                   </div>
                                 ) : topBenefactionsData.length > 0 ? (
                                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                                    <p className="text-[13px] font-semibold text-yellow-800 mb-2">High-value Benefactions Top 10</p>
+                                    <p className="text-[13px] font-semibold text-yellow-800 mb-2">高額恵与行為トップ10</p>
                                     <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
                                       {topBenefactionsData.map((item, index) => (
                                         <div
@@ -2266,7 +2266,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 ) : null}
 
                                 <div>
-                                  <p className="text-[13px] text-gray-600 mb-3">Distribution of Benefactions Types（Click for details）</p>
+                                  <p className="text-[13px] text-gray-600 mb-3">恵与行為タイプの割合（クリックで詳細）</p>
                                   {/* Pie chart and legend side by side */}
                                   <div className="flex gap-4 items-center mb-3">
                                     {/* Pie chart */}
@@ -2351,13 +2351,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                 />
                                                 <span className="text-[13px] font-medium text-gray-900">{item.benefactionType}</span>
                                               </div>
-                                              <span className="text-[12px] text-gray-600">{item.count}items ({percentage.toFixed(1)}%)</span>
+                                              <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
                                             </div>
                                             {costData && costData.countWithCost > 0 && (
                                               <div className="ml-5 text-[11px] text-gray-500">
-                                                Average: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
-                                                {costData.totalCost && ` (Total: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
-                                                <span className="ml-1">({costData.countWithCost}itemswith data)</span>
+                                                平均: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
+                                                {costData.totalCost && ` (合計: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
+                                                <span className="ml-1">({costData.countWithCost}件にデータあり)</span>
                                               </div>
                                             )}
                                           </div>
@@ -2374,7 +2374,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       }}
                                       className="w-full px-3 py-2 text-[13px] bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
                                     >
-                                      Filter by this Benefactions type
+                                      この恵与行為タイプでフィルタ
                                     </button>
                                   )}
                                   {statisticsFilter.type === 'benefactionType' && statisticsFilter.value === selectedBenefactionType && (
@@ -2384,7 +2384,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       }}
                                       className="w-full px-3 py-2 text-[13px] bg-gray-50 text-gray-600 hover:bg-gray-100 rounded transition-colors"
                                     >
-                                      Clear Filter
+                                      フィルタ解除
                                     </button>
                                   )}
                                 </div>
@@ -2393,10 +2393,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 {selectedBenefactionType && (
                                   <div className="pt-3 border-t border-gray-200">
                                     <p className="text-[13px] text-gray-600 mb-3">
-                                      {selectedBenefactionType}Object Types for（Click to filter）
+                                      {selectedBenefactionType}の対象物（クリックでフィルタ）
                                     </p>
                                     {benefactionObjectTypeLoading ? (
-                                      <p className="text-[14px] text-[#666]">Loading data...</p>
+                                      <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                                     ) : benefactionObjectTypeData.length > 0 ? (
                                       <div className="flex gap-4 items-center">
                                         {/* Pie chart */}
@@ -2485,13 +2485,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                     />
                                                     <span className="text-[13px] font-medium text-gray-900">{item.objectType}</span>
                                                   </div>
-                                                  <span className="text-[12px] text-gray-600">{item.count}items ({percentage.toFixed(1)}%)</span>
+                                                  <span className="text-[12px] text-gray-600">{item.count}件 ({percentage.toFixed(1)}%)</span>
                                                 </div>
                                                 {costData && costData.countWithCost > 0 && (
                                                   <div className="ml-5 text-[11px] text-gray-500">
-                                                    Average: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
-                                                    {costData.totalCost && ` (Total: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
-                                                    <span className="ml-1">({costData.countWithCost}itemswith data)</span>
+                                                    平均: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
+                                                    {costData.totalCost && ` (合計: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
+                                                    <span className="ml-1">({costData.countWithCost}件にデータあり)</span>
                                                   </div>
                                                 )}
                                               </div>
@@ -2500,13 +2500,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         </div>
                                       </div>
                                     ) : (
-                                      <p className="text-[14px] text-[#666]">No data available</p>
+                                      <p className="text-[14px] text-[#666]">データがありません</p>
                                     )}
                                   </div>
                                 )}
                               </div>
                             ) : (
-                              <p className="text-[14px] text-[#666]">No data available</p>
+                              <p className="text-[14px] text-[#666]">データがありません</p>
                             )}
                           </div>
                         )}
@@ -2515,10 +2515,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         {statisticsTab === 'divinity' && (
                           <div className="mt-4">
                             {divinityTypeLoading ? (
-                              <p className="text-[14px] text-[#666]">Loading data...</p>
+                              <p className="text-[14px] text-[#666]">データを読み込み中...</p>
                             ) : divinityTypeData.length > 0 ? (
                               <div>
-                                <p className="text-[13px] text-gray-600 mb-3">Distribution of Divinities Types（Click to filter）</p>
+                                <p className="text-[13px] text-gray-600 mb-3">神格タイプの割合（クリックでフィルタ）</p>
                                 <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                                   <div className="space-y-2">
                                     {divinityTypeData.map((item, index) => {
@@ -2549,7 +2549,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                               {label}
                                             </span>
                                             <span className={`text-[12px] font-semibold ${isActive ? 'text-green-600' : 'text-gray-600'}`}>
-                                              {item.count} items ({percentage.toFixed(1)}%)
+                                              {item.count}件 ({percentage.toFixed(1)}%)
                                             </span>
                                           </div>
                                           <div className="relative w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
@@ -2567,7 +2567,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-[14px] text-[#666]">No data available</p>
+                              <p className="text-[14px] text-[#666]">データがありません</p>
                             )}
                           </div>
                         )}
@@ -2578,19 +2578,19 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {detailViewEdcsId && !detailViewLoading && detailViewData && (
                       <div className="mt-4">
                         <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-[16px] font-semibold text-[#333]">InscriptionsDetails</h4>
+                          <h4 className="text-[16px] font-semibold text-[#333]">碑文詳細</h4>
                           <button
                             onClick={handleCloseInscriptionDetail}
                             className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded transition-colors text-[13px]"
                           >
-                            Back to List
+                            一覧に戻る
                           </button>
                         </div>
 
                         <div className="space-y-4">
                           {/* Metadata Section */}
                           <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                            <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">Metadata</h5>
+                            <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">メタデータ</h5>
 
                             <div className="flex text-[13px]">
                               <span className="font-medium text-gray-700 w-24">EDCS ID:</span>
@@ -2599,7 +2599,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                             {detailViewData.datingFrom !== null && detailViewData.datingTo !== null && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Dating:</span>
+                                <span className="font-medium text-gray-700 w-24">年代:</span>
                                 <span className="text-gray-600">
                                   {detailViewData.datingFrom} - {detailViewData.datingTo}
                                 </span>
@@ -2608,21 +2608,21 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                             {detailViewData.province && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Province:</span>
+                                <span className="font-medium text-gray-700 w-24">属州:</span>
                                 <span className="text-gray-600">{detailViewData.province}</span>
                               </div>
                             )}
 
                             {detailViewData.place && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Place:</span>
+                                <span className="font-medium text-gray-700 w-24">場所:</span>
                                 <span className="text-gray-600">{detailViewData.place}</span>
                               </div>
                             )}
 
                             {detailViewData.bibliographicCitation && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Source:</span>
+                                <span className="font-medium text-gray-700 w-24">出典:</span>
                                 <span className="text-gray-600">{detailViewData.bibliographicCitation}</span>
                               </div>
                             )}
@@ -2631,7 +2631,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           {/* Text Section */}
                           {detailViewData.text && (
                             <div>
-                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">InscriptionsText</h5>
+                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">碑文テキスト</h5>
                               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                                 {detailViewData.text.split('//').map((block: string, blockIndex: number) => (
                                   <div key={blockIndex} className="mb-4 last:mb-0">
@@ -2652,7 +2652,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           {/* Comment Section */}
                           {detailViewData.comment && (
                             <div>
-                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">Comments</h5>
+                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">コメント</h5>
                               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                                 <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[13px]">
                                   {detailViewData.comment}
@@ -2665,7 +2665,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     )}
                     {detailViewLoading && (
                       <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="text-[14px] text-[#666]">Inscriptions Loading data...</p>
+                        <p className="text-[14px] text-[#666]">碑文データを読み込み中...</p>
                       </div>
                     )}
 
@@ -2683,7 +2683,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     )}
                     {networkLoading && (
                       <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="text-[14px] text-[#666]">NetworkLoading data...</p>
+                        <p className="text-[14px] text-[#666]">ネットワークデータを読み込み中...</p>
                       </div>
                     )}
                   </div>
@@ -2691,7 +2691,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
               </div>
             ) : (
               <div className="text-[14px] text-[#666]">
-                Click on a place name or select a rectangular area to display related Inscriptions Information
+                地名をクリック、または矩形選択で領域を指定すると、関連する碑文情報が表示されます
               </div>
             )}
           </div>
