@@ -1,14 +1,109 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
+
 /**
  * RAG Panel Component
  * AI-powered inscription analysis using RAG (Retrieval-Augmented Generation)
  * This feature is only available in local development environment
  */
-export default function RAGPanel() {
+
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+  sources?: Array<{
+    edcsId: string
+    placeName: string
+    score?: number
+  }>
+}
+
+interface RAGPanelProps {
+  placeIds: string[]
+  placeName?: string
+}
+
+export default function RAGPanel({ placeIds, placeName }: RAGPanelProps) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!input.trim() || isLoading) return
+
+    const userMessage = input.trim()
+    setInput('')
+    setError(null)
+
+    // Add user message to chat
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    setIsLoading(true)
+
+    try {
+      const response = await fetch('/api/rag/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: userMessage,
+          placeIds: placeIds,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to get response')
+      }
+
+      const data = await response.json()
+
+      // Add assistant message to chat
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: data.answer,
+          sources: data.sources,
+        },
+      ])
+    } catch (err) {
+      console.error('RAG Error:', err)
+      setError(err instanceof Error ? err.message : 'An error occurred')
+
+      // Add error message to chat
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Sorry, I encountered an error processing your request. Please try again.',
+        },
+      ])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const locationText = placeName
+    ? placeName
+    : `${placeIds.length} selected location${placeIds.length > 1 ? 's' : ''}`
+
   return (
     <div className="mt-4">
       <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-lg border border-purple-200">
+        {/* Header */}
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
             <svg
@@ -27,36 +122,112 @@ export default function RAGPanel() {
           </div>
           <div>
             <h3 className="text-[16px] font-semibold text-gray-900">RAG Analysis</h3>
-            <p className="text-[12px] text-gray-600">AI-powered inscription insights</p>
+            <p className="text-[12px] text-gray-600">
+              AI-powered inscription insights for {locationText}
+            </p>
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-lg border border-gray-200">
-            <p className="text-[14px] text-gray-700 mb-3">
-              Ask questions about the inscriptions in this location:
-            </p>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-[14px]"
-              rows={3}
-              placeholder="e.g., What are the main themes in these inscriptions?"
-              disabled
+        {/* Chat Messages */}
+        <div className="bg-white rounded-lg border border-gray-200 mb-4">
+          <div className="h-96 overflow-y-auto p-4 space-y-4">
+            {messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                <div className="text-center">
+                  <p className="text-[14px] mb-2">Ask questions about the inscriptions</p>
+                  <p className="text-[12px] text-gray-400">
+                    Example: "What are the main themes in these inscriptions?"
+                  </p>
+                </div>
+              </div>
+            ) : (
+              messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                      message.role === 'user'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-100 text-gray-900'
+                    }`}
+                  >
+                    <p className="text-[14px] whitespace-pre-wrap">{message.content}</p>
+
+                    {/* Show sources for assistant messages */}
+                    {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-300">
+                        <p className="text-[12px] font-semibold mb-2">Sources:</p>
+                        <div className="space-y-1">
+                          {message.sources.slice(0, 5).map((source, idx) => (
+                            <div key={idx} className="text-[11px] text-gray-600">
+                              • {source.edcsId} ({source.placeName})
+                              {source.score && ` - ${(source.score * 100).toFixed(1)}% match`}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 rounded-lg px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                    <span className="text-[12px] text-gray-600">Analyzing...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input Form */}
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask a question about the inscriptions..."
+              disabled={isLoading}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-[14px] disabled:bg-gray-100"
             />
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoading ? 'Sending...' : 'Send'}
+            </button>
           </div>
 
-          <button
-            className="w-full px-4 py-2 bg-gray-300 text-gray-500 rounded-lg font-medium cursor-not-allowed"
-            disabled
-          >
-            Coming Soon - RAG Feature Under Development
-          </button>
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-[12px] text-red-800">
+                <strong>Error:</strong> {error}
+              </p>
+            </div>
+          )}
+        </form>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-[12px] text-blue-800">
-              <strong>Note:</strong> This feature uses AI to analyze inscriptions.
-              It is only available in local development environment to control API costs.
-            </p>
-          </div>
+        {/* Info Note */}
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-[12px] text-blue-800">
+            <strong>Note:</strong> This feature uses AI to analyze inscriptions using Pinecone vector search and OpenAI.
+            It is only available in local development environment to control API costs.
+          </p>
         </div>
       </div>
     </div>

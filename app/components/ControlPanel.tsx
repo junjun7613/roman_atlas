@@ -9,9 +9,6 @@ const InscriptionNetwork = dynamic(() => import('./InscriptionNetwork'), {
   ssr: false
 })
 
-// Check if RAG feature is enabled
-const isRAGEnabled = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_ENABLE_RAG === 'true'
-
 interface PlaceDetail {
   placeName: string
   placeId: string
@@ -54,6 +51,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [statisticsTab, setStatisticsTab] = useState<'age' | 'clan' | 'benefaction' | 'divinity'>('age')
   const [selectedPlaceIndex, setSelectedPlaceIndex] = useState<number>(0)
   const [networkEdcsId, setNetworkEdcsId] = useState<string | null>(null)
+  const [isRAGEnabled, setIsRAGEnabled] = useState(false)
   const [networkData, setNetworkData] = useState<InscriptionNetworkData[]>([])
   const [networkLoading, setNetworkLoading] = useState(false)
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set())
@@ -108,6 +106,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   }>({ type: null, value: null, benefactionTypeForObjectType: null })
   const [statisticsFilteredEdcsIds, setStatisticsFilteredEdcsIds] = useState<string[]>([])
   const [statisticsFilterLoading, setStatisticsFilterLoading] = useState(false)
+
+  // Check if RAG feature is enabled on client-side
+  useEffect(() => {
+    setIsRAGEnabled(process.env.NEXT_PUBLIC_ENABLE_RAG === 'true')
+  }, [])
 
   // When inscriptionData changes from 'multiple' to 'single', save the multiple places data
   useEffect(() => {
@@ -1756,6 +1759,14 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         <p className="text-[14px] text-[#666]">NetworkLoading data...</p>
                       </div>
                     )}
+
+                    {/* RAG Tab Content for single place */}
+                    {infoSubTab === 'rag' && !networkEdcsId && !networkLoading && (
+                      <ConditionalRAG
+                        placeIds={inscriptionData.placeId ? [inscriptionData.placeId] : []}
+                        placeName={inscriptionData.placeName}
+                      />
+                    )}
                   </div>
                 ) : (
                   <div>
@@ -2602,6 +2613,14 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       </div>
                     )}
 
+                    {/* RAG Tab Content for multiple places */}
+                    {infoSubTab === 'rag' && !networkEdcsId && !networkLoading && (
+                      <ConditionalRAG
+                        placeIds={inscriptionData.places ? inscriptionData.places.map(p => p.placeId) : []}
+                        placeName={undefined}
+                      />
+                    )}
+
                     {/* Display inscription detail view when active (multiple places) */}
                     {detailViewEdcsId && !detailViewLoading && detailViewData && (
                       <div className="mt-4">
@@ -2713,11 +2732,6 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                         <p className="text-[14px] text-[#666]">NetworkLoading data...</p>
                       </div>
-                    )}
-
-                    {/* RAG Tab Content */}
-                    {infoSubTab === 'rag' && !networkEdcsId && !networkLoading && (
-                      <ConditionalRAG />
                     )}
                   </div>
                 )}
