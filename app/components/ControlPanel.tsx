@@ -3,10 +3,14 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { queryInscriptionNetwork, queryInscriptionsFilterData, queryInscriptionByEdcsId, queryMosaicsByPlaceId, queryAverageAgeAtDeath, queryNomenFrequency, queryBenefactionTypeFrequency, queryBenefactionObjectTypeFrequency, queryDivinityTypeFrequency, queryBenefactionCostStatistics, queryBenefactionObjectCostStatistics, queryTopBenefactionsByCost, queryInscriptionsByCostRange, queryInscriptionsByNomen, queryInscriptionsByBenefactionType, queryInscriptionsByBenefactionObjectType, queryInscriptionsByDivinityType, type InscriptionNetworkData, type MosaicDetail, type AgeAtDeathData, type NomenFrequency, type BenefactionTypeFrequency, type BenefactionObjectTypeFrequency, type DivinityTypeFrequency, type BenefactionCostStatistics, type BenefactionObjectCostStatistics, type TopBenefaction } from '../utils/sparql'
+import ConditionalRAG from './ConditionalRAG'
 
 const InscriptionNetwork = dynamic(() => import('./InscriptionNetwork'), {
   ssr: false
 })
+
+// Check if RAG feature is enabled
+const isRAGEnabled = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_ENABLE_RAG === 'true'
 
 interface PlaceDetail {
   placeName: string
@@ -46,7 +50,7 @@ interface ControlPanelProps {
 
 export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   const [activeTab, setActiveTab] = useState<'settings' | 'info'>('settings')
-  const [infoSubTab, setInfoSubTab] = useState<'inscriptions' | 'mosaics' | 'statistics'>('inscriptions')
+  const [infoSubTab, setInfoSubTab] = useState<'inscriptions' | 'mosaics' | 'statistics' | 'rag'>('inscriptions')
   const [statisticsTab, setStatisticsTab] = useState<'age' | 'clan' | 'benefaction' | 'divinity'>('age')
   const [selectedPlaceIndex, setSelectedPlaceIndex] = useState<number>(0)
   const [networkEdcsId, setNetworkEdcsId] = useState<string | null>(null)
@@ -246,7 +250,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   }
 
   // Filter states
-  const [filterType, setFilterType] = useState<'Social Status' | 'Relationship Type'>('Social Status')
+  const [filterType, setFilterType] = useState<'SocialStatus' | 'RelationshipType'>('SocialStatus')
   const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set())
   const [availableFilters, setAvailableFilters] = useState<{ [key: string]: string[] }>({})
   const [inscriptionFilterData, setInscriptionFilterData] = useState<{ [edcsId: string]: { socialStatuses: string[], relationshipTypes: string[] } }>({})
@@ -344,7 +348,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
       if (!filterData) return false
 
       // Get the appropriate filter values based on filter type
-      const values = filterType === 'Social Status'
+      const values = filterType === 'SocialStatus'
         ? filterData.socialStatuses
         : filterData.relationshipTypes
 
@@ -685,6 +689,18 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         >
                           Statistics
                         </button>
+                        {isRAGEnabled && (
+                          <button
+                            onClick={() => setInfoSubTab('rag')}
+                            className={`px-4 py-2 text-[14px] font-medium transition-colors ${
+                              infoSubTab === 'rag'
+                                ? 'text-purple-600 border-b-2 border-purple-600'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                          >
+                            RAG
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -715,12 +731,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             <div className="mb-3">
                               <select
                                 value={filterType}
-                                onChange={(e) => setFilterType(e.target.value as 'Social Status' | 'Relationship Type')}
+                                onChange={(e) => setFilterType(e.target.value as 'SocialStatus' | 'RelationshipType')}
                                 className="w-full px-2 py-1 border border-gray-300 rounded text-[13px] bg-white"
                                 disabled={filterDataLoading}
                               >
-                                <option value="Social Status">Filter by Social Status</option>
-                                <option value="Relationship Type">Filter by Relationship</option>
+                                <option value="SocialStatus">Filter by Social Status</option>
+                                <option value="RelationshipType">Filter by Relationship</option>
                               </select>
                             </div>
                             {filterDataLoading ? (
@@ -1814,6 +1830,18 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         >
                           Statistics
                         </button>
+                        {isRAGEnabled && (
+                          <button
+                            onClick={() => setInfoSubTab('rag')}
+                            className={`px-4 py-2 text-[14px] font-medium transition-colors ${
+                              infoSubTab === 'rag'
+                                ? 'text-purple-600 border-b-2 border-purple-600'
+                                : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                          >
+                            RAG
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -2685,6 +2713,11 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                         <p className="text-[14px] text-[#666]">NetworkLoading data...</p>
                       </div>
+                    )}
+
+                    {/* RAG Tab Content */}
+                    {infoSubTab === 'rag' && !networkEdcsId && !networkLoading && (
+                      <ConditionalRAG />
                     )}
                   </div>
                 )}
