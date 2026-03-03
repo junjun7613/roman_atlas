@@ -9,9 +9,31 @@ import { useEffect, useState } from 'react'
  * Uses dynamic import to exclude from bundle when disabled
  */
 
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+  sources?: Array<{
+    edcsId: string
+    placeName: string
+    score?: number
+  }>
+}
+
 interface ConditionalRAGProps {
   placeIds: string[]
   placeName?: string
+  onInscriptionClick?: (edcsId: string) => void
+  // Lifted state from parent
+  messages: Message[]
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>
+  input: string
+  setInput: React.Dispatch<React.SetStateAction<string>>
+  isLoading: boolean
+  setIsLoading: React.Dispatch<React.SetStateAction<boolean>>
+  error: string | null
+  setError: React.Dispatch<React.SetStateAction<string | null>>
+  selectedModel: 'gpt-4o-mini' | 'gemini-2.0-flash'
+  setSelectedModel: React.Dispatch<React.SetStateAction<'gpt-4o-mini' | 'gemini-2.0-flash'>>
 }
 
 // Dynamically import RAG panel
@@ -25,7 +47,21 @@ const RAGPanel = dynamic(() => import('./rag/RAGPanel'), {
   )
 })
 
-export default function ConditionalRAG({ placeIds, placeName }: ConditionalRAGProps) {
+export default function ConditionalRAG({
+  placeIds,
+  placeName,
+  onInscriptionClick,
+  messages,
+  setMessages,
+  input,
+  setInput,
+  isLoading,
+  setIsLoading,
+  error,
+  setError,
+  selectedModel,
+  setSelectedModel
+}: ConditionalRAGProps) {
   const [isEnabled, setIsEnabled] = useState(false)
 
   useEffect(() => {
@@ -52,5 +88,21 @@ export default function ConditionalRAG({ placeIds, placeName }: ConditionalRAGPr
     )
   }
 
-  return <RAGPanel placeIds={placeIds} placeName={placeName} />
+  return (
+    <RAGPanel
+      placeIds={placeIds}
+      placeName={placeName}
+      onInscriptionClick={onInscriptionClick}
+      messages={messages}
+      setMessages={setMessages}
+      input={input}
+      setInput={setInput}
+      isLoading={isLoading}
+      setIsLoading={setIsLoading}
+      error={error}
+      setError={setError}
+      selectedModel={selectedModel}
+      setSelectedModel={setSelectedModel}
+    />
+  )
 }

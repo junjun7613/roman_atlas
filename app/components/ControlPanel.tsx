@@ -98,6 +98,21 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   // Cost filter
   const [costFilter, setCostFilter] = useState<{ min: number | null; max: number | null }>({ min: null, max: null })
 
+  // RAG state - lifted to ControlPanel to persist across tab switches
+  const [ragMessages, setRagMessages] = useState<Array<{
+    role: 'user' | 'assistant'
+    content: string
+    sources?: Array<{
+      edcsId: string
+      placeName: string
+      score?: number
+    }>
+  }>>([])
+  const [ragInput, setRagInput] = useState('')
+  const [ragIsLoading, setRagIsLoading] = useState(false)
+  const [ragError, setRagError] = useState<string | null>(null)
+  const [ragSelectedModel, setRagSelectedModel] = useState<'gpt-4o-mini' | 'gemini-2.0-flash'>('gpt-4o-mini')
+
   // Statistics filter
   const [statisticsFilter, setStatisticsFilter] = useState<{
     type: 'nomen' | 'benefactionType' | 'objectType' | 'divinityType' | 'costRange' | null
@@ -1651,8 +1666,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       </div>
                     )}
 
-                    {/* Display inscription detail view when active */}
-                    {detailViewEdcsId && !detailViewLoading && detailViewData && (
+                    {/* Display inscription detail view when active (not in RAG tab) */}
+                    {detailViewEdcsId && !detailViewLoading && detailViewData && infoSubTab === 'inscriptions' && (
                       <div className="mt-4">
                         <div className="flex items-center justify-between mb-4">
                           <h4 className="text-[16px] font-semibold text-[#333]">InscriptionsDetails</h4>
@@ -1760,13 +1775,24 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       </div>
                     )}
 
-                    {/* RAG Tab Content for single place */}
-                    {infoSubTab === 'rag' && !networkEdcsId && !networkLoading && (
+                    {/* RAG Tab Content for single place - always mounted but hidden with CSS */}
+                    <div style={{ display: infoSubTab === 'rag' && !networkEdcsId && !networkLoading ? 'block' : 'none' }}>
                       <ConditionalRAG
                         placeIds={inscriptionData.placeId ? [inscriptionData.placeId] : []}
                         placeName={inscriptionData.placeName}
+                        onInscriptionClick={handleShowInscriptionDetail}
+                        messages={ragMessages}
+                        setMessages={setRagMessages}
+                        input={ragInput}
+                        setInput={setRagInput}
+                        isLoading={ragIsLoading}
+                        setIsLoading={setRagIsLoading}
+                        error={ragError}
+                        setError={setRagError}
+                        selectedModel={ragSelectedModel}
+                        setSelectedModel={setRagSelectedModel}
                       />
-                    )}
+                    </div>
                   </div>
                 ) : (
                   <div>
@@ -2613,16 +2639,27 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       </div>
                     )}
 
-                    {/* RAG Tab Content for multiple places */}
-                    {infoSubTab === 'rag' && !networkEdcsId && !networkLoading && (
+                    {/* RAG Tab Content for multiple places - always mounted but hidden with CSS */}
+                    <div style={{ display: infoSubTab === 'rag' && !networkEdcsId && !networkLoading ? 'block' : 'none' }}>
                       <ConditionalRAG
                         placeIds={inscriptionData.places ? inscriptionData.places.map(p => p.placeId) : []}
                         placeName={undefined}
+                        onInscriptionClick={handleShowInscriptionDetail}
+                        messages={ragMessages}
+                        setMessages={setRagMessages}
+                        input={ragInput}
+                        setInput={setRagInput}
+                        isLoading={ragIsLoading}
+                        setIsLoading={setRagIsLoading}
+                        error={ragError}
+                        setError={setRagError}
+                        selectedModel={ragSelectedModel}
+                        setSelectedModel={setRagSelectedModel}
                       />
-                    )}
+                    </div>
 
-                    {/* Display inscription detail view when active (multiple places) */}
-                    {detailViewEdcsId && !detailViewLoading && detailViewData && (
+                    {/* Display inscription detail view when active (multiple places, not in RAG tab) */}
+                    {detailViewEdcsId && !detailViewLoading && detailViewData && infoSubTab === 'inscriptions' && (
                       <div className="mt-4">
                         <div className="flex items-center justify-between mb-4">
                           <h4 className="text-[16px] font-semibold text-[#333]">InscriptionsDetails</h4>

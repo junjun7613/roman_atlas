@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Pinecone } from '@pinecone-database/pinecone'
 import OpenAI from 'openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 // This API route is only functional in local development
 // It will return an error if called in production deployment
@@ -23,9 +24,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { query, placeIds } = await request.json()
+    const { query, placeIds, model = 'gpt-4o-mini' } = await request.json()
 
-    console.log('RAG API - Received request:', { query, placeIds })
+    console.log('RAG API - Received request:', { query, placeIds, model })
 
     if (!query || !placeIds || !Array.isArray(placeIds)) {
       return NextResponse.json(
@@ -119,24 +120,69 @@ Commentary: ${metadata.comment || 'No commentary available'}
       })
     }
 
-    // Generate answer using OpenAI with the context
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: `You are an expert in Roman epigraphy and ancient history. Answer questions about Roman inscriptions based on the provided context. Be specific and cite the inscription IDs when relevant. If the context doesn't contain enough information to answer the question, say so.`
-        },
-        {
-          role: 'user',
-          content: `Context from inscriptions:\n\n${context}\n\nQuestion: ${query}`
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 1000,
-    })
+    // Generate answer using selected model
+    let answer: string | null = null
 
-    const answer = completion.choices[0].message.content
+    if (model === 'gemini-2.0-flash') {
+      // Use Gemini 3.0 Flash
+      if (!process.env.GEMINI_API_KEY) {
+        return NextResponse.json(
+          { error: 'Gemini API key not configured' },
+          { status: 500 }
+        )
+      }
+
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+      const geminiModel = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' })
+
+      const prompt = `You are an expert in Roman epigraphy and ancient history. Answer questions about Roman inscriptions based on the provided context.
+
+CRITICAL FORMATTING RULE: When citing inscription IDs, you MUST wrap them in square brackets like this: [EDCS-12345678]. This makes them clickable for users.
+
+Examples of correct citation format:
+- "According to [EDCS-12345678], the emperor..."
+- "The inscription [EDCS-12345678] shows..."
+- "As seen in [EDCS-12345678] and [EDCS-87654321]..."
+
+Cite inscription IDs frequently throughout your answer. If the context doesn't contain enough information to answer the question, say so.
+
+Context from inscriptions:
+
+${context}
+
+Question: ${query}`
+
+      const result = await geminiModel.generateContent(prompt)
+      answer = result.response.text()
+    } else {
+      // Use OpenAI (default: gpt-4o-mini)
+      const completion = await openai.chat.completions.create({
+        model: model,
+        messages: [
+          {
+            role: 'system',
+            content: `You are an expert in Roman epigraphy and ancient history. Answer questions about Roman inscriptions based on the provided context.
+
+CRITICAL FORMATTING RULE: When citing inscription IDs, you MUST wrap them in square brackets like this: [EDCS-12345678]. This makes them clickable for users.
+
+Examples of correct citation format:
+- "According to [EDCS-12345678], the emperor..."
+- "The inscription [EDCS-12345678] shows..."
+- "As seen in [EDCS-12345678] and [EDCS-87654321]..."
+
+Cite inscription IDs frequently throughout your answer. If the context doesn't contain enough information to answer the question, say so.`
+          },
+          {
+            role: 'user',
+            content: `Context from inscriptions:\n\n${context}\n\nQuestion: ${query}`
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      })
+
+      answer = completion.choices[0].message.content
+    }
 
     // Extract sources (inscription IDs and locations)
     const sources = queryResponse.matches.map(match => {
