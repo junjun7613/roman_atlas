@@ -8,9 +8,14 @@ interface InscriptionNetworkProps {
   edcsId: string
   networkData: InscriptionNetworkData[]
   onClose: () => void
+  // "inline" (default): self-contained card with header + fixed-height graph,
+  // used in legacy panels. "dialog": chrome-less, graph fills the parent so a
+  // surrounding modal controls the layout/header.
+  variant?: 'inline' | 'dialog'
 }
 
-export default function InscriptionNetwork({ edcsId, networkData, onClose }: InscriptionNetworkProps) {
+export default function InscriptionNetwork({ edcsId, networkData, onClose, variant = 'inline' }: InscriptionNetworkProps) {
+  const isDialog = variant === 'dialog'
   const containerRef = useRef<HTMLDivElement>(null)
   const networkRef = useRef<Network | null>(null)
   const nodeInfoRef = useRef<HTMLDivElement>(null)
@@ -316,6 +321,13 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose }: Ins
   console.log('InscriptionNetwork render decision:', networkData.length === 0 ? 'No data' : 'Has data')
 
   if (networkData.length === 0) {
+    if (isDialog) {
+      return (
+        <div className="flex h-full items-center justify-center p-4">
+          <p className="text-[14px] text-[#666]">この碑文のネットワークデータはありません</p>
+        </div>
+      )
+    }
     return (
       <div className="mt-4 p-4 bg-yellow-100 border-2 border-yellow-500 rounded-lg">
         <div className="flex justify-between items-center mb-3">
@@ -328,6 +340,21 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose }: Ins
           </button>
         </div>
         <p className="text-[14px] text-[#666]">この碑文のネットワークデータはありません</p>
+      </div>
+    )
+  }
+
+  // Dialog variant: no card chrome, graph fills the parent pane. The
+  // surrounding modal owns the header and close affordance.
+  if (isDialog) {
+    return (
+      <div className="flex flex-col h-full min-h-0">
+        <div ref={containerRef} className="flex-1 min-h-0 w-full rounded bg-white" />
+        <div
+          ref={nodeInfoRef}
+          className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded text-[13px] max-h-[200px] overflow-y-auto shrink-0"
+          style={{ display: 'none' }}
+        />
       </div>
     )
   }

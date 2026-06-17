@@ -49,3 +49,6 @@ public/cesium/
 
 # scripts
 scrips/add_dates_to_places.py
+
+# Legacy roman_atlas map view — kept locally, excluded from push/deploy
+/app/atlas/

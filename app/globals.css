@@ -16,3 +16,10 @@ body {
 .cesium-infoBox-iframe {
   max-width: 350px;
 }
+
+/* Epigraphy map: reset Leaflet's default white box on divIcon markers so the
+   SVG place pins render cleanly. */
+.epigraphy-place-marker {
+  background: transparent;
+  border: none;
+}

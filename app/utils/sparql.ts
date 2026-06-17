@@ -744,16 +744,23 @@ export async function queryInscriptionsFilterData(edcsIds: string[]): Promise<{ 
  * Query inscription network data (persons, communities, relationships, careers, benefactions) from SPARQL endpoint
  */
 export async function queryInscriptionNetwork(edcsId: string): Promise<InscriptionNetworkData[]> {
-  const endpoint = 'https://dydra.com/junjun7613/inscriptions_llm/sparql'
+  // The network data lives on the Fuseki endpoint (full 51,941-inscription
+  // dataset), which is plain HTTP and stores everything in per-inscription
+  // named graphs. We go through the /api/sparql server-side proxy to avoid
+  // CORS / mixed-content issues, and to keep the endpoint URL off the client.
+  //
+  // Schema (epig: = http://epigraphic-careers.org/ontology#):
+  //   Inscription      <.../inscription/EDCS-ID>
+  //   Person           epig:mentionedIn ?inscription ; epig:personName / rdfs:label / epig:socialStatus->SocialStatus(rdfs:label)
+  //   CareerPosition   ?person epig:hasCareerPosition ?career
+  //   Benefaction      epig:byPerson ?person
+  //   Community        epig:mentionedIn ?inscription
+  //   PersonRelationship  ?inscription epig:mentionsRelationship ?rel ; ?rel epig:source/epig:target ->person
+  const inscriptionUri = `http://epigraphic-careers.org/inscription/${edcsId}`
 
   const query = `
-    PREFIX base: <http://example.org/inscription/>
-    PREFIX epig: <http://example.org/epigraphy/>
-    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-    PREFIX dcterms: <http://purl.org/dc/terms/>
+    PREFIX epig: <http://epigraphic-careers.org/ontology#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-    PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
-    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
     SELECT DISTINCT
         ?inscription
@@ -781,48 +788,56 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
         ?benef_object
         ?benef_objectType
     WHERE {
-        ?inscription a epig:Inscription ;
-                     dcterms:identifier "${edcsId}" .
-
-        OPTIONAL {
-            ?inscription epig:mentions ?person .
-            ?person a foaf:Person .
-            OPTIONAL { ?person foaf:name ?person_name . }
-            OPTIONAL { ?person rdfs:label ?person_label . }
-            OPTIONAL { ?person epig:normalizedName ?normalized_name . }
-            OPTIONAL { ?person epig:socialStatus ?social_status . }
-
-            OPTIONAL {
-                ?person epig:hasCareerPosition ?career_position .
-                OPTIONAL { ?career_position epig:position ?position . }
-                OPTIONAL { ?career_position epig:positionAbstract ?position_abstract . }
-                OPTIONAL { ?career_position epig:positionNormalized ?position_normalized . }
-                OPTIONAL { ?career_position epig:positionType ?position_type . }
-                OPTIONAL { ?career_position epig:order ?position_order . }
-                OPTIONAL { ?career_position dcterms:description ?position_desc . }
+        BIND(<${inscriptionUri}> AS ?inscription)
+        {
+            GRAPH ?pg {
+                ?person a epig:Person ;
+                        epig:mentionedIn ?inscription .
+                OPTIONAL { ?person epig:personName ?person_name . }
+                OPTIONAL { ?person rdfs:label ?person_label . }
+                OPTIONAL { ?person epig:normalizedName ?normalized_name . }
+                OPTIONAL {
+                    ?person epig:socialStatus ?ss .
+                    GRAPH ?ssg { ?ss rdfs:label ?social_status . }
+                }
             }
-
             OPTIONAL {
-                ?person epig:hasBenefaction ?benefaction .
-                OPTIONAL { ?benefaction epig:benefactionType ?benef_type . }
-                OPTIONAL { ?benefaction epig:object ?benef_object . }
-                OPTIONAL { ?benefaction epig:objectType ?benef_objectType . }
+                GRAPH ?cg {
+                    ?person epig:hasCareerPosition ?career_position .
+                    OPTIONAL { ?career_position epig:position ?position . }
+                    OPTIONAL { ?career_position epig:positionAbstract ?position_abstract . }
+                    OPTIONAL { ?career_position epig:positionNormalized ?position_normalized . }
+                    OPTIONAL { ?career_position epig:positionType ?position_type . }
+                    OPTIONAL { ?career_position epig:order ?position_order . }
+                    OPTIONAL { ?career_position epig:positionDescription ?position_desc . }
+                }
+            }
+            OPTIONAL {
+                GRAPH ?bg {
+                    ?benefaction a epig:Benefaction ;
+                                 epig:byPerson ?person .
+                    OPTIONAL { ?benefaction epig:benefactionType ?benef_type . }
+                    OPTIONAL { ?benefaction epig:object ?benef_object . }
+                    OPTIONAL { ?benefaction epig:objectType ?benef_objectType . }
+                }
             }
         }
-
-        OPTIONAL {
-            ?inscription epig:mentions ?community .
-            ?community a epig:Community .
-            OPTIONAL { ?community rdfs:label ?community_label . }
+        UNION {
+            GRAPH ?commg {
+                ?community a epig:Community ;
+                           epig:mentionedIn ?inscription .
+                OPTIONAL { ?community rdfs:label ?community_label . }
+            }
         }
-
-        OPTIONAL {
-            ?inscription epig:mentions ?relationship .
-            ?relationship a epig:Relationship .
-            OPTIONAL { ?relationship epig:relationshipType ?rel_type . }
-            OPTIONAL { ?relationship epig:relationshipProperty ?rel_property . }
-            OPTIONAL { ?relationship epig:source ?rel_source . }
-            OPTIONAL { ?relationship epig:target ?rel_target . }
+        UNION {
+            GRAPH ?ig { ?inscription epig:mentionsRelationship ?relationship . }
+            GRAPH ?rg {
+                ?relationship a epig:PersonRelationship ;
+                              epig:source ?rel_source ;
+                              epig:target ?rel_target .
+                OPTIONAL { ?relationship epig:relationshipType ?rel_type . }
+                OPTIONAL { ?relationship epig:relationshipProperty ?rel_property . }
+            }
         }
     }
   `
@@ -834,13 +849,13 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
 
-    const response = await fetch(endpoint, {
+    const response = await fetch('/api/sparql', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
         'Accept': 'application/sparql-results+json'
       },
-      body: `query=${encodeURIComponent(query)}`,
+      body: JSON.stringify({ query }),
       signal: controller.signal
     })
 
