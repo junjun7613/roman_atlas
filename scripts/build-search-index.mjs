@@ -39,6 +39,71 @@ const ROOT =
   );
 const OUT_DIR = join(__dirname, "..", "public", "data", "index");
 
+// SPARQL endpoint carrying the structured external-database links (EDCS, SIRAR,
+// …) for each inscription. Override with EPIGRAPHY_SPARQL_ENDPOINT. Set it to
+// the empty string to skip external-link enrichment (rows then carry none).
+const SPARQL_ENDPOINT =
+  process.env.EPIGRAPHY_SPARQL_ENDPOINT ??
+  "http://54.92.185.36/ai_epigraphy/sparql";
+
+// Fetch every external-database link and group them by EDCS-ID. Each inscription
+// has one or more o:externalLink resources, each carrying a database name, the
+// external id, and a ready-to-use schema:url. Returns Map<edcsId, Array<{db,id,url}>>.
+async function fetchExternalLinks() {
+  if (!SPARQL_ENDPOINT) {
+    console.warn("EPIGRAPHY_SPARQL_ENDPOINT empty — skipping external links");
+    return new Map();
+  }
+  const query = `
+    PREFIX o: <http://epigraphic-careers.org/ontology#>
+    SELECT ?insc ?db ?eid ?url WHERE {
+      GRAPH ?g {
+        ?insc o:externalLink ?l .
+        ?l o:database ?db ;
+           <https://schema.org/url> ?url .
+        OPTIONAL { ?l o:externalId ?eid }
+      }
+    }`;
+  const res = await fetch(SPARQL_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/sparql-results+json",
+    },
+    body: `query=${encodeURIComponent(query)}`,
+  });
+  if (!res.ok) {
+    throw new Error(
+      `external-links SPARQL query failed: ${res.status} ${res.statusText}`,
+    );
+  }
+  const data = await res.json();
+  const bindings = data?.results?.bindings ?? [];
+  const byEdcsId = new Map();
+  for (const b of bindings) {
+    // Inscription URI ends with the EDCS-ID (…/inscription/EDCS-24300165),
+    // which is the same id used as the index row key.
+    const inscUri = b.insc?.value;
+    if (!inscUri) continue;
+    const edcsId = inscUri.split("/").pop();
+    const url = b.url?.value;
+    const db = b.db?.value;
+    if (!edcsId || !url || !db) continue;
+    const link = { db, id: b.eid?.value || null, url };
+    const list = byEdcsId.get(edcsId);
+    if (list) list.push(link);
+    else byEdcsId.set(edcsId, [link]);
+  }
+  // Stable order within each inscription so chunk output is deterministic.
+  for (const list of byEdcsId.values()) {
+    list.sort((a, b) => a.db.localeCompare(b.db) || a.url.localeCompare(b.url));
+  }
+  console.log(
+    `Fetched ${bindings.length} external links for ${byEdcsId.size} inscriptions`,
+  );
+  return byEdcsId;
+}
+
 function uniqSorted(values) {
   const set = new Set();
   for (const v of values) {
@@ -131,6 +196,10 @@ async function* walkJson(root) {
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
 
+  // External-database links come from the SPARQL endpoint (not the per-province
+  // source tree), keyed by EDCS-ID for merging into rows below.
+  const externalLinksByEdcsId = await fetchExternalLinks();
+
   const rowMap = new Map(); // edcsId -> row (dedup: same inscription can sit
   //                                          under multiple place folders)
   const socialStatusSet = [];
@@ -140,6 +209,7 @@ async function main() {
   const objectTypeSet = [];
   const relationshipTypeSet = [];
   const communityTypeSet = [];
+  const divinityTypeSet = [];
   const placeSet = new Map(); // label -> { province?, lat?, lon? }
   const provinceSet = new Set();
   // For each normalized name key, count #inscriptions it appears in, and
@@ -278,6 +348,7 @@ async function main() {
       objectTypeSet.push(...objectTypes);
       relationshipTypeSet.push(...relationshipTypes);
       communityTypeSet.push(...communityTypes);
+      divinityTypeSet.push(...divinityTypes);
 
       // Same EDCS-ID can appear under multiple place folders. Keep the first
       // copy and skip subsequent duplicates so downstream React keys stay
@@ -315,7 +386,19 @@ async function main() {
   }
   const rows = Array.from(rowMap.values());
 
-  console.log(`Read ${files} files, ${rows.length} inscriptions`);
+  // Attach external-database links to each row (omit the field when none).
+  let rowsWithLinks = 0;
+  for (const row of rows) {
+    const links = externalLinksByEdcsId.get(row.id);
+    if (links && links.length > 0) {
+      row.externalLinks = links;
+      rowsWithLinks++;
+    }
+  }
+
+  console.log(
+    `Read ${files} files, ${rows.length} inscriptions (${rowsWithLinks} with external links)`,
+  );
 
   const places = Array.from(placeSet.entries())
     .map(([label, meta]) => ({
@@ -356,6 +439,7 @@ async function main() {
     objectType: uniqSorted(objectTypeSet),
     relationshipType: uniqSorted(relationshipTypeSet),
     communityType: uniqSorted(communityTypeSet),
+    divinityType: uniqSorted(divinityTypeSet),
     nomen: nameVocab(nomenAgg),
     cognomen: nameVocab(cognomenAgg),
   };

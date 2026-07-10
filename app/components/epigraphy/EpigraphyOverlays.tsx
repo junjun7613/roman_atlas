@@ -20,10 +20,10 @@ import { placePinHtml, placeLegendHtml, type PlaceIconKey } from "./placeIcons";
 
 // ── Route (line) layers ──────────────────────────────────────────────────
 const ROUTE_LAYERS = [
-  { key: "mainRoad", label: "主要道路", match: "Main Road", color: "#FF8C00", weight: 3, opacity: 0.85 },
-  { key: "secondaryRoad", label: "二次道路", match: "Secondary Road", color: "#FFA500", weight: 2, opacity: 0.7 },
-  { key: "seaLane", label: "海路", match: "Sea Lane", color: "#06b6d4", weight: 2, opacity: 0.75 },
-  { key: "river", label: "河川", match: "River", color: "#1d4ed8", weight: 2, opacity: 0.8 },
+  { key: "mainRoad", label: "Main road", match: "Main Road", color: "#FF8C00", weight: 3, opacity: 0.85 },
+  { key: "secondaryRoad", label: "Secondary road", match: "Secondary Road", color: "#FFA500", weight: 2, opacity: 0.7 },
+  { key: "seaLane", label: "Sea lane", match: "Sea Lane", color: "#06b6d4", weight: 2, opacity: 0.75 },
+  { key: "river", label: "River", match: "River", color: "#1d4ed8", weight: 2, opacity: 0.8 },
 ] as const;
 
 // ── Pleiades place (point) layers — the full 16-type set ─────────────────
@@ -32,22 +32,22 @@ const ROUTE_LAYERS = [
 // `key` doubles as the SVG icon key (see placeIcons.ts). Colors are toned down
 // from the original palette so the white glyph stays legible on the pin.
 const PLACE_LAYERS = [
-  { key: "settlement", label: "都市・集落", color: "#B8860B", match: ["settlement"] },
-  { key: "villa", label: "ヴィラ", color: "#2e8b57", match: ["villa"] },
-  { key: "fort", label: "軍営・砦", color: "#c81e1e", match: ["fort", "fort-2"] },
-  { key: "temple", label: "神殿", color: "#800080", match: ["temple", "temple-2"] },
-  { key: "station", label: "宿駅", color: "#d97706", match: ["station"] },
-  { key: "archaeological", label: "遺跡", color: "#92400e", match: ["archaeological-site"] },
-  { key: "cemetery", label: "墓地", color: "#525252", match: ["cemetery"] },
-  { key: "sanctuary", label: "聖域", color: "#be185d", match: ["sanctuary"] },
-  { key: "bridge", label: "橋", color: "#6b7280", match: ["bridge"] },
-  { key: "aqueduct", label: "水道", color: "#0e7490", match: ["aqueduct"] },
-  { key: "church", label: "教会", color: "#9d174d", match: ["church"] },
-  { key: "bath", label: "浴場", color: "#0891b2", match: ["bath"] },
-  { key: "quarry", label: "石切場", color: "#b45309", match: ["quarry"] },
-  { key: "port", label: "港湾", color: "#1e3a8a", match: ["port"] },
-  { key: "theater", label: "劇場", color: "#ea580c", match: ["theater"] },
-  { key: "amphitheatre", label: "円形闘技場", color: "#b91c1c", match: ["amphitheatre"] },
+  { key: "settlement", label: "City / settlement", color: "#B8860B", match: ["settlement"] },
+  { key: "villa", label: "Villa", color: "#2e8b57", match: ["villa"] },
+  { key: "fort", label: "Fort", color: "#c81e1e", match: ["fort", "fort-2"] },
+  { key: "temple", label: "Temple", color: "#800080", match: ["temple", "temple-2"] },
+  { key: "station", label: "Station", color: "#d97706", match: ["station"] },
+  { key: "archaeological", label: "Archaeological site", color: "#92400e", match: ["archaeological-site"] },
+  { key: "cemetery", label: "Cemetery", color: "#525252", match: ["cemetery"] },
+  { key: "sanctuary", label: "Sanctuary", color: "#be185d", match: ["sanctuary"] },
+  { key: "bridge", label: "Bridge", color: "#6b7280", match: ["bridge"] },
+  { key: "aqueduct", label: "Aqueduct", color: "#0e7490", match: ["aqueduct"] },
+  { key: "church", label: "Church", color: "#9d174d", match: ["church"] },
+  { key: "bath", label: "Bath", color: "#0891b2", match: ["bath"] },
+  { key: "quarry", label: "Quarry", color: "#b45309", match: ["quarry"] },
+  { key: "port", label: "Port", color: "#1e3a8a", match: ["port"] },
+  { key: "theater", label: "Theater", color: "#ea580c", match: ["theater"] },
+  { key: "amphitheatre", label: "Amphitheatre", color: "#b91c1c", match: ["amphitheatre"] },
 ] as const;
 
 type RouteKey = (typeof ROUTE_LAYERS)[number]["key"];
@@ -80,11 +80,11 @@ export const OVERLAY_GROUPS: Array<{
   items: Array<{ key: OverlayKey; label: string; swatch: string; iconHtml?: string }>;
 }> = [
   {
-    group: "道路・河川",
+    group: "Roads & rivers",
     items: ROUTE_LAYERS.map((r) => ({ key: r.key, label: r.label, swatch: r.color })),
   },
   {
-    group: "地点（Pleiades）",
+    group: "Places (Pleiades)",
     items: PLACE_LAYERS.map((p) => ({
       key: p.key,
       label: p.label,
@@ -125,10 +125,10 @@ function placesUrl() {
 function routePopup(p: RouteFeature["properties"]): string {
   const id = p._id;
   return (
-    `<div style="padding:6px"><strong>${p.name ?? "(無名)"}</strong>` +
+    `<div style="padding:6px"><strong>${p.name ?? "(Unnamed)"}</strong>` +
     `<div style="color:#666;font-size:12px">Type: ${p.type ?? "?"}</div>` +
     (id
-      ? `<a href="https://itiner-e.org/route-segment/${id}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-size:12px">Itiner-e で開く →</a>`
+      ? `<a href="https://itiner-e.org/route-segment/${id}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-size:12px">Open in Itiner-e →</a>`
       : "") +
     `</div>`
   );
@@ -306,7 +306,7 @@ export default function EpigraphyOverlays({
                       ? `<div style="color:#666;font-size:12px">${props.description}</div>`
                       : "") +
                     (props.uri
-                      ? `<a href="${props.uri}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-size:12px">Pleiades で開く →</a>`
+                      ? `<a href="${props.uri}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-size:12px">Open in Pleiades →</a>`
                       : "") +
                     `</div>`,
                 );

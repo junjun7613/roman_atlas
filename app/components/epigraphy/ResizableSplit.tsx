@@ -120,7 +120,7 @@ export default function ResizableSplit({
         role="separator"
         aria-orientation={isHorizontal ? "vertical" : "horizontal"}
         className={
-          "shrink-0 bg-zinc-200 dark:bg-zinc-800 hover:bg-blue-400 active:bg-blue-500 transition-colors " +
+          "shrink-0 bg-border hover:bg-primary/60 active:bg-primary transition-colors " +
           (isHorizontal ? "cursor-col-resize" : "cursor-row-resize")
         }
         style={{

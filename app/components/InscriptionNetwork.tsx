@@ -263,7 +263,18 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
       network.setOptions({ physics: false })
     })
 
+    // Keep the canvas matched to its container as it's resized (e.g. dragging
+    // the dialog's split divider). vis-network only listens to window resize,
+    // not to its own container changing size, so observe it explicitly.
+    const container = containerRef.current
+    const ro = new ResizeObserver(() => {
+      network.setSize('100%', '100%')
+      network.redraw()
+    })
+    ro.observe(container)
+
     return () => {
+      ro.disconnect()
       network.destroy()
     }
   }, [edcsId, networkData])
@@ -334,7 +345,7 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
           <h4 className="text-[16px] font-semibold text-[#333]">ネットワーク表示: {edcsId}</h4>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-[20px] font-bold"
+            className="text-muted-foreground hover:text-foreground text-[20px] font-bold"
           >
             ×
           </button>
@@ -349,10 +360,10 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
   if (isDialog) {
     return (
       <div className="flex flex-col h-full min-h-0">
-        <div ref={containerRef} className="flex-1 min-h-0 w-full rounded bg-white" />
+        <div ref={containerRef} className="flex-1 min-h-0 w-full rounded bg-card" />
         <div
           ref={nodeInfoRef}
-          className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded text-[13px] max-h-[200px] overflow-y-auto shrink-0"
+          className="mt-2 p-3 bg-muted border border-border rounded text-[13px] max-h-[200px] overflow-y-auto shrink-0"
           style={{ display: 'none' }}
         />
       </div>
@@ -360,23 +371,23 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
   }
 
   return (
-    <div className="mt-4 p-4 bg-blue-50 border-4 border-blue-500 rounded-lg shadow-lg">
+    <div className="mt-4 p-4 bg-primary/10 border-4 border-primary rounded-lg shadow-lg">
       <div className="flex justify-between items-center mb-3">
         <h4 className="text-[16px] font-semibold text-[#333]">ネットワーク表示: {edcsId} (データ数: {networkData.length})</h4>
         <button
           onClick={onClose}
-          className="text-gray-500 hover:text-gray-700 text-[20px] font-bold"
+          className="text-muted-foreground hover:text-foreground text-[20px] font-bold"
         >
           ×
         </button>
       </div>
       <div
         ref={containerRef}
-        className="w-full h-[400px] rounded bg-white"
+        className="w-full h-[400px] rounded bg-card"
       />
       <div
         ref={nodeInfoRef}
-        className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded text-[13px] max-h-[200px] overflow-y-auto"
+        className="mt-3 p-3 bg-muted border border-border rounded text-[13px] max-h-[200px] overflow-y-auto"
         style={{ display: 'none' }}
       />
     </div>

@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect width="1280" height="720" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="640" y="56" text-anchor="middle" font-size="32" font-weight="700" fill="#0f172a">Two Contexts, One Prompt</text>
+  <text x="640" y="88" text-anchor="middle" font-size="17" fill="#64748b">RAG over a single inscription: vector retrieval + knowledge-graph references converge in the LLM prompt</text>
+
+  <!-- ============ LEFT BRANCH: Vector retrieval ============ -->
+  <text x="300" y="140" text-anchor="middle" font-size="16" font-weight="700" fill="#1d4ed8" letter-spacing="1">VECTOR RETRIEVAL</text>
+
+  <rect x="150" y="160" width="300" height="78" rx="10" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="300" y="190" text-anchor="middle" font-size="17" font-weight="700" fill="#1e3a8a">Pinecone vector DB</text>
+  <text x="300" y="214" text-anchor="middle" font-size="13.5" fill="#1e40af">query embedding · topK · filter by edcs_id</text>
+
+  <line x1="300" y1="238" x2="300" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="150" y="290" width="300" height="92" rx="10" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="300" y="316" text-anchor="middle" font-size="15" font-weight="700" fill="#1e3a8a">Inscription context</text>
+  <text x="300" y="340" text-anchor="middle" font-size="13" fill="#1e3a8a">inscription text · place · province</text>
+  <text x="300" y="360" text-anchor="middle" font-size="13" fill="#1e3a8a">citation · commentary</text>
+
+  <!-- ============ RIGHT BRANCH: Knowledge graph ============ -->
+  <text x="980" y="140" text-anchor="middle" font-size="16" font-weight="700" fill="#be123c" letter-spacing="1">KNOWLEDGE GRAPH</text>
+
+  <rect x="830" y="160" width="300" height="78" rx="10" fill="#fde4e1" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="980" y="190" text-anchor="middle" font-size="17" font-weight="700" fill="#9f1239">SPARQL endpoint</text>
+  <text x="980" y="214" text-anchor="middle" font-size="13.5" fill="#9f1239">?mention ns:refersTo ?inscription</text>
+
+  <line x1="980" y1="238" x2="980" y2="286" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="830" y="290" width="300" height="92" rx="10" fill="#fde4e1" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="980" y="316" text-anchor="middle" font-size="15" font-weight="700" fill="#9f1239">Scholarly references</text>
+  <text x="980" y="340" text-anchor="middle" font-size="13" fill="#9f1239">author · title · pages · relation type</text>
+  <text x="980" y="360" text-anchor="middle" font-size="13" fill="#9f1239">tagged citations + OpenEdition deep links</text>
+
+  <!-- ============ CONVERGENCE: two straight diagonal arrows into the box ============ -->
+  <line x1="300" y1="382" x2="500" y2="456" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="980" y1="382" x2="780" y2="456" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <rect x="370" y="462" width="540" height="96" rx="12" fill="#ede9fe" stroke="#8b5cf6" stroke-width="2"/>
+  <text x="640" y="494" text-anchor="middle" font-size="18" font-weight="700" fill="#4c1d95">Merged LLM prompt</text>
+  <text x="640" y="520" text-anchor="middle" font-size="13.5" fill="#4c1d95">inscription context</text>
+  <text x="640" y="540" text-anchor="middle" font-size="13.5" fill="#4c1d95">+ a “Modern scholarly references” section with tagged works</text>
+
+  <line x1="640" y1="558" x2="640" y2="594" stroke="#475569" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- LLM + answer -->
+  <rect x="430" y="598" width="420" height="92" rx="12" fill="#0f172a"/>
+  <text x="640" y="628" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">LLM  (GPT-4o-mini / Gemini)</text>
+  <text x="640" y="654" text-anchor="middle" font-size="13.5" fill="#cbd5e1">grounded answer citing both inscriptions and works</text>
+  <text x="640" y="674" text-anchor="middle" font-size="12" fill="#94a3b8">citations rendered as clickable in-app &amp; OpenEdition links</text>
+
+  <!-- key insight callout -->
+  <rect x="40" y="462" width="300" height="96" rx="10" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="56" y="488" font-size="13.5" font-weight="700" fill="#0f172a">Key idea</text>
+  <text x="56" y="510" font-size="12.5" fill="#475569">Unstructured text (similarity search)</text>
+  <text x="56" y="528" font-size="12.5" fill="#475569">and structured bibliography (graph query)</text>
+  <text x="56" y="546" font-size="12.5" fill="#475569">are fused into one grounded context.</text>
+</svg>

@@ -1437,7 +1437,7 @@ export default function LeafletMap() {
               ? 'bg-blue-500 text-white'
               : hasRectangle
               ? 'bg-red-500 text-white hover:bg-red-600'
-              : 'bg-white text-gray-700 hover:bg-gray-100'
+              : 'bg-card text-foreground hover:bg-muted'
           }`}
           title={hasRectangle ? 'Clear Rectangle' : 'Rectangle Selection Mode'}
         >
@@ -1452,7 +1452,7 @@ export default function LeafletMap() {
               ? 'bg-orange-500 text-white'
               : hasCircle
               ? 'bg-red-500 text-white hover:bg-red-600'
-              : 'bg-white text-gray-700 hover:bg-gray-100'
+              : 'bg-card text-foreground hover:bg-muted'
           }`}
           title={hasCircle ? 'Clear Circle' : 'Circle Selection Mode'}
         >
@@ -1465,7 +1465,7 @@ export default function LeafletMap() {
           className={`px-4 py-2 rounded-lg shadow-lg font-medium transition-colors ${
             showTimeSlider
               ? 'bg-purple-500 text-white hover:bg-purple-600'
-              : 'bg-white text-gray-700 hover:bg-gray-100'
+              : 'bg-card text-foreground hover:bg-muted'
           }`}
           title="Toggle Time Filter"
         >
@@ -1475,16 +1475,16 @@ export default function LeafletMap() {
 
       {/* Distance display */}
       {(rectangleDistances || circleRadius !== null) && (
-        <div className="absolute bottom-4 right-4 z-[1000] bg-white px-4 py-2 rounded-lg shadow-lg text-sm">
+        <div className="absolute bottom-4 right-4 z-[1000] bg-card px-4 py-2 rounded-lg shadow-lg text-sm">
           {rectangleDistances && (
             <div>
-              <div className="font-medium text-gray-700">矩形サイズ:</div>
-              <div className="text-gray-600">
+              <div className="font-medium text-foreground">矩形サイズ:</div>
+              <div className="text-muted-foreground">
                 幅: {rectangleDistances.width >= 1000
                   ? `${(rectangleDistances.width / 1000).toFixed(2)} km`
                   : `${rectangleDistances.width.toFixed(0)} m`}
               </div>
-              <div className="text-gray-600">
+              <div className="text-muted-foreground">
                 高さ: {rectangleDistances.height >= 1000
                   ? `${(rectangleDistances.height / 1000).toFixed(2)} km`
                   : `${rectangleDistances.height.toFixed(0)} m`}
@@ -1493,8 +1493,8 @@ export default function LeafletMap() {
           )}
           {circleRadius !== null && (
             <div>
-              <div className="font-medium text-gray-700">円形半径:</div>
-              <div className="text-gray-600">
+              <div className="font-medium text-foreground">円形半径:</div>
+              <div className="text-muted-foreground">
                 {circleRadius >= 1000
                   ? `${(circleRadius / 1000).toFixed(2)} km`
                   : `${circleRadius.toFixed(0)} m`}
@@ -1506,11 +1506,11 @@ export default function LeafletMap() {
 
       {/* Time Filter */}
       {showTimeSlider && (
-        <div className="absolute bottom-4 left-4 z-[1000] bg-white px-6 py-3 rounded-lg shadow-lg" style={{ width: '300px' }}>
-          <div className="text-sm font-medium text-gray-700 mb-3">Time Range Filter</div>
+        <div className="absolute bottom-4 left-4 z-[1000] bg-card px-6 py-3 rounded-lg shadow-lg" style={{ width: '300px' }}>
+          <div className="text-sm font-medium text-foreground mb-3">Time Range Filter</div>
           <div className="flex gap-4 items-center">
             <div className="flex-1">
-              <label className="text-xs text-gray-600 block mb-1">Start Year</label>
+              <label className="text-xs text-muted-foreground block mb-1">Start Year</label>
               <input
                 type="text"
                 value={timeStartInput}
@@ -1534,13 +1534,13 @@ export default function LeafletMap() {
                     e.currentTarget.blur()
                   }
                 }}
-                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                className="w-full px-2 py-1 border border-input rounded text-sm"
                 placeholder="-800"
               />
             </div>
-            <div className="text-gray-500 mt-5">〜</div>
+            <div className="text-muted-foreground mt-5">〜</div>
             <div className="flex-1">
-              <label className="text-xs text-gray-600 block mb-1">End Year</label>
+              <label className="text-xs text-muted-foreground block mb-1">End Year</label>
               <input
                 type="text"
                 value={timeEndInput}
@@ -1564,7 +1564,7 @@ export default function LeafletMap() {
                     e.currentTarget.blur()
                   }
                 }}
-                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                className="w-full px-2 py-1 border border-input rounded text-sm"
                 placeholder="800"
               />
             </div>

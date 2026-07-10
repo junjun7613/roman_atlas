@@ -17,6 +17,9 @@ export type SearchFilters = {
   objectTypes?: string[];
   relationshipTypes?: string[];
   communityTypes?: string[];
+  // Deity/divinity names attested on the inscription, kept independent of the
+  // person-name facets (a deity is its own element, not part of a person name).
+  divinityTypes?: string[];
   // Normalized search keys (NOT raw display strings). When both nomen and
   // cognomen are set, the match is same-person: a single person on the
   // inscription must satisfy both.
@@ -44,6 +47,7 @@ export function hasAnyFilter(f: SearchFilters): boolean {
     nonEmpty(f.objectTypes) ||
     nonEmpty(f.relationshipTypes) ||
     nonEmpty(f.communityTypes) ||
+    nonEmpty(f.divinityTypes) ||
     nonEmpty(f.nomen) ||
     nonEmpty(f.cognomen)
   );

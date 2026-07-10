@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Server-side proxy to the Fuseki SPARQL endpoint. The endpoint is plain HTTP,
-// so calling it directly from the browser would be blocked by CORS / mixed
-// content on an https deployment — we proxy it here instead. The endpoint URL
-// stays server-side (FUSEKI_SPARQL_ENDPOINT) and is never exposed to the client.
-const ENDPOINT = process.env.FUSEKI_SPARQL_ENDPOINT;
+// Server-side proxy to the Fuseki SPARQL endpoints. The endpoints are plain
+// HTTP, so calling them directly from the browser would be blocked by CORS /
+// mixed content on an https deployment — we proxy them here instead. The
+// endpoint URLs stay server-side and are never exposed to the client.
+//
+// `dataset` (from the request body) selects which graph to query:
+//   "network" (default) → FUSEKI_SPARQL_ENDPOINT (per-inscription network)
+//   "inscription-ref"   → INSCRIPTION_REF_SPARQL_ENDPOINT (literature mentions)
+//   "atag"              → ATAG_SPARQL_ENDPOINT (annotated text: ex:Text, the
+//                         per-character list, and annotations — for the
+//                         annotated-text pane in the network dialog)
+const ENDPOINTS: Record<string, string | undefined> = {
+  network: process.env.FUSEKI_SPARQL_ENDPOINT,
+  "inscription-ref": process.env.INSCRIPTION_REF_SPARQL_ENDPOINT,
+  atag: process.env.ATAG_SPARQL_ENDPOINT,
+};
 
 export async function POST(req: NextRequest) {
   let query: string | undefined;
+  let dataset = "network";
   try {
     const body = await req.json();
     query = body.query;
+    if (typeof body.dataset === "string" && body.dataset in ENDPOINTS) {
+      dataset = body.dataset;
+    }
   } catch {
     return NextResponse.json({ error: "invalid json" }, { status: 400 });
   }
@@ -18,9 +33,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "missing query" }, { status: 400 });
   }
 
+  const ENDPOINT = ENDPOINTS[dataset];
   if (!ENDPOINT) {
     return NextResponse.json(
-      { error: "FUSEKI_SPARQL_ENDPOINT is not configured" },
+      { error: `SPARQL endpoint for dataset "${dataset}" is not configured` },
       { status: 503 },
     );
   }

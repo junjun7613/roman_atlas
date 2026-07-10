@@ -21,7 +21,7 @@ export default function TagMultiSelect({
   options,
   selected,
   onChange,
-  placeholder = "選択…",
+  placeholder = "Select…",
   emptyHint,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -63,15 +63,15 @@ export default function TagMultiSelect({
     <div className="relative" ref={ref}>
       <div
         onClick={() => setOpen((v) => !v)}
-        className="min-h-[32px] px-2 py-1 text-sm border border-zinc-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800 cursor-pointer flex flex-wrap gap-1 items-center"
+        className="min-h-[32px] px-2 py-1 text-sm border border-border rounded bg-card cursor-pointer flex flex-wrap gap-1 items-center"
       >
         {selected.length === 0 ? (
-          <span className="text-zinc-400">{placeholder}</span>
+          <span className="text-muted-foreground">{placeholder}</span>
         ) : (
           selected.map((v) => (
             <span
               key={v}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 rounded"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-primary/10 text-primary rounded"
             >
               <span className="max-w-[160px] truncate">
                 {labelByValue.get(v) ?? v}
@@ -82,8 +82,8 @@ export default function TagMultiSelect({
                   e.stopPropagation();
                   onChange(selected.filter((x) => x !== v));
                 }}
-                className="hover:text-red-600"
-                aria-label="削除"
+                className="hover:text-destructive"
+                aria-label="Remove"
               >
                 ×
               </button>
@@ -93,29 +93,29 @@ export default function TagMultiSelect({
       </div>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-full max-h-72 overflow-auto bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded shadow-lg">
-          <div className="p-2 sticky top-0 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+        <div className="absolute z-30 mt-1 w-full max-h-72 overflow-auto bg-popover border border-border rounded shadow-lg">
+          <div className="p-2 sticky top-0 bg-popover border-b border-border">
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="絞り込み…"
-              className="w-full px-2 py-1 text-sm border border-zinc-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800"
+              placeholder="Filter…"
+              className="w-full px-2 py-1 text-sm border border-border rounded bg-card"
               autoFocus
             />
             {selected.length > 0 && (
               <button
                 type="button"
                 onClick={() => onChange([])}
-                className="mt-1 text-xs text-zinc-500 hover:text-red-600"
+                className="mt-1 text-xs text-muted-foreground hover:text-destructive"
               >
-                すべてクリア ({selected.length})
+                Clear all ({selected.length})
               </button>
             )}
           </div>
           {filtered.length === 0 ? (
-            <div className="p-2 text-xs text-zinc-500">
-              {emptyHint ?? "該当なし"}
+            <div className="p-2 text-xs text-muted-foreground">
+              {emptyHint ?? "No matches"}
             </div>
           ) : (
             <ul>
@@ -128,8 +128,8 @@ export default function TagMultiSelect({
                       className={
                         "flex items-center gap-2 px-2 py-1 text-sm " +
                         (isDisabled
-                          ? "text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
-                          : "hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer")
+                          ? "text-muted-foreground cursor-not-allowed"
+                          : "hover:bg-muted cursor-pointer")
                       }
                     >
                       <input
@@ -140,7 +140,7 @@ export default function TagMultiSelect({
                       />
                       <span className="truncate flex-1">{o.label}</span>
                       {o.count !== undefined && (
-                        <span className="text-xs text-zinc-500 tabular-nums">
+                        <span className="text-xs text-muted-foreground tabular-nums">
                           {o.count}
                         </span>
                       )}

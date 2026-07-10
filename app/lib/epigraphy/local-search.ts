@@ -45,6 +45,17 @@ export type IndexRow = {
   benefactions: string[];
   relationships: string[];
   communities: string[];
+  // External-database deep-links (EDCS, SIRAR, …) baked into the index from the
+  // SPARQL endpoint. Absent on rows with no links and on older indexes.
+  externalLinks?: ExternalLinkRow[];
+};
+
+// A single external-database link as stored in the index. `url` is ready to use;
+// `id` is the database's own identifier (may be null).
+export type ExternalLinkRow = {
+  db: string;
+  id: string | null;
+  url: string;
 };
 
 export type IndexPlace = {
@@ -70,6 +81,7 @@ export type FacetVocab = {
   objectType: string[];
   relationshipType: string[];
   communityType: string[];
+  divinityType: string[];
   nomen: NameVocab[];
   cognomen: NameVocab[];
 };
@@ -143,6 +155,7 @@ export function matchesFilters(row: IndexRow, f: SearchFilters): boolean {
   if (!anyContains(row.objectTypes, f.objectTypes)) return false;
   if (!anyOverlap(row.relationshipTypes, f.relationshipTypes)) return false;
   if (!anyOverlap(row.communityTypes, f.communityTypes)) return false;
+  if (!anyOverlap(row.divinityTypes ?? [], f.divinityTypes)) return false;
 
   // Nomen/cognomen filters are AND across facets, OR within a facet, and
   // require both clauses to be satisfied by the SAME person on the
@@ -181,6 +194,7 @@ export type FacetKindLocal =
   | "objectType"
   | "relationshipType"
   | "communityType"
+  | "divinityType"
   | "nomen"
   | "cognomen";
 
@@ -213,6 +227,9 @@ function omitFacet(f: SearchFilters, kind: FacetKindLocal): SearchFilters {
       break;
     case "communityType":
       delete x.communityTypes;
+      break;
+    case "divinityType":
+      delete x.divinityTypes;
       break;
     case "nomen":
       delete x.nomen;
@@ -248,6 +265,7 @@ export function facetCounts(
     objectType: new Map<string, number>(),
     relationshipType: new Map<string, number>(),
     communityType: new Map<string, number>(),
+    divinityType: new Map<string, number>(),
     nomen: new Map<string, number>(),
     cognomen: new Map<string, number>(),
   } satisfies Record<FacetKindLocal, Map<string, number>>;
@@ -265,6 +283,7 @@ export function facetCounts(
     "objectType",
     "relationshipType",
     "communityType",
+    "divinityType",
     "nomen",
     "cognomen",
   ];
@@ -301,6 +320,9 @@ export function facetCounts(
           break;
         case "communityType":
           bumpField(target, r.communityTypes);
+          break;
+        case "divinityType":
+          bumpField(target, r.divinityTypes);
           break;
         case "nomen": {
           // Count each distinct nomen key once per inscription.

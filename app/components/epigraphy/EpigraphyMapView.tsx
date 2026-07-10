@@ -357,7 +357,7 @@ export default function EpigraphyMapView({
           key,
           lat: r.lat,
           lon: r.lon,
-          label: r.placeLabel ?? "(不明)",
+          label: r.placeLabel ?? "(Unknown)",
           rows: [],
         };
         buckets.set(key, cluster);
@@ -399,8 +399,8 @@ export default function EpigraphyMapView({
       className={
         "px-2 py-0.5 rounded " +
         (on
-          ? "bg-blue-600 text-white"
-          : "hover:bg-zinc-100 dark:hover:bg-zinc-800")
+          ? "bg-primary text-primary-foreground"
+          : "hover:bg-muted")
       }
     >
       {label}
@@ -419,33 +419,33 @@ export default function EpigraphyMapView({
             onFocus={() => {
               if (placeResults.length > 0) setShowPlaceResults(true);
             }}
-            placeholder="地点を検索（名称・種別・説明）…"
-            className="w-full px-2.5 py-1.5 pr-7 text-sm rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="Search places (name, type, description)…"
+            className="w-full px-2.5 py-1.5 pr-7 text-sm rounded border border-input bg-card shadow focus:outline-none focus:ring-2 focus:ring-ring"
           />
           {placeQuery && (
             <button
               onClick={() => runPlaceSearch("")}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-sm"
-              title="クリア"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-sm"
+              title="Clear"
             >
               ✕
             </button>
           )}
           {showPlaceResults && (
-            <div className="absolute mt-1 w-full bg-white dark:bg-zinc-900 rounded shadow-xl border border-zinc-200 dark:border-zinc-700 max-h-72 overflow-y-auto">
+            <div className="absolute mt-1 w-full bg-popover rounded shadow-xl border border-border max-h-72 overflow-y-auto">
               {placeResults.length === 0 ? (
-                <div className="px-2.5 py-2 text-xs text-zinc-500">
-                  該当する地点がありません
+                <div className="px-2.5 py-2 text-xs text-muted-foreground">
+                  No matching places
                 </div>
               ) : (
                 placeResults.map((p, idx) => (
                   <button
                     key={`${p.layerKey}:${p.id}:${idx}`}
                     onClick={() => selectPlace(p)}
-                    className="w-full text-left px-2.5 py-1.5 hover:bg-blue-50 dark:hover:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
+                    className="w-full text-left px-2.5 py-1.5 hover:bg-accent border-b border-border last:border-b-0"
                   >
                     <div className="text-sm font-medium truncate">{p.title}</div>
-                    <div className="text-[11px] text-zinc-500 truncate">
+                    <div className="text-[11px] text-muted-foreground truncate">
                       {p.typeName}
                       {p.description ? ` · ${p.description}` : ""}
                     </div>
@@ -458,52 +458,52 @@ export default function EpigraphyMapView({
       </div>
 
       <div className="absolute top-2 right-2 z-[1000] flex flex-col gap-1 items-end">
-        <div className="flex gap-1 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded shadow p-1">
-          {toolBtn("マーカー", mode === "markers", () => setMode("markers"))}
-          {toolBtn("ヒートマップ", mode === "heatmap", () =>
+        <div className="flex gap-1 text-xs bg-card border border-border rounded shadow p-1">
+          {toolBtn("Markers", mode === "markers", () => setMode("markers"))}
+          {toolBtn("Heatmap", mode === "heatmap", () =>
             setMode("heatmap"),
           )}
-          {toolBtn("非表示", mode === "hidden", () => setMode("hidden"))}
+          {toolBtn("Hide", mode === "hidden", () => setMode("hidden"))}
         </div>
-        <div className="flex gap-1 text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded shadow p-1">
-          {toolBtn("□ 矩形選択", drawing === "rectangle", () =>
+        <div className="flex gap-1 text-xs bg-card border border-border rounded shadow p-1">
+          {toolBtn("□ Rectangle", drawing === "rectangle", () =>
             setDrawing((d) => (d === "rectangle" ? null : "rectangle")),
           )}
-          {toolBtn("○ 円選択", drawing === "circle", () =>
+          {toolBtn("○ Circle", drawing === "circle", () =>
             setDrawing((d) => (d === "circle" ? null : "circle")),
           )}
-          {toolBtn("選択解除", false, clearRegion)}
+          {toolBtn("Clear selection", false, clearRegion)}
         </div>
         {drawing && (
-          <div className="text-[11px] bg-blue-600 text-white rounded px-2 py-0.5 shadow">
-            地図上でドラッグして範囲を選択
+          <div className="text-[11px] bg-primary text-primary-foreground rounded px-2 py-0.5 shadow">
+            Drag on the map to select a region
           </div>
         )}
 
-        <div className="text-xs bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded shadow">
+        <div className="text-xs bg-card border border-border rounded shadow">
           <button
             onClick={() => setShowLayers((v) => !v)}
             className="w-full px-2 py-1 flex items-center justify-between gap-2 font-medium"
           >
-            <span>地図レイヤー</span>
-            <span className="text-zinc-400">{showLayers ? "▲" : "▼"}</span>
+            <span>Map layers</span>
+            <span className="text-muted-foreground">{showLayers ? "▲" : "▼"}</span>
           </button>
           {showLayers && (
-            <div className="border-t border-zinc-200 dark:border-zinc-800 p-1.5 max-h-[60vh] overflow-y-auto flex flex-col gap-2 w-44">
+            <div className="border-t border-border p-1.5 max-h-[60vh] overflow-y-auto flex flex-col gap-2 w-44">
               {OVERLAY_GROUPS.map((g) => {
                 const keys = g.items.map((i) => i.key);
                 const allOn = keys.every((k) => overlays[k]);
                 return (
                   <div key={g.group}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-zinc-600 dark:text-zinc-300">
+                      <span className="font-semibold text-muted-foreground">
                         {g.group}
                       </span>
                       <button
                         onClick={() => setGroup(keys, !allOn)}
-                        className="text-[10px] text-blue-600 hover:underline"
+                        className="text-[10px] text-primary hover:underline"
                       >
-                        {allOn ? "全解除" : "全選択"}
+                        {allOn ? "Clear all" : "Select all"}
                       </button>
                     </div>
                     <div className="flex flex-col gap-0.5 pl-0.5">
@@ -578,14 +578,14 @@ export default function EpigraphyMapView({
                 <div className="text-sm" style={{ minWidth: 220 }}>
                   <div className="font-semibold">{c.label}</div>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-zinc-500">
-                      {c.rows.length} 件の碑文
+                    <span className="text-xs text-muted-foreground">
+                      {c.rows.length} inscriptions
                     </span>
                     <button
                       onClick={() => onRegionFilter(c.rows)}
-                      className="text-[11px] px-1.5 py-0.5 rounded bg-blue-600 text-white hover:bg-blue-700"
+                      className="text-[11px] px-1.5 py-0.5 rounded bg-primary text-primary-foreground hover:bg-primary/90"
                     >
-                      この地点で絞り込む
+                      Filter by this place
                     </button>
                   </div>
                   <ul className="text-xs space-y-0.5 max-h-48 overflow-auto">
@@ -593,12 +593,12 @@ export default function EpigraphyMapView({
                       <li key={`${r.edcsId}-${idx}`}>
                         <button
                           onClick={() => onSelect(r.edcsId)}
-                          className="text-blue-600 hover:underline font-mono"
+                          className="text-primary hover:underline font-mono"
                         >
                           {r.edcsId}
                         </button>
                         {(r.datingFrom || r.datingTo) && (
-                          <span className="text-zinc-500">
+                          <span className="text-muted-foreground">
                             {" "}
                             ({r.datingFrom ?? "?"}–{r.datingTo ?? "?"})
                           </span>

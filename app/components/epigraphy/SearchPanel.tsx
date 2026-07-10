@@ -40,6 +40,7 @@ export default function SearchPanel({
   const [objectTypes, setObjectTypes] = useState<string[]>([]);
   const [relationshipTypes, setRelationshipTypes] = useState<string[]>([]);
   const [communityTypes, setCommunityTypes] = useState<string[]>([]);
+  const [divinityTypes, setDivinityTypes] = useState<string[]>([]);
   const [nomen, setNomen] = useState<string[]>([]);
   const [cognomen, setCognomen] = useState<string[]>([]);
 
@@ -70,6 +71,7 @@ export default function SearchPanel({
   const objectTypeOpts = useMemo(() => toOpts(vocab?.objectType), [vocab]);
   const relTypeOpts = useMemo(() => toOpts(vocab?.relationshipType), [vocab]);
   const commTypeOpts = useMemo(() => toOpts(vocab?.communityType), [vocab]);
+  const divinityTypeOpts = useMemo(() => toOpts(vocab?.divinityType), [vocab]);
 
   function submit() {
     onSearch(currentFilters);
@@ -88,6 +90,7 @@ export default function SearchPanel({
     setObjectTypes([]);
     setRelationshipTypes([]);
     setCommunityTypes([]);
+    setDivinityTypes([]);
     setNomen([]);
     setCognomen([]);
   }
@@ -110,6 +113,7 @@ export default function SearchPanel({
       relationshipTypes:
         relationshipTypes.length > 0 ? relationshipTypes : undefined,
       communityTypes: communityTypes.length > 0 ? communityTypes : undefined,
+      divinityTypes: divinityTypes.length > 0 ? divinityTypes : undefined,
       nomen: nomen.length > 0 ? nomen : undefined,
       cognomen: cognomen.length > 0 ? cognomen : undefined,
     }),
@@ -126,13 +130,14 @@ export default function SearchPanel({
       objectTypes,
       relationshipTypes,
       communityTypes,
+      divinityTypes,
       nomen,
       cognomen,
     ],
   );
 
   // Push working filters up so the parent can recompute counts on the
-  // local index without waiting for the "検索" button.
+  // local index without waiting for the "Search" button.
   useEffect(() => {
     onFiltersChange?.(currentFilters);
   }, [currentFilters, onFiltersChange]);
@@ -168,24 +173,24 @@ export default function SearchPanel({
   }, [provinceUris, filteredPlaces, placeUris]);
 
   const selectCls =
-    "px-2 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800";
+    "px-2 py-1.5 text-sm border border-border rounded bg-card";
 
   return (
-    <div className="flex flex-col gap-3 p-4 border border-zinc-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-zinc-900">
+    <div className="flex flex-col gap-3 p-4 border border-border rounded-lg bg-card">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold">検索条件</h2>
+        <h2 className="text-lg font-semibold">Search filters</h2>
         {!vocab && (
-          <span className="text-xs text-zinc-500">インデックス読込中…</span>
+          <span className="text-xs text-muted-foreground">Loading index…</span>
         )}
       </div>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span>全文／キーワード</span>
+        <span>Full text / keyword</span>
         <input
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder="碑文テキスト・地名・EDCS-ID"
+          placeholder="Inscription text, place, EDCS-ID"
           className={selectCls}
           onKeyDown={(e) => {
             if (e.key === "Enter") submit();
@@ -194,23 +199,23 @@ export default function SearchPanel({
       </label>
 
       <details open className="text-sm">
-        <summary className="cursor-pointer font-medium">場所・年代</summary>
+        <summary className="cursor-pointer font-medium">Place & date</summary>
         <div className="flex flex-col gap-2 mt-2">
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">属州 (province)</span>
+            <span className="text-xs text-muted-foreground">Province</span>
             <TagMultiSelect
               options={decorate(provinces, facetCounts?.province, provinceUris)}
               selected={provinceUris}
               onChange={setProvinceUris}
-              placeholder="(指定なし)"
+              placeholder="(any)"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">
-              発見地 (findspot)
+            <span className="text-xs text-muted-foreground">
+              Findspot
               {provinceUris.length > 0 && (
-                <span className="ml-1 text-zinc-400">
-                  ({filteredPlaces.length}件)
+                <span className="ml-1 text-muted-foreground">
+                  ({filteredPlaces.length})
                 </span>
               )}
             </span>
@@ -218,12 +223,12 @@ export default function SearchPanel({
               options={decorate(filteredPlaces, facetCounts?.place, placeUris)}
               selected={placeUris}
               onChange={setPlaceUris}
-              placeholder="(指定なし)"
+              placeholder="(any)"
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500">年代 from</span>
+              <span className="text-xs text-muted-foreground">Date from</span>
               <input
                 type="number"
                 value={datingFrom}
@@ -233,7 +238,7 @@ export default function SearchPanel({
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-xs text-zinc-500">年代 to</span>
+              <span className="text-xs text-muted-foreground">Date to</span>
               <input
                 type="number"
                 value={datingTo}
@@ -247,14 +252,14 @@ export default function SearchPanel({
       </details>
 
       <details open className="text-sm">
-        <summary className="cursor-pointer font-medium">人物属性</summary>
+        <summary className="cursor-pointer font-medium">Person attributes</summary>
         <div className="flex flex-col gap-2 mt-2">
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-muted-foreground">
               nomen
               {nomen.length > 0 && cognomen.length > 0 && (
-                <span className="ml-1 text-zinc-400">
-                  (同一人物が両方を満たす)
+                <span className="ml-1 text-muted-foreground">
+                  (same person must match both)
                 </span>
               )}
             </span>
@@ -263,21 +268,21 @@ export default function SearchPanel({
               selected={nomen}
               onChange={setNomen}
               counts={facetCounts?.nomen}
-              placeholder="入力して候補から選択… (例: Iulius)"
+              placeholder="Type to select from suggestions… (e.g. Iulius)"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">cognomen</span>
+            <span className="text-xs text-muted-foreground">cognomen</span>
             <NameAutocompleteInput
               vocab={vocab?.cognomen ?? []}
               selected={cognomen}
               onChange={setCognomen}
               counts={facetCounts?.cognomen}
-              placeholder="入力して候補から選択… (例: Caesar)"
+              placeholder="Type to select from suggestions… (e.g. Caesar)"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">社会的地位</span>
+            <span className="text-xs text-muted-foreground">Social status</span>
             <TagMultiSelect
               options={decorate(
                 socialStatusOpts,
@@ -286,11 +291,11 @@ export default function SearchPanel({
               )}
               selected={socialStatuses}
               onChange={setSocialStatuses}
-              placeholder="(指定なし)"
+              placeholder="(any)"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">職位 (抽象形)</span>
+            <span className="text-xs text-muted-foreground">Position (abstract)</span>
             <TagMultiSelect
               options={decorate(
                 positionOpts,
@@ -299,11 +304,11 @@ export default function SearchPanel({
               )}
               selected={positionAbstracts}
               onChange={setPositionAbstracts}
-              placeholder="(指定なし)"
+              placeholder="(any)"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">職位 (正規化形)</span>
+            <span className="text-xs text-muted-foreground">Position (normalized)</span>
             <TagMultiSelect
               options={decorate(
                 positionNormalizedOpts,
@@ -312,7 +317,7 @@ export default function SearchPanel({
               )}
               selected={positionNormalizeds}
               onChange={setPositionNormalizeds}
-              placeholder="(指定なし)"
+              placeholder="(any)"
             />
           </div>
         </div>
@@ -320,11 +325,11 @@ export default function SearchPanel({
 
       <details open className="text-sm">
         <summary className="cursor-pointer font-medium">
-          恵与・関係性・コミュニティ
+          Benefaction, relationship & community
         </summary>
         <div className="flex flex-col gap-2 mt-2">
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">恵与タイプ</span>
+            <span className="text-xs text-muted-foreground">Benefaction type</span>
             <TagMultiSelect
               options={decorate(
                 benefTypeOpts,
@@ -333,12 +338,12 @@ export default function SearchPanel({
               )}
               selected={benefactionTypes}
               onChange={setBenefactionTypes}
-              placeholder="(指定なし)"
+              placeholder="(any)"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">
-              恵与対象タイプ（部分一致 OR）
+            <span className="text-xs text-muted-foreground">
+              Benefaction object type (partial match, OR)
             </span>
             <TagMultiSelect
               options={decorate(
@@ -348,11 +353,11 @@ export default function SearchPanel({
               )}
               selected={objectTypes}
               onChange={setObjectTypes}
-              placeholder="(指定なし)"
+              placeholder="(any)"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">関係タイプ</span>
+            <span className="text-xs text-muted-foreground">Relationship type</span>
             <TagMultiSelect
               options={decorate(
                 relTypeOpts,
@@ -361,11 +366,11 @@ export default function SearchPanel({
               )}
               selected={relationshipTypes}
               onChange={setRelationshipTypes}
-              placeholder="(指定なし)"
+              placeholder="(any)"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-zinc-500">コミュニティタイプ</span>
+            <span className="text-xs text-muted-foreground">Community type</span>
             <TagMultiSelect
               options={decorate(
                 commTypeOpts,
@@ -374,7 +379,27 @@ export default function SearchPanel({
               )}
               selected={communityTypes}
               onChange={setCommunityTypes}
-              placeholder="(指定なし)"
+              placeholder="(any)"
+            />
+          </div>
+        </div>
+      </details>
+
+      {/* Deities are an inscription element independent of persons, so they get
+          their own top-level group rather than sitting under person attributes. */}
+      <details open className="text-sm">
+        <summary className="cursor-pointer font-medium">Deity</summary>
+        <div className="flex flex-col gap-2 mt-2">
+          <div className="flex flex-col gap-1">
+            <TagMultiSelect
+              options={decorate(
+                divinityTypeOpts,
+                facetCounts?.divinityType,
+                divinityTypes,
+              )}
+              selected={divinityTypes}
+              onChange={setDivinityTypes}
+              placeholder="(any)"
             />
           </div>
         </div>
@@ -384,15 +409,15 @@ export default function SearchPanel({
         <button
           onClick={submit}
           disabled={loading || !vocab}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-400 text-white rounded text-sm font-medium"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground rounded text-sm font-medium"
         >
-          {loading ? "検索中..." : "検索"}
+          {loading ? "Searching..." : "Search"}
         </button>
         <button
           onClick={reset}
-          className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded text-sm"
+          className="px-4 py-2 border border-border rounded text-sm"
         >
-          リセット
+          Reset
         </button>
       </div>
     </div>

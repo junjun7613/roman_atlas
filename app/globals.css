@@ -1,9 +1,135 @@
 @import "tailwindcss";
 
-body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
+/* ---------------------------------------------------------------------------
+   Dark mode: follow the OS setting (prefers-color-scheme).
+   This redefines Tailwind's `dark:` variant so existing `dark:*` utilities
+   fire on the OS preference instead of a `.dark` class. The token values in
+   `:root` below also switch via @media, so both approaches stay in sync.
+--------------------------------------------------------------------------- */
+@custom-variant dark (@media (prefers-color-scheme: dark));
+
+/* ---------------------------------------------------------------------------
+   Design tokens — cool-tone academic palette (ported from Humanitext Antiqua).
+   Light values live in :root; dark values are swapped via prefers-color-scheme.
+--------------------------------------------------------------------------- */
+:root {
+  --background: #f4f8fa;
+  --foreground: #18202b;
+  --card: #fafcfe;
+  --card-foreground: #18202b;
+  --popover: #fafcfe;
+  --popover-foreground: #18202b;
+  --primary: #25559b;
+  --primary-foreground: #f6f9fb;
+  --secondary: #e6ecf1;
+  --secondary-foreground: #242c38;
+  --muted: #ecf1f5;
+  --muted-foreground: #4d5969;
+  --accent: #e6eef5;
+  --accent-foreground: #18202b;
+  --border: #d4dce2;
+  --input: #cfd7df;
+  --ring: #25559b;
+  --destructive: #c5372f;
+  --destructive-foreground: #f6f9fb;
+
+  /* Scholarly semantic colors for classical languages */
+  --greek: #13684b;
+  --latin: #a83442;
+
+  --radius: 0.375rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #04060d;
+    --foreground: #dee6ed;
+    --card: #0c1521;
+    --card-foreground: #dee6ed;
+    --popover: #0f1926;
+    --popover-foreground: #dee6ed;
+    --primary: #35b6f4;
+    --primary-foreground: #030915;
+    --secondary: #1a2737;
+    --secondary-foreground: #dee6ed;
+    --muted: #151f2b;
+    --muted-foreground: #8f9daa;
+    --accent: #19293b;
+    --accent-foreground: #dee6ed;
+    --border: #ffffff1a;
+    --input: #ffffff24;
+    --ring: #35b6f4;
+    --destructive: #e8605b;
+    --destructive-foreground: #f6f9fb;
+
+    --greek: #5eb28c;
+    --latin: #e17177;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Map tokens into Tailwind utilities (bg-background, text-foreground, etc.)
+   and compose the multilingual font stacks (Latin UI + CJK + classical).
+--------------------------------------------------------------------------- */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-greek: var(--greek);
+  --color-latin: var(--latin);
+
+  --radius-DEFAULT: var(--radius);
+
+  /* Font stacks — variables are emitted by next/font in app/layout.tsx.
+     Each falls through Latin → CJK → system fallbacks. */
+  --font-sans: var(--font-instrument-sans), var(--font-noto-sans-jp), ui-sans-serif,
+    system-ui, "Hiragino Kaku Gothic ProN", "Apple SD Gothic Neo", Meiryo, sans-serif;
+  --font-serif: var(--font-literata), var(--font-noto-serif-jp), Georgia,
+    "Times New Roman", serif;
+  --font-display: var(--font-eb-garamond), var(--font-noto-serif-jp), Georgia,
+    "Times New Roman", serif;
+  --font-classical: var(--font-eb-garamond), var(--font-noto-serif-jp), Georgia,
+    "Times New Roman", serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "SFMono-Regular", Menlo,
+    monospace;
+}
+
+@layer base {
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  *,
+  ::after,
+  ::before {
+    border-color: var(--border);
+  }
+
+  /* CJK: kill letter-spacing so tracking-* utilities don't break Japanese. */
+  :is(:lang(ja), :lang(ko), :lang(zh-Hans)) :is(.tracking-tight, .tracking-wide, .tracking-wider) {
+    letter-spacing: 0;
+  }
 }
 
 /* Cesiumのインフォボックスの位置調整 */
@@ -22,4 +148,127 @@ body {
 .epigraphy-place-marker {
   background: transparent;
   border: none;
+}
+
+/* ATAG annotated-text view (network dialog). Ported from the standalone
+   viewer_epigraph.html so the epigraphic markup (line numbers, expansions,
+   abbreviations, supplied/gap) renders the same way inside the app. */
+.atag-text-viewer {
+  font-family: 'Times New Roman', Georgia, serif;
+}
+
+.atag-text-content {
+  line-height: 2.2;
+  font-size: 1.05rem;
+  letter-spacing: 0.5px;
+}
+
+.atag-text-line {
+  display: block;
+  margin-bottom: 0.5em;
+}
+
+.atag-line-number {
+  color: #e74c3c;
+  font-weight: bold;
+  font-size: 0.85em;
+  margin-right: 10px;
+  display: inline-block;
+  min-width: 25px;
+}
+
+.atag-annotation {
+  transition: background-color 0.2s;
+}
+
+.atag-annotation.atag-expan {
+  border-bottom: 2px solid #3498db;
+  background-color: rgba(52, 152, 219, 0.08);
+}
+
+.atag-annotation.atag-abbr {
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.atag-annotation.atag-ex {
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.atag-annotation.atag-supplied {
+  border-bottom: 2px dotted #e67e22;
+  background-color: rgba(230, 126, 34, 0.08);
+}
+
+.atag-annotation.atag-gap {
+  color: #95a5a6;
+  font-style: italic;
+  background-color: rgba(149, 165, 166, 0.12);
+}
+
+/* Stats row + legend under the annotated text. */
+.atag-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--muted-foreground, #666);
+}
+
+.atag-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border, #ddd);
+  font-size: 0.75rem;
+  color: var(--muted-foreground, #666);
+}
+
+.atag-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.atag-legend-color {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
+
+.atag-legend-color.atag-line {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.atag-legend-color.atag-expan {
+  background-color: rgba(52, 152, 219, 0.12);
+  border-bottom: 3px solid #3498db;
+}
+
+.atag-legend-color.atag-abbr {
+  border: 2px solid #2c3e50;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.atag-legend-color.atag-supplied {
+  background-color: rgba(230, 126, 34, 0.08);
+  border-bottom: 3px dotted #e67e22;
+  color: #e67e22;
+}
+
+.atag-legend-color.atag-gap {
+  background-color: rgba(149, 165, 166, 0.12);
+  color: #95a5a6;
+  font-style: italic;
 }

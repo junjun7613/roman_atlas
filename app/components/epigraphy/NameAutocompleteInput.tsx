@@ -103,7 +103,7 @@ export default function NameAutocompleteInput({
           {selected.map((k) => (
             <span
               key={k}
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 rounded"
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-primary/10 text-primary rounded"
             >
               <span className="max-w-[160px] truncate">
                 {displayByKey.get(k) ?? k}
@@ -111,8 +111,8 @@ export default function NameAutocompleteInput({
               <button
                 type="button"
                 onClick={() => remove(k)}
-                className="hover:text-red-600"
-                aria-label="削除"
+                className="hover:text-destructive"
+                aria-label="Remove"
               >
                 ×
               </button>
@@ -129,11 +129,11 @@ export default function NameAutocompleteInput({
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={onKeyDown}
-        placeholder={placeholder ?? "入力して候補から選択…"}
-        className="w-full px-2 py-1.5 text-sm border border-zinc-300 dark:border-zinc-700 rounded bg-white dark:bg-zinc-800"
+        placeholder={placeholder ?? "Type to select from suggestions…"}
+        className="w-full px-2 py-1.5 text-sm border border-border rounded bg-card"
       />
       {open && suggestions.length > 0 && (
-        <ul className="absolute z-30 mt-1 w-full max-h-72 overflow-auto bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded shadow-lg">
+        <ul className="absolute z-30 mt-1 w-full max-h-72 overflow-auto bg-popover border border-border rounded shadow-lg">
           {suggestions.map((s, i) => {
             const liveCount = counts ? counts.get(s.key) : undefined;
             return (
@@ -148,12 +148,12 @@ export default function NameAutocompleteInput({
                   className={
                     "w-full text-left px-2 py-1 text-sm flex items-center gap-2 " +
                     (i === highlight
-                      ? "bg-blue-100 dark:bg-blue-900"
-                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800")
+                      ? "bg-accent"
+                      : "hover:bg-muted")
                   }
                 >
                   <span className="truncate flex-1">{s.display}</span>
-                  <span className="text-xs text-zinc-500 tabular-nums">
+                  <span className="text-xs text-muted-foreground tabular-nums">
                     {liveCount ?? s.count}
                   </span>
                 </button>
@@ -163,8 +163,8 @@ export default function NameAutocompleteInput({
         </ul>
       )}
       {open && query && suggestions.length === 0 && (
-        <div className="absolute z-30 mt-1 w-full bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded shadow-lg p-2 text-xs text-zinc-500">
-          該当なし
+        <div className="absolute z-30 mt-1 w-full bg-popover border border-border rounded shadow-lg p-2 text-xs text-muted-foreground">
+          No matches
         </div>
       )}
     </div>

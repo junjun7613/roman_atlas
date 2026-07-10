@@ -10,7 +10,7 @@ type Props = {
 };
 
 function Cell({ value }: { value?: string }) {
-  if (!value) return <span className="text-zinc-400">—</span>;
+  if (!value) return <span className="text-muted-foreground">—</span>;
   const parts = value.split(" | ").filter(Boolean);
   if (parts.length <= 1) {
     return <span className="whitespace-pre-wrap break-words">{value}</span>;
@@ -34,8 +34,8 @@ export default function ResultsList({
 }: Props) {
   if (results.length === 0) {
     return (
-      <div className="p-4 text-sm text-zinc-500">
-        {emptyMessage ?? "条件を指定して「検索」を押してください"}
+      <div className="p-4 text-sm text-muted-foreground">
+        {emptyMessage ?? "Set filters and press \"Search\""}
       </div>
     );
   }
@@ -43,40 +43,40 @@ export default function ResultsList({
   return (
     <div className="overflow-auto h-full">
       <table className="text-xs border-collapse min-w-full">
-        <thead className="sticky top-0 bg-zinc-100 dark:bg-zinc-800 z-10">
+        <thead className="sticky top-0 bg-muted z-10">
           <tr>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold">
+            <th className="border border-border px-2 py-1 text-left font-semibold">
               EDCS-ID
             </th>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold">
-              発見地
+            <th className="border border-border px-2 py-1 text-left font-semibold">
+              Findspot
             </th>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold">
-              属州
+            <th className="border border-border px-2 py-1 text-left font-semibold">
+              Province
             </th>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold">
-              年代
+            <th className="border border-border px-2 py-1 text-left font-semibold">
+              Date
             </th>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold">
+            <th className="border border-border px-2 py-1 text-left font-semibold">
               Literature
             </th>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold min-w-[180px]">
-              人物
+            <th className="border border-border px-2 py-1 text-left font-semibold min-w-[180px]">
+              Persons
             </th>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold min-w-[180px]">
-              経歴
+            <th className="border border-border px-2 py-1 text-left font-semibold min-w-[180px]">
+              Career
             </th>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold min-w-[200px]">
-              恵与（タイプ／対象）
+            <th className="border border-border px-2 py-1 text-left font-semibold min-w-[200px]">
+              Benefaction (type / object)
             </th>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold min-w-[180px]">
-              関係性
+            <th className="border border-border px-2 py-1 text-left font-semibold min-w-[180px]">
+              Relationships
             </th>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold min-w-[140px]">
-              コミュニティ
+            <th className="border border-border px-2 py-1 text-left font-semibold min-w-[140px]">
+              Community
             </th>
-            <th className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 text-left font-semibold min-w-[240px]">
-              碑文テキスト
+            <th className="border border-border px-2 py-1 text-left font-semibold min-w-[240px]">
+              Inscription text
             </th>
           </tr>
         </thead>
@@ -92,47 +92,47 @@ export default function ResultsList({
                 key={`${r.edcsId}-${idx}`}
                 onClick={() => onSelect(r.edcsId)}
                 className={
-                  "align-top cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 " +
-                  (active ? "bg-blue-50 dark:bg-blue-950" : "")
+                  "align-top cursor-pointer hover:bg-muted " +
+                  (active ? "bg-accent" : "")
                 }
               >
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 font-mono whitespace-nowrap">
+                <td className="border border-border px-2 py-1 font-mono whitespace-nowrap">
                   {r.edcsId}
                 </td>
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1">
+                <td className="border border-border px-2 py-1">
                   {r.placeLabel ?? "—"}
                 </td>
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1">
+                <td className="border border-border px-2 py-1">
                   {r.provinceLabel ?? "—"}
                 </td>
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1 whitespace-nowrap">
+                <td className="border border-border px-2 py-1 whitespace-nowrap">
                   {dating || "—"}
                 </td>
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1">
+                <td className="border border-border px-2 py-1">
                   <Cell value={r.publication} />
                 </td>
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1">
+                <td className="border border-border px-2 py-1">
                   <Cell value={r.persons} />
                 </td>
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1">
+                <td className="border border-border px-2 py-1">
                   <Cell value={r.careers} />
                 </td>
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1">
+                <td className="border border-border px-2 py-1">
                   <Cell value={r.benefactions} />
                 </td>
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1">
+                <td className="border border-border px-2 py-1">
                   <Cell value={r.relationships} />
                 </td>
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1">
+                <td className="border border-border px-2 py-1">
                   <Cell value={r.communities} />
                 </td>
-                <td className="border border-zinc-300 dark:border-zinc-700 px-2 py-1">
+                <td className="border border-border px-2 py-1">
                   {r.text ? (
                     <pre className="whitespace-pre-wrap font-serif text-xs">
                       {r.text}
                     </pre>
                   ) : (
-                    <span className="text-zinc-400">—</span>
+                    <span className="text-muted-foreground">—</span>
                   )}
                 </td>
               </tr>

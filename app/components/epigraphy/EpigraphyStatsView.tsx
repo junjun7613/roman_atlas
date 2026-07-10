@@ -28,7 +28,7 @@ function BarList({
   track?: string;
 }) {
   if (entries.length === 0)
-    return <p className="text-xs text-zinc-400">データなし</p>;
+    return <p className="text-xs text-muted-foreground">No data</p>;
   const top = entries.slice(0, limit);
   const total = entries.reduce((s, e) => s + e.count, 0);
   const max = top.reduce((m, e) => Math.max(m, e.count), 0);
@@ -41,13 +41,13 @@ function BarList({
         return (
           <div
             key={e.value}
-            className="py-1.5 px-2 rounded-md bg-zinc-50 dark:bg-zinc-800/60"
+            className="py-1.5 px-2 rounded-md bg-muted"
           >
             <div className="flex items-center justify-between gap-2 mb-1">
-              <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 truncate">
+              <span className="text-xs font-semibold text-foreground truncate">
                 {label}
               </span>
-              <span className="text-[11px] tabular-nums text-zinc-500 shrink-0">
+              <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">
                 {e.count} ({pct.toFixed(1)}%)
               </span>
             </div>
@@ -77,12 +77,12 @@ function Kpi({
   sub?: string;
 }) {
   return (
-    <div className="p-3 bg-zinc-50 dark:bg-zinc-800/60 rounded-lg">
-      <p className="text-[11px] text-zinc-500 mb-0.5">{label}</p>
-      <p className="text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-50">
+    <div className="p-3 bg-muted rounded-lg">
+      <p className="text-[11px] text-muted-foreground mb-0.5">{label}</p>
+      <p className="text-2xl font-bold tabular-nums text-foreground">
         {value}
       </p>
-      {sub && <p className="text-[11px] text-zinc-400">{sub}</p>}
+      {sub && <p className="text-[11px] text-muted-foreground">{sub}</p>}
     </div>
   );
 }
@@ -96,7 +96,7 @@ function Pie({
   colors?: string[];
 }) {
   if (entries.length === 0)
-    return <p className="text-xs text-zinc-400">データなし</p>;
+    return <p className="text-xs text-muted-foreground">No data</p>;
   const total = entries.reduce((s, e) => s + e.count, 0);
   let angle = 0;
   const slices = entries.map((e, i) => {
@@ -148,11 +148,11 @@ function Pie({
                 className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
                 style={{ background: colors[i % colors.length] }}
               />
-              <span className="text-xs text-zinc-700 dark:text-zinc-200 truncate">
+              <span className="text-xs text-foreground truncate">
                 {e.value}
               </span>
             </span>
-            <span className="text-[11px] tabular-nums text-zinc-500 shrink-0">
+            <span className="text-[11px] tabular-nums text-muted-foreground shrink-0">
               {e.count} ({(frac * 100).toFixed(1)}%)
             </span>
           </li>
@@ -164,18 +164,18 @@ function Pie({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h4 className="text-xs font-semibold text-zinc-600 dark:text-zinc-300 mb-2">
+    <h4 className="text-xs font-semibold text-muted-foreground mb-2">
       {children}
     </h4>
   );
 }
 
 const TABS: Array<{ key: Tab; label: string }> = [
-  { key: "age", label: "年齢" },
-  { key: "names", label: "名前" },
-  { key: "benefaction", label: "寄進" },
-  { key: "divinity", label: "神格" },
-  { key: "distribution", label: "分布" },
+  { key: "age", label: "Age" },
+  { key: "names", label: "Names" },
+  { key: "benefaction", label: "Benefactions" },
+  { key: "divinity", label: "Divinities" },
+  { key: "distribution", label: "Distribution" },
 ];
 
 export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats }) {
@@ -183,12 +183,12 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[11px] text-zinc-500">
-        現在の {stats.totalInscriptions} 件の碑文に基づく統計
+      <p className="text-[11px] text-muted-foreground">
+        Statistics based on the current {stats.totalInscriptions} inscriptions
       </p>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800 -mx-0.5 px-0.5 overflow-x-auto">
+      <div className="flex gap-1 border-b border-border -mx-0.5 px-0.5 overflow-x-auto">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -196,8 +196,8 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
             className={
               "px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors -mb-px border-b-2 " +
               (tab === t.key
-                ? "text-blue-600 border-blue-600"
-                : "text-zinc-500 border-transparent hover:text-zinc-700 dark:hover:text-zinc-300")
+                ? "text-primary border-primary"
+                : "text-muted-foreground border-transparent hover:text-foreground")
             }
           >
             {t.label}
@@ -212,18 +212,18 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
             <>
               <div className="grid grid-cols-2 gap-2">
                 <Kpi
-                  label="平均死亡年齢"
-                  value={`${stats.age.averageAge.toFixed(1)} 歳`}
-                  sub={`${stats.age.count} 件`}
+                  label="Average age at death"
+                  value={`${stats.age.averageAge.toFixed(1)} yrs`}
+                  sub={`${stats.age.count}`}
                 />
                 <Kpi
-                  label="10歳未満の割合"
+                  label="Share under age 10"
                   value={`${stats.age.under10Percentage.toFixed(1)}%`}
-                  sub={`${stats.age.under10Count} 件`}
+                  sub={`${stats.age.under10Count}`}
                 />
               </div>
               <div>
-                <SectionTitle>年齢分布</SectionTitle>
+                <SectionTitle>Age distribution</SectionTitle>
                 <BarList
                   entries={stats.age.histogram.map((h) => ({
                     value: h.bucket,
@@ -234,7 +234,7 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
               </div>
             </>
           ) : (
-            <p className="text-xs text-zinc-400">年齢データがありません</p>
+            <p className="text-xs text-muted-foreground">No age data</p>
           )}
         </div>
       )}
@@ -243,8 +243,8 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
         <div className="flex flex-col gap-4">
           <div>
             <SectionTitle>
-              氏族名 (nomen){" "}
-              <span className="text-zinc-400 font-normal">
+              Family name (nomen){" "}
+              <span className="text-muted-foreground font-normal">
                 ({stats.nomen.length})
               </span>
             </SectionTitle>
@@ -252,8 +252,8 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
           </div>
           <div>
             <SectionTitle>
-              個人名 (cognomen){" "}
-              <span className="text-zinc-400 font-normal">
+              Personal name (cognomen){" "}
+              <span className="text-muted-foreground font-normal">
                 ({stats.cognomen.length})
               </span>
             </SectionTitle>
@@ -261,7 +261,7 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
           </div>
           {stats.socialStatus.length > 0 && (
             <div>
-              <SectionTitle>社会的地位</SectionTitle>
+              <SectionTitle>Social status</SectionTitle>
               <BarList entries={stats.socialStatus} color="bg-amber-500" track="bg-amber-100 dark:bg-amber-950" />
             </div>
           )}
@@ -273,21 +273,21 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
           {stats.cost && (
             <div className="bg-emerald-50 dark:bg-emerald-950/40 p-3 rounded-lg border border-emerald-200 dark:border-emerald-900">
               <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 mb-2">
-                寄進コスト概要
+                Benefaction cost summary
               </p>
               <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-                <Field label="件数" value={stats.cost.count.toLocaleString()} />
-                <Field label="平均" value={Math.round(stats.cost.avg).toLocaleString()} />
-                <Field label="合計" value={stats.cost.total.toLocaleString()} />
-                <Field label="最小" value={stats.cost.min.toLocaleString()} />
-                <Field label="最大" value={stats.cost.max.toLocaleString()} />
+                <Field label="Count" value={stats.cost.count.toLocaleString()} />
+                <Field label="Average" value={Math.round(stats.cost.avg).toLocaleString()} />
+                <Field label="Total" value={stats.cost.total.toLocaleString()} />
+                <Field label="Min" value={stats.cost.min.toLocaleString()} />
+                <Field label="Max" value={stats.cost.max.toLocaleString()} />
               </div>
             </div>
           )}
           <div>
             <SectionTitle>
-              恵与タイプ{" "}
-              <span className="text-zinc-400 font-normal">
+              Benefaction type{" "}
+              <span className="text-muted-foreground font-normal">
                 ({stats.benefactionType.length})
               </span>
             </SectionTitle>
@@ -296,8 +296,8 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
           {stats.objectType.length > 0 && (
             <div>
               <SectionTitle>
-                恵与対象タイプ{" "}
-                <span className="text-zinc-400 font-normal">
+                Benefaction object type{" "}
+                <span className="text-muted-foreground font-normal">
                   ({stats.objectType.length})
                 </span>
               </SectionTitle>
@@ -312,7 +312,7 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
           )}
           {stats.cost && stats.cost.byType.length > 0 && (
             <div>
-              <SectionTitle>タイプ別コスト（平均）</SectionTitle>
+              <SectionTitle>Cost by type (average)</SectionTitle>
               <BarList
                 entries={stats.cost.byType.map((t) => ({
                   value: `${t.type} (avg ${Math.round(t.avg).toLocaleString()})`,
@@ -329,8 +329,8 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
       {tab === "divinity" && (
         <div>
           <SectionTitle>
-            神格タイプ{" "}
-            <span className="text-zinc-400 font-normal">
+            Divinity type{" "}
+            <span className="text-muted-foreground font-normal">
               ({stats.divinityType.length})
             </span>
           </SectionTitle>
@@ -346,8 +346,8 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
         <div className="flex flex-col gap-4">
           <div>
             <SectionTitle>
-              属州{" "}
-              <span className="text-zinc-400 font-normal">
+              Province{" "}
+              <span className="text-muted-foreground font-normal">
                 ({stats.province.length})
               </span>
             </SectionTitle>
@@ -355,8 +355,8 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
           </div>
           <div>
             <SectionTitle>
-              発見地{" "}
-              <span className="text-zinc-400 font-normal">
+              Findspot{" "}
+              <span className="text-muted-foreground font-normal">
                 ({stats.place.length})
               </span>
             </SectionTitle>
@@ -364,7 +364,7 @@ export default function EpigraphyStatsView({ stats }: { stats: EpigraphyStats })
           </div>
           {stats.datingHistogram.length > 0 && (
             <div>
-              <SectionTitle>年代分布</SectionTitle>
+              <SectionTitle>Date distribution</SectionTitle>
               <BarList
                 entries={stats.datingHistogram.map((h) => ({
                   value: h.bucket,

@@ -3,6 +3,11 @@ export interface PlaceInscriptionCount {
   count: number
 }
 
+// EDCS link building lives in the external-database registry; re-export so
+// existing SPARQL consumers keep importing it from here.
+import { buildEdcsUrl } from '@/app/lib/epigraphy/external-links'
+export { buildEdcsUrl }
+
 export interface CustomPlace {
   id: string
   title: string
@@ -55,6 +60,55 @@ export interface InscriptionNetworkData {
   benef_type?: string
   benef_object?: string
   benef_objectType?: string
+}
+
+// A single excerpt from a publication describing the inscription, keyed by the
+// kind of statement it makes (transcription, translation, dating, ...).
+export interface LiteratureExcerpt {
+  // The relationType local name, e.g. "transcription", "translation".
+  relType: string
+  // The body text of that statement.
+  text: string
+  // The raw citation string the publication used for this excerpt
+  // (e.g. "CIL, VIII, 26274"). The same paper may cite an inscription under
+  // several corpus references, so this is carried per-excerpt.
+  rawRef?: string
+  // Where in the publication the mention occurs: "body" (running text) or
+  // "note" (footnote). Lets the UI — and SPARQL analysis — separate in-text
+  // discussion from footnote citations.
+  locationType?: "body" | "note"
+  // Position within the body, as paragraph numbers (1-based). Present only for
+  // body mentions. endParagraph is omitted when the mention is a single
+  // paragraph.
+  startParagraph?: number
+  endParagraph?: number
+  // Footnote number. Present only for note mentions.
+  noteNumber?: number
+  // For note mentions: the body paragraph the footnote is attached to, resolved
+  // via ns:inFootnote → (ns:containsFootnote)⁻¹ → ns:paragraphNumber. Lets the
+  // UI show and link the footnote's parent paragraph.
+  noteParentParagraph?: number
+}
+
+// A research publication that mentions the inscription, with its bibliographic
+// metadata and every excerpt in which it discusses the inscription. This is the
+// grouping unit of the 文献 tab: "which work cites this inscription, and how".
+export interface LiteratureReference {
+  // Document URI (stable id within the graph).
+  uri: string
+  // Title of the work (book section / article).
+  title?: string
+  // Author / editor.
+  creator?: string
+  // Title of the containing volume, if this is a chapter/section.
+  containerTitle?: string
+  // Page range within the volume, e.g. "59-118".
+  pages?: string
+  // External URL (publisher / OpenEdition) and DOI, if present.
+  source?: string
+  doi?: string
+  // The excerpts in which this work discusses the inscription, grouped here.
+  excerpts: LiteratureExcerpt[]
 }
 
 export interface MosaicDetail {
@@ -399,7 +453,7 @@ export async function queryInscriptionDetails(pleiadesId: string, customLocation
           edcsId: edcsId,
           description: description,
           dating: dating,
-          edcsUrl: `https://db.edcs.eu/epigr/epi_url.php?s_sprache=en&p_edcs_id=${edcsId}`,
+          edcsUrl: buildEdcsUrl(edcsId),
           iiifManifest3D: iiifManifest3D,
           iiifManifest2D: iiifManifest2D,
           personCount: personCount,
@@ -910,6 +964,340 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
       console.error('Error querying inscription network from SPARQL endpoint:', error)
     }
     // Return empty array to avoid breaking the UI
+    return []
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ATAG annotated text
+//
+// The ATAG endpoint stores each inscription as an ex:Text with:
+//   - ex:textContent            the raw string
+//   - ex:firstChar → ex:next*   a linked list of per-character nodes, each with
+//                               an ex:offset and its own URI
+//   - ex:hasAnnotation          spans over the text (line numbers, expansions,
+//                               abbreviations, supplied/gap markup)
+// This mirrors the data the standalone viewer_epigraph.html consumes, so we can
+// render the same annotated-text view inside the network dialog. Text URIs are
+// http://example.org/atag#text/<EDCS-ID>.
+// ---------------------------------------------------------------------------
+
+// One annotation span. `kind` drives the styling ("line", "expan", "abbr",
+// "ex", "supplied", "gap"). `n` is the line number for kind === "line".
+export interface AtagAnnotation {
+  kind: string
+  n: string | null
+  start: number
+  end: number
+  annotText: string | null
+}
+
+export interface AtagText {
+  edcsId: string
+  content: string
+  // Per-character URIs, sorted by offset — index i corresponds to content[i].
+  charURIs: { uri: string; offset: number }[]
+  annotations: AtagAnnotation[]
+}
+
+/**
+ * Query the ATAG annotated text for an inscription by EDCS ID: the raw text,
+ * the per-character URI list, and every annotation span. Returns null when the
+ * inscription has no ex:Text record in the ATAG graph (many EDCS ids won't).
+ *
+ * Goes through the /api/sparql proxy with dataset="atag" so the plain-HTTP
+ * endpoint isn't hit directly from an https client (CORS / mixed content).
+ */
+export async function queryAtagText(edcsId: string): Promise<AtagText | null> {
+  const textUri = `http://example.org/atag#text/${edcsId}`
+
+  const PREFIX = `
+    PREFIX ex: <http://example.org/atag#>
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+  `
+
+  const contentQuery = PREFIX + `
+    SELECT ?content WHERE { <${textUri}> ex:textContent ?content . }
+  `
+
+  const charQuery = PREFIX + `
+    SELECT ?char ?offset WHERE {
+      <${textUri}> ex:firstChar ?firstChar .
+      ?firstChar ex:next* ?char .
+      ?char ex:offset ?offset .
+    }
+    ORDER BY xsd:integer(?offset)
+  `
+
+  const annotQuery = PREFIX + `
+    SELECT ?annot ?kind ?n ?start ?end ?annotText WHERE {
+      <${textUri}> ex:hasAnnotation ?annot .
+      ?annot a ex:Annotation ;
+             ex:kind ?kind ;
+             ex:start ?start ;
+             ex:end ?end .
+      OPTIONAL { ?annot ex:n ?n }
+      OPTIONAL { ?annot ex:annotatedText ?annotText }
+    }
+    ORDER BY xsd:integer(?start)
+  `
+
+  const run = async (query: string, signal: AbortSignal) => {
+    const response = await fetch('/api/sparql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/sparql-results+json',
+      },
+      body: JSON.stringify({ query, dataset: 'atag' }),
+      signal,
+    })
+    if (!response.ok) {
+      throw new Error(`ATAG SPARQL query failed: ${response.status} ${response.statusText}`)
+    }
+    const data = await response.json()
+    return data.results?.bindings ?? []
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+  try {
+    const [contentRows, charRows, annotRows] = await Promise.all([
+      run(contentQuery, controller.signal),
+      run(charQuery, controller.signal),
+      run(annotQuery, controller.signal),
+    ])
+
+    clearTimeout(timeoutId)
+
+    // No ex:Text for this inscription → nothing annotated to show.
+    if (contentRows.length === 0) {
+      return null
+    }
+
+    const content: string = contentRows[0].content?.value ?? ''
+
+    const charURIs = charRows.map((r: any) => ({
+      uri: r.char.value as string,
+      offset: parseInt(r.offset.value, 10),
+    }))
+
+    const annotations: AtagAnnotation[] = annotRows.map((r: any) => ({
+      kind: r.kind.value,
+      n: r.n ? r.n.value : null,
+      start: parseInt(r.start.value, 10),
+      end: parseInt(r.end.value, 10),
+      annotText: r.annotText ? r.annotText.value : null,
+    }))
+
+    return { edcsId, content, charURIs, annotations }
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Timeout querying ATAG text for EDCS ID ${edcsId}`)
+    } else {
+      console.error('Error querying ATAG text from SPARQL endpoint:', error)
+    }
+    return null
+  }
+}
+
+/**
+ * Query the literature references for an inscription, grouped by the research
+ * publication that cites it: which work mentions the inscription, and through
+ * what kind of "citation relation" (transcription, translation, dating, ...).
+ *
+ * The data lives in a separate graph (INSCRIPTION_REF_SPARQL_ENDPOINT), reached
+ * through the /api/sparql proxy with dataset="inscription-ref". Inscriptions
+ * there are linked to EDCS via owl:sameAs to the EDCS detail URL, so we match
+ * by the id embedded in that URL rather than relying on a literal id triple.
+ *
+ * Schema (ns: = https://example.org/inscription-ref/ns#):
+ *   ?doc a bibo:BookSection ; dct:title / dct:creator / bibo:pages /
+ *        dct:source / dct:isPartOf ?container
+ *   ?container a bibo:Book ; dct:title / bibo:doi
+ *   ?insc a ns:Inscription ; owl:sameAs <https://db.edcs.eu/...p_edcs_id=EDCS-ID>
+ *   ?mention ns:refersTo ?insc ; dct:isPartOf ?doc ; ns:rawRef "CIL, VIII, 26274" ;
+ *            ns:hasRelation ?rel ; ns:locationType "body"|"note" ;
+ *            # body mentions: ns:startParagraph / ns:endParagraph
+ *            # note mentions: ns:noteNumber
+ *   ?rel ns:relationType ns:rel_transcription ; oa:hasBody ?b
+ *   ?b rdf:value "..."
+ *
+ * NOTE on grouping: each mention links to its source document via
+ * `?mention dct:isPartOf ?doc` (?doc a bibo:BookSection). We group by that edge,
+ * so when the graph holds several documents each one keeps only the excerpts that
+ * actually cite the inscription from within it — documents no longer share one
+ * another's excerpts.
+ */
+export async function queryLiteratureReferences(edcsId: string): Promise<LiteratureReference[]> {
+  // The graph links inscriptions to EDCS via the public detail URL. The stored
+  // value uses s_language=en; match on the id substring to stay robust to
+  // parameter ordering / language differences.
+  const query = `
+    PREFIX ns: <https://example.org/inscription-ref/ns#>
+    PREFIX oa: <http://www.w3.org/ns/oa#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX owl: <http://www.w3.org/2002/07/owl#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX bibo: <http://purl.org/ontology/bibo/>
+
+    SELECT DISTINCT ?doc ?title ?creator ?pages ?source ?doi ?containerTitle
+                    ?mention ?rawRef ?locationType ?startParagraph ?endParagraph
+                    ?noteNumber ?noteParentParagraph ?relType ?val
+    WHERE {
+      ?insc a ns:Inscription ;
+            owl:sameAs ?edcs .
+      FILTER(CONTAINS(STR(?edcs), "${edcsId}"))
+      ?mention ns:refersTo ?insc .
+      OPTIONAL { ?mention ns:rawRef ?rawRef . }
+      # Where the mention occurs — "body" (running text, has paragraph numbers)
+      # or "note" (footnote, has a note number).
+      OPTIONAL { ?mention ns:locationType ?locationType . }
+      OPTIONAL { ?mention ns:startParagraph ?startParagraph . }
+      OPTIONAL { ?mention ns:endParagraph ?endParagraph . }
+      OPTIONAL { ?mention ns:noteNumber ?noteNumber . }
+      # For footnote mentions, resolve the body paragraph that the footnote is
+      # attached to: mention → footnote ← paragraph(containsFootnote).
+      OPTIONAL {
+        ?mention ns:inFootnote ?footnote .
+        ?parentPara ns:containsFootnote ?footnote ;
+                    ns:paragraphNumber ?noteParentParagraph .
+      }
+      OPTIONAL {
+        ?mention ns:hasRelation ?rel .
+        ?rel ns:relationType ?relTypeUri ;
+             oa:hasBody ?b .
+        ?b rdf:value ?val .
+        BIND(REPLACE(STR(?relTypeUri), "^.*#rel_", "") AS ?relType)
+      }
+      # The citing publication, linked explicitly from the mention via
+      # dct:isPartOf, so each mention attaches to its own document.
+      OPTIONAL {
+        ?mention dct:isPartOf ?doc .
+        ?doc a bibo:BookSection .
+        OPTIONAL { ?doc dct:title ?title }
+        OPTIONAL { ?doc dct:creator ?creator }
+        OPTIONAL { ?doc bibo:pages ?pages }
+        OPTIONAL { ?doc dct:source ?source }
+        OPTIONAL { ?doc bibo:doi ?docDoi }
+        OPTIONAL {
+          ?doc dct:isPartOf ?container .
+          OPTIONAL { ?container dct:title ?containerTitle }
+          OPTIONAL { ?container bibo:doi ?containerDoi }
+        }
+        BIND(COALESCE(?docDoi, ?containerDoi) AS ?doi)
+      }
+    }
+    ORDER BY ?doc ?mention
+  `
+
+  console.log('Querying literature references for EDCS ID:', edcsId)
+
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+    const response = await fetch('/api/sparql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/sparql-results+json'
+      },
+      body: JSON.stringify({ query, dataset: 'inscription-ref' }),
+      signal: controller.signal
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Literature reference SPARQL error response:', errorText)
+      throw new Error(`SPARQL query failed: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+
+    // Group rows by document, accumulating de-duplicated excerpts under each.
+    // Rows without a ?doc (no bibliographic record in the graph) fall under a
+    // synthetic "unknown document" bucket so excerpts are never dropped.
+    const UNKNOWN = "__unknown__"
+    const byDoc = new Map<string, LiteratureReference>()
+    if (data.results?.bindings?.length > 0) {
+      for (const b of data.results.bindings) {
+        const docUri: string = b.doc?.value || UNKNOWN
+        let entry = byDoc.get(docUri)
+        if (!entry) {
+          entry = {
+            uri: docUri,
+            title: b.title?.value,
+            creator: b.creator?.value,
+            containerTitle: b.containerTitle?.value,
+            pages: b.pages?.value,
+            source: b.source?.value,
+            doi: b.doi?.value,
+            excerpts: [],
+          }
+          byDoc.set(docUri, entry)
+        }
+        const relType = b.relType?.value
+        const text = b.val?.value
+        const rawRef = b.rawRef?.value
+        const lt = b.locationType?.value
+        const locationType =
+          lt === "body" || lt === "note" ? lt : undefined
+        const startParagraph = b.startParagraph?.value
+          ? parseInt(b.startParagraph.value, 10)
+          : undefined
+        const endParagraph = b.endParagraph?.value
+          ? parseInt(b.endParagraph.value, 10)
+          : undefined
+        const noteNumber = b.noteNumber?.value
+          ? parseInt(b.noteNumber.value, 10)
+          : undefined
+        const noteParentParagraph = b.noteParentParagraph?.value
+          ? parseInt(b.noteParentParagraph.value, 10)
+          : undefined
+        // Dedupe on the full identity of the excerpt, including position, so
+        // the same text quoted at two places in the work is kept separate.
+        if (
+          relType &&
+          text &&
+          !entry.excerpts.some(
+            (e) =>
+              e.relType === relType &&
+              e.text === text &&
+              e.rawRef === rawRef &&
+              e.startParagraph === startParagraph &&
+              e.endParagraph === endParagraph &&
+              e.noteNumber === noteNumber,
+          )
+        ) {
+          entry.excerpts.push({
+            relType,
+            text,
+            rawRef,
+            locationType,
+            startParagraph,
+            endParagraph,
+            noteNumber,
+            noteParentParagraph,
+          })
+        }
+      }
+    }
+
+    const refs = Array.from(byDoc.values())
+    console.log('Literature reference documents count:', refs.length)
+    return refs
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Timeout querying literature references for EDCS ID ${edcsId}`)
+    } else {
+      console.error('Error querying literature references from SPARQL endpoint:', error)
+    }
     return []
   }
 }

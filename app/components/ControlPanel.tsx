@@ -487,15 +487,15 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
   }
 
   return (
-    <div className="w-full h-full bg-white font-sans flex flex-col">
+    <div className="w-full h-full bg-card font-sans flex flex-col">
       {/* Tab Header */}
-      <div className="flex border-b border-gray-300">
+      <div className="flex border-b border-border">
         <button
           onClick={() => setActiveTab('settings')}
           className={`flex-1 px-6 py-4 text-[16px] font-semibold transition-colors ${
             activeTab === 'settings'
-              ? 'text-[#6688ff] border-b-2 border-[#6688ff] bg-white'
-              : 'text-[#888] bg-gray-50 hover:bg-gray-100'
+              ? 'text-[#6688ff] border-b-2 border-[#6688ff] bg-card'
+              : 'text-[#888] bg-muted hover:bg-muted'
           }`}
         >
           Display Settings
@@ -504,8 +504,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
           onClick={() => setActiveTab('info')}
           className={`flex-1 px-6 py-4 text-[16px] font-semibold transition-colors ${
             activeTab === 'info'
-              ? 'text-[#6688ff] border-b-2 border-[#6688ff] bg-white'
-              : 'text-[#888] bg-gray-50 hover:bg-gray-100'
+              ? 'text-[#6688ff] border-b-2 border-[#6688ff] bg-card'
+              : 'text-[#888] bg-muted hover:bg-muted'
           }`}
         >
           Information
@@ -667,7 +667,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       {savedMultiplePlacesData && (
                         <button
                           onClick={returnToMultiplePlacesList}
-                          className="px-3 py-1 text-[13px] bg-gray-200 hover:bg-gray-300 text-gray-700 rounded transition-colors"
+                          className="px-3 py-1 text-[13px] bg-muted hover:bg-muted text-foreground rounded transition-colors"
                         >
                           ← Back to List
                         </button>
@@ -676,13 +676,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                     {/* Sub tabs for Inscriptions and Mosaics */}
                     {!networkEdcsId && !networkLoading && (
-                      <div className="mb-3 flex gap-2 border-b border-gray-200">
+                      <div className="mb-3 flex gap-2 border-b border-border">
                         <button
                           onClick={() => setInfoSubTab('inscriptions')}
                           className={`px-4 py-2 text-[14px] font-medium transition-colors ${
                             infoSubTab === 'inscriptions'
-                              ? 'text-blue-600 border-b-2 border-blue-600'
-                              : 'text-gray-600 hover:text-gray-800'
+                              ? 'text-primary border-b-2 border-primary'
+                              : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           Inscriptions {inscriptionData.inscriptions ? `(${inscriptionData.inscriptions.length})` : '(0)'}
@@ -691,8 +691,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           onClick={() => setInfoSubTab('mosaics')}
                           className={`px-4 py-2 text-[14px] font-medium transition-colors ${
                             infoSubTab === 'mosaics'
-                              ? 'text-blue-600 border-b-2 border-blue-600'
-                              : 'text-gray-600 hover:text-gray-800'
+                              ? 'text-primary border-b-2 border-primary'
+                              : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           Mosaics {inscriptionData.mosaics ? `(${inscriptionData.mosaics.length})` : '(0)'}
@@ -701,8 +701,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           onClick={() => setInfoSubTab('statistics')}
                           className={`px-4 py-2 text-[14px] font-medium transition-colors ${
                             infoSubTab === 'statistics'
-                              ? 'text-blue-600 border-b-2 border-blue-600'
-                              : 'text-gray-600 hover:text-gray-800'
+                              ? 'text-primary border-b-2 border-primary'
+                              : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           Statistics
@@ -713,7 +713,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             className={`px-4 py-2 text-[14px] font-medium transition-colors ${
                               infoSubTab === 'rag'
                                 ? 'text-purple-600 border-b-2 border-purple-600'
-                                : 'text-gray-600 hover:text-gray-800'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
                             RAG
@@ -728,7 +728,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                         {/* InformationLayout Information and Filter side by side */}
                         <div className="flex gap-4 mb-4">
                           {/* Left: Basic Information */}
-                          <div className="flex-1 bg-gray-50 p-4 rounded-lg">
+                          <div className="flex-1 bg-muted p-4 rounded-lg">
                             <p className="text-[14px] text-[#666] mb-2">
                               <strong>PLACE ID:</strong> {inscriptionData.placeId}
                             </p>
@@ -744,13 +744,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           </div>
 
                           {/* Right: Filters */}
-                          <div className="flex-1 bg-blue-50 p-4 rounded-lg">
+                          <div className="flex-1 bg-accent p-4 rounded-lg">
                             {/* Filter type selector */}
                             <div className="mb-3">
                               <select
                                 value={filterType}
                                 onChange={(e) => setFilterType(e.target.value as 'SocialStatus' | 'RelationshipType')}
-                                className="w-full px-2 py-1 border border-gray-300 rounded text-[13px] bg-white"
+                                className="w-full px-2 py-1 border border-input rounded text-[13px] bg-card"
                                 disabled={filterDataLoading}
                               >
                                 <option value="SocialStatus">Filter by Social Status</option>
@@ -758,14 +758,14 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               </select>
                             </div>
                             {filterDataLoading ? (
-                              <div className="text-[13px] text-gray-600">
+                              <div className="text-[13px] text-muted-foreground">
                                 <p className="mb-1">Filter Loading data...</p>
-                                <p className="text-[12px] text-gray-500">
+                                <p className="text-[12px] text-muted-foreground">
                                   {filterDataProgress.current} / {filterDataProgress.total} items processed
                                 </p>
-                                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                                <div className="mt-2 w-full bg-muted rounded-full h-2">
                                   <div
-                                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                    className="bg-primary h-2 rounded-full transition-all duration-300"
                                     style={{ width: `${filterDataProgress.total > 0 ? (filterDataProgress.current / filterDataProgress.total) * 100 : 0}%` }}
                                   />
                                 </div>
@@ -800,7 +800,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {infoSubTab === 'mosaics' && !networkEdcsId && !networkLoading && (
                       <div>
                         {/* Basic Information */}
-                        <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                        <div className="bg-muted p-4 rounded-lg mb-4">
                           <p className="text-[14px] text-[#666] mb-2">
                             <strong>PLACE ID:</strong> {inscriptionData.placeId}
                           </p>
@@ -826,10 +826,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                         {/* Statistics filter indicator */}
                         {statisticsFilter.type && statisticsFilter.value && (
-                          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded flex items-center justify-between">
+                          <div className="mb-3 p-2 bg-accent border border-border rounded flex items-center justify-between">
                             <div className="text-[13px]">
-                              <span className="text-gray-600">StatisticsFilter: </span>
-                              <span className="font-medium text-gray-900">
+                              <span className="text-muted-foreground">StatisticsFilter: </span>
+                              <span className="font-medium text-foreground">
                                 {statisticsFilter.type === 'nomen' && `Clan Names: ${statisticsFilter.value}`}
                                 {statisticsFilter.type === 'benefactionType' && `Benefactions Type: ${statisticsFilter.value}`}
                                 {statisticsFilter.type === 'objectType' && `Object Type: ${statisticsFilter.value}`}
@@ -846,14 +846,14 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 })()}
                               </span>
                               {statisticsFilterLoading && (
-                                <span className="ml-2 text-gray-500">Loading...</span>
+                                <span className="ml-2 text-muted-foreground">Loading...</span>
                               )}
                             </div>
                             <button
                               onClick={() => {
                                 setStatisticsFilter({ type: null, value: null })
                               }}
-                              className="px-2 py-1 text-[12px] text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded"
+                              className="px-2 py-1 text-[12px] text-primary hover:text-primary/80 hover:bg-accent rounded"
                             >
                               Clear
                             </button>
@@ -865,12 +865,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             <div
                               key={index}
                               ref={(el) => { inscriptionRefs.current[inscription.edcsId] = el }}
-                              className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+                              className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
                             >
                               <div className="mb-2">
                                 <button
                                   onClick={() => handleShowInscriptionDetail(inscription.edcsId)}
-                                  className="text-[13px] font-semibold text-blue-600 hover:text-blue-800 no-underline cursor-pointer bg-transparent border-none p-0"
+                                  className="text-[13px] font-semibold text-primary hover:text-primary/80 no-underline cursor-pointer bg-transparent border-none p-0"
                                 >
                                   {inscription.edcsId}
                                 </button>
@@ -891,7 +891,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                   </p>
                                   <button
                                     onClick={() => toggleDescription(inscription.edcsId)}
-                                    className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                                    className="text-[11px] text-primary hover:text-primary/80 hover:underline mt-1"
                                   >
                                     {expandedDescriptions.has(inscription.edcsId) ? 'Close' : 'Show More'}
                                   </button>
@@ -909,7 +909,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               <div className="flex gap-1">
                                 <button
                                   onClick={() => handleShowNetwork(inscription.edcsId)}
-                                  className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                  className="p-1 text-primary hover:text-primary/80 hover:bg-accent rounded transition-colors"
                                   title="Network View"
                                   aria-label="Network View"
                                 >
@@ -971,7 +971,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             {inscriptionData.mosaics.map((mosaic, index) => (
                               <div
                                 key={index}
-                                className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+                                className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
                               >
                                 {mosaic.thumbnail && (
                                   <div className="mb-2">
@@ -993,7 +993,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     href={mosaic.manifestUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="p-1.5 hover:opacity-70 transition-opacity inline-flex rounded hover:bg-gray-100"
+                                    className="p-1.5 hover:opacity-70 transition-opacity inline-flex rounded hover:bg-muted"
                                     title="IIIF Manifest (click forJSONDisplay and drag to viewer)"
                                     aria-label="IIIF Manifest"
                                     draggable="true"
@@ -1012,7 +1012,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     href={`/viewer?manifest=${encodeURIComponent(mosaic.manifestUrl)}&type=mirador`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="p-1.5 hover:opacity-70 transition-opacity inline-flex rounded hover:bg-gray-100"
+                                    className="p-1.5 hover:opacity-70 transition-opacity inline-flex rounded hover:bg-muted"
                                     title="Mirador Viewerdisplay by"
                                     aria-label="Mirador Viewer"
                                   >
@@ -1045,13 +1045,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {infoSubTab === 'statistics' && !networkEdcsId && !networkLoading && (
                       <div>
                         {/* Statistics sub-tabs */}
-                        <div className="mb-3 flex gap-2 border-b border-gray-200">
+                        <div className="mb-3 flex gap-2 border-b border-border">
                           <button
                             onClick={() => setStatisticsTab('age')}
                             className={`px-4 py-2 text-[13px] font-medium transition-colors ${
                               statisticsTab === 'age'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-600 hover:text-gray-800'
+                                ? 'text-primary border-b-2 border-primary'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
                             Age
@@ -1060,8 +1060,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             onClick={() => setStatisticsTab('clan')}
                             className={`px-4 py-2 text-[13px] font-medium transition-colors ${
                               statisticsTab === 'clan'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-600 hover:text-gray-800'
+                                ? 'text-primary border-b-2 border-primary'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
                             Clan Names
@@ -1070,8 +1070,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             onClick={() => setStatisticsTab('benefaction')}
                             className={`px-4 py-2 text-[13px] font-medium transition-colors ${
                               statisticsTab === 'benefaction'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-600 hover:text-gray-800'
+                                ? 'text-primary border-b-2 border-primary'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
                             Benefactions
@@ -1080,8 +1080,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             onClick={() => setStatisticsTab('divinity')}
                             className={`px-4 py-2 text-[13px] font-medium transition-colors ${
                               statisticsTab === 'divinity'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-600 hover:text-gray-800'
+                                ? 'text-primary border-b-2 border-primary'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
                             Divinities
@@ -1095,15 +1095,15 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               <p className="text-[14px] text-[#666]">Loading data...</p>
                             ) : ageAtDeathData ? (
                               <div className="space-y-3">
-                                <div className="p-3 bg-gray-50 rounded">
-                                  <p className="text-[13px] text-gray-600 mb-1">Average deathAge</p>
-                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.averageAge.toFixed(1)} years old</p>
-                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.count} items)</p>
+                                <div className="p-3 bg-muted rounded">
+                                  <p className="text-[13px] text-muted-foreground mb-1">Average deathAge</p>
+                                  <p className="text-[24px] font-bold text-foreground">{ageAtDeathData.averageAge.toFixed(1)} years old</p>
+                                  <p className="text-[12px] text-muted-foreground">({ageAtDeathData.count} items)</p>
                                 </div>
-                                <div className="p-3 bg-gray-50 rounded">
-                                  <p className="text-[13px] text-gray-600 mb-1">Percentage under 10 years old</p>
-                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.under10Percentage.toFixed(1)}%</p>
-                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.under10Count} items)</p>
+                                <div className="p-3 bg-muted rounded">
+                                  <p className="text-[13px] text-muted-foreground mb-1">Percentage under 10 years old</p>
+                                  <p className="text-[24px] font-bold text-foreground">{ageAtDeathData.under10Percentage.toFixed(1)}%</p>
+                                  <p className="text-[12px] text-muted-foreground">({ageAtDeathData.under10Count} items)</p>
                                 </div>
                               </div>
                             ) : (
@@ -1120,12 +1120,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             ) : nomenFrequencyData.length > 0 ? (
                               <div>
                                 <div className="mb-3">
-                                  <p className="text-[13px] font-medium text-gray-700">Clan Names Frequency of（Top 20 items, click to filter）</p>
-                                  <p className="text-[12px] text-gray-500 mt-1">
+                                  <p className="text-[13px] font-medium text-foreground">Clan Names Frequency of（Top 20 items, click to filter）</p>
+                                  <p className="text-[12px] text-muted-foreground mt-1">
                                     Clan Names with Inscriptions: {nomenFrequencyData.reduce((sum, d) => sum + d.count, 0)} items / Unique Clan Names: {nomenFrequencyData.length} items
                                   </p>
                                 </div>
-                                <div className="bg-white border border-gray-200 rounded-lg p-4 max-h-[400px] overflow-y-auto shadow-sm">
+                                <div className="bg-card border border-border rounded-lg p-4 max-h-[400px] overflow-y-auto shadow-sm">
                                   <div className="space-y-3">
                                     {nomenFrequencyData.slice(0, 20).map((item, index) => {
                                       const totalNomenInscriptions = nomenFrequencyData.reduce((sum, d) => sum + d.count, 0)
@@ -1153,10 +1153,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                           }}
                                         >
                                           <div className="flex items-center justify-between mb-1.5">
-                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-blue-700' : 'text-gray-800'}`}>
+                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-blue-700' : 'text-foreground'}`}>
                                               {label}
                                             </span>
-                                            <span className={`text-[12px] font-semibold ${isActive ? 'text-blue-600' : 'text-gray-600'}`}>
+                                            <span className={`text-[12px] font-semibold ${isActive ? 'text-blue-600' : 'text-muted-foreground'}`}>
                                               {item.count} items ({percentage.toFixed(1)}%)
                                             </span>
                                           </div>
@@ -1213,31 +1213,31 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       <p className="text-[13px] font-semibold text-green-800 mb-2">Cost Statistics Overview</p>
                                       <div className="grid grid-cols-2 gap-2 text-[12px]">
                                         <div>
-                                          <span className="text-gray-600">Total Benefactions Count:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()}items</span>
+                                          <span className="text-muted-foreground">Total Benefactions Count:</span>
+                                          <span className="ml-1 font-semibold text-foreground">{totalBenefactions.toLocaleString()}items</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">With Cost Data:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{totalWithCost.toLocaleString()}items</span>
+                                          <span className="text-muted-foreground">With Cost Data:</span>
+                                          <span className="ml-1 font-semibold text-foreground">{totalWithCost.toLocaleString()}items</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">Total Cost:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{Math.round(grandTotal).toLocaleString()} HS</span>
+                                          <span className="text-muted-foreground">Total Cost:</span>
+                                          <span className="ml-1 font-semibold text-foreground">{Math.round(grandTotal).toLocaleString()} HS</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">Average Cost:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{Math.round(overallAvg).toLocaleString()} HS</span>
+                                          <span className="text-muted-foreground">Average Cost:</span>
+                                          <span className="ml-1 font-semibold text-foreground">{Math.round(overallAvg).toLocaleString()} HS</span>
                                         </div>
                                         {minCost !== null && (
                                           <div>
-                                            <span className="text-gray-600">Min:</span>
-                                            <span className="ml-1 font-semibold text-gray-900">{Math.round(minCost).toLocaleString()} HS</span>
+                                            <span className="text-muted-foreground">Min:</span>
+                                            <span className="ml-1 font-semibold text-foreground">{Math.round(minCost).toLocaleString()} HS</span>
                                           </div>
                                         )}
                                         {maxCost !== null && (
                                           <div>
-                                            <span className="text-gray-600">Max:</span>
-                                            <span className="ml-1 font-semibold text-gray-900">{Math.round(maxCost).toLocaleString()} HS</span>
+                                            <span className="text-muted-foreground">Max:</span>
+                                            <span className="ml-1 font-semibold text-foreground">{Math.round(maxCost).toLocaleString()} HS</span>
                                           </div>
                                         )}
                                       </div>
@@ -1246,23 +1246,23 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 })()}
 
                                 {/* Cost range filter */}
-                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                                  <p className="text-[13px] font-semibold text-blue-800 mb-2">Filter by Cost Range</p>
+                                <div className="bg-accent p-3 rounded-lg border border-border">
+                                  <p className="text-[13px] font-semibold text-primary mb-2">Filter by Cost Range</p>
                                   <div className="flex gap-2 items-center">
                                     <input
                                       type="number"
                                       placeholder="Min (HS)"
                                       value={costFilter.min ?? ''}
                                       onChange={(e) => setCostFilter(prev => ({ ...prev, min: e.target.value ? Number(e.target.value) : null }))}
-                                      className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
+                                      className="flex-1 px-2 py-1 text-[12px] border border-input rounded"
                                     />
-                                    <span className="text-gray-500">〜</span>
+                                    <span className="text-muted-foreground">〜</span>
                                     <input
                                       type="number"
                                       placeholder="Max (HS)"
                                       value={costFilter.max ?? ''}
                                       onChange={(e) => setCostFilter(prev => ({ ...prev, max: e.target.value ? Number(e.target.value) : null }))}
-                                      className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
+                                      className="flex-1 px-2 py-1 text-[12px] border border-input rounded"
                                     />
                                     <button
                                       onClick={() => {
@@ -1274,7 +1274,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         }
                                       }}
                                       disabled={costFilter.min === null && costFilter.max === null}
-                                      className="px-3 py-1 text-[12px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                      className="px-3 py-1 text-[12px] bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
                                     >
                                       Apply
                                     </button>
@@ -1284,14 +1284,14 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                           setStatisticsFilter({ type: null, value: null })
                                           setCostFilter({ min: null, max: null })
                                         }}
-                                        className="px-3 py-1 text-[12px] bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                                        className="px-3 py-1 text-[12px] bg-secondary text-secondary-foreground rounded hover:bg-secondary/80 transition-colors"
                                       >
                                         Clear
                                       </button>
                                     )}
                                   </div>
                                   {statisticsFilter.type === 'costRange' && (
-                                    <p className="text-[11px] text-blue-700 mt-1">
+                                    <p className="text-[11px] text-primary mt-1">
                                       Filtering: {costFilter.min ?? 'MinNo value'} 〜 {costFilter.max ?? 'MaxNo value'} HS
                                     </p>
                                   )}
@@ -1300,7 +1300,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 {/* Top benefactions ranking */}
                                 {topBenefactionsLoading ? (
                                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                                    <p className="text-[13px] text-gray-600">Loading top Benefactions...</p>
+                                    <p className="text-[13px] text-muted-foreground">Loading top Benefactions...</p>
                                   </div>
                                 ) : topBenefactionsData.length > 0 ? (
                                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
@@ -1319,17 +1319,17 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                   onClick={() => {
                                                     handleShowInscriptionDetail(item.edcsId)
                                                   }}
-                                                  className="text-[12px] text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                  className="text-[12px] text-primary hover:text-primary/80 hover:underline font-medium"
                                                 >
                                                   {item.edcsId}
                                                 </button>
-                                                <span className="text-[11px] text-gray-600">{item.personName}</span>
+                                                <span className="text-[11px] text-muted-foreground">{item.personName}</span>
                                               </div>
-                                              <div className="text-[11px] text-gray-600 mt-0.5">
+                                              <div className="text-[11px] text-muted-foreground mt-0.5">
                                                 {item.benefactionType} → {item.objectType}
                                               </div>
                                               {item.description && (
-                                                <div className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">
+                                                <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
                                                   {item.description}
                                                 </div>
                                               )}
@@ -1339,7 +1339,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                 {Math.round(item.cost).toLocaleString()} HS
                                               </div>
                                               {item.costOriginalText && (
-                                                <div className="text-[10px] text-gray-500">
+                                                <div className="text-[10px] text-muted-foreground">
                                                   ({item.costOriginalText})
                                                 </div>
                                               )}
@@ -1352,7 +1352,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 ) : null}
 
                                 <div>
-                                  <p className="text-[13px] text-gray-600 mb-3">Distribution of Benefactions Types（Click for details）</p>
+                                  <p className="text-[13px] text-muted-foreground mb-3">Distribution of Benefactions Types（Click for details）</p>
                                   {/* Pie chart and legend side by side */}
                                   <div className="flex gap-4 items-center mb-3">
                                     {/* Pie chart */}
@@ -1435,12 +1435,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                   className="w-3 h-3 rounded-sm flex-shrink-0"
                                                   style={{ backgroundColor: colors[index % colors.length] }}
                                                 />
-                                                <span className="text-[13px] font-medium text-gray-900">{item.benefactionType}</span>
+                                                <span className="text-[13px] font-medium text-foreground">{item.benefactionType}</span>
                                               </div>
-                                              <span className="text-[12px] text-gray-600">{item.count}items ({percentage.toFixed(1)}%)</span>
+                                              <span className="text-[12px] text-muted-foreground">{item.count}items ({percentage.toFixed(1)}%)</span>
                                             </div>
                                             {costData && costData.countWithCost > 0 && (
-                                              <div className="ml-5 text-[11px] text-gray-500">
+                                              <div className="ml-5 text-[11px] text-muted-foreground">
                                                 Average: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
                                                 {costData.totalCost && ` (Total: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
                                                 <span className="ml-1">({costData.countWithCost}itemswith data)</span>
@@ -1460,7 +1460,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                           setInfoSubTab('inscriptions')
                                         }
                                       }}
-                                      className="w-full px-3 py-2 text-[13px] bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                      className="w-full px-3 py-2 text-[13px] bg-accent text-primary hover:bg-accent rounded transition-colors"
                                     >
                                       Filter by this Benefactions type
                                     </button>
@@ -1470,7 +1470,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       onClick={() => {
                                         setStatisticsFilter({ type: null, value: null })
                                       }}
-                                      className="w-full px-3 py-2 text-[13px] bg-gray-50 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                      className="w-full px-3 py-2 text-[13px] bg-muted text-muted-foreground hover:bg-muted rounded transition-colors"
                                     >
                                       Clear Filter
                                     </button>
@@ -1479,8 +1479,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                                 {/* Object types for selected benefaction type */}
                                 {selectedBenefactionType && (
-                                  <div className="pt-3 border-t border-gray-200">
-                                    <p className="text-[13px] text-gray-600 mb-3">
+                                  <div className="pt-3 border-t border-border">
+                                    <p className="text-[13px] text-muted-foreground mb-3">
                                       {selectedBenefactionType}Object Types for（Click to filter）
                                     </p>
                                     {benefactionObjectTypeLoading ? (
@@ -1575,12 +1575,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                       className="w-3 h-3 rounded-sm flex-shrink-0"
                                                       style={{ backgroundColor: colors[index % colors.length] }}
                                                     />
-                                                    <span className="text-[13px] font-medium text-gray-900">{item.objectType}</span>
+                                                    <span className="text-[13px] font-medium text-foreground">{item.objectType}</span>
                                                   </div>
-                                                  <span className="text-[12px] text-gray-600">{item.count}items ({percentage.toFixed(1)}%)</span>
+                                                  <span className="text-[12px] text-muted-foreground">{item.count}items ({percentage.toFixed(1)}%)</span>
                                                 </div>
                                                 {costData && costData.countWithCost > 0 && (
-                                                  <div className="ml-5 text-[11px] text-gray-500">
+                                                  <div className="ml-5 text-[11px] text-muted-foreground">
                                                     Average: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
                                                     {costData.totalCost && ` (Total: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
                                                     <span className="ml-1">({costData.countWithCost}itemswith data)</span>
@@ -1610,8 +1610,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               <p className="text-[14px] text-[#666]">Loading data...</p>
                             ) : divinityTypeData.length > 0 ? (
                               <div>
-                                <p className="text-[13px] text-gray-600 mb-3">Distribution of Divinities Types（Click to filter）</p>
-                                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                <p className="text-[13px] text-muted-foreground mb-3">Distribution of Divinities Types（Click to filter）</p>
+                                <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
                                   <div className="space-y-2">
                                     {divinityTypeData.map((item, index) => {
                                       const totalCount = divinityTypeData.reduce((sum, d) => sum + d.count, 0)
@@ -1637,10 +1637,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                           }}
                                         >
                                           <div className="flex items-center justify-between mb-1.5">
-                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-green-700' : 'text-gray-800'}`}>
+                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-green-700' : 'text-foreground'}`}>
                                               {label}
                                             </span>
-                                            <span className={`text-[12px] font-semibold ${isActive ? 'text-green-600' : 'text-gray-600'}`}>
+                                            <span className={`text-[12px] font-semibold ${isActive ? 'text-green-600' : 'text-muted-foreground'}`}>
                                               {item.count}items ({percentage.toFixed(1)}%)
                                             </span>
                                           </div>
@@ -1673,7 +1673,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           <h4 className="text-[16px] font-semibold text-[#333]">InscriptionsDetails</h4>
                           <button
                             onClick={handleCloseInscriptionDetail}
-                            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded transition-colors text-[13px]"
+                            className="px-3 py-1 bg-muted hover:bg-muted text-foreground rounded transition-colors text-[13px]"
                           >
                             Back to List
                           </button>
@@ -1681,18 +1681,18 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                         <div className="space-y-4">
                           {/* Metadata Section */}
-                          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                            <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">Metadata</h5>
+                          <div className="bg-muted rounded-lg p-4 space-y-2">
+                            <h5 className="font-semibold text-foreground mb-3 text-[14px]">Metadata</h5>
 
                             <div className="flex text-[13px]">
-                              <span className="font-medium text-gray-700 w-24">EDCS ID:</span>
-                              <span className="text-gray-600">{detailViewData.edcsId}</span>
+                              <span className="font-medium text-foreground w-24">EDCS ID:</span>
+                              <span className="text-muted-foreground">{detailViewData.edcsId}</span>
                             </div>
 
                             {detailViewData.datingFrom !== null && detailViewData.datingTo !== null && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Dating:</span>
-                                <span className="text-gray-600">
+                                <span className="font-medium text-foreground w-24">Dating:</span>
+                                <span className="text-muted-foreground">
                                   {detailViewData.datingFrom} - {detailViewData.datingTo}
                                 </span>
                               </div>
@@ -1700,22 +1700,22 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                             {detailViewData.province && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Province:</span>
-                                <span className="text-gray-600">{detailViewData.province}</span>
+                                <span className="font-medium text-foreground w-24">Province:</span>
+                                <span className="text-muted-foreground">{detailViewData.province}</span>
                               </div>
                             )}
 
                             {detailViewData.place && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Place:</span>
-                                <span className="text-gray-600">{detailViewData.place}</span>
+                                <span className="font-medium text-foreground w-24">Place:</span>
+                                <span className="text-muted-foreground">{detailViewData.place}</span>
                               </div>
                             )}
 
                             {detailViewData.bibliographicCitation && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Source:</span>
-                                <span className="text-gray-600">{detailViewData.bibliographicCitation}</span>
+                                <span className="font-medium text-foreground w-24">Source:</span>
+                                <span className="text-muted-foreground">{detailViewData.bibliographicCitation}</span>
                               </div>
                             )}
                           </div>
@@ -1723,17 +1723,17 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           {/* Text Section */}
                           {detailViewData.text && (
                             <div>
-                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">InscriptionsText</h5>
-                              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                              <h5 className="font-semibold text-foreground mb-3 text-[14px]">InscriptionsText</h5>
+                              <div className="bg-accent rounded-lg p-4 border border-border">
                                 {detailViewData.text.split('//').map((block: string, blockIndex: number) => (
                                   <div key={blockIndex} className="mb-4 last:mb-0">
                                     {block.split('/').map((line: string, lineIndex: number) => (
-                                      <div key={lineIndex} className="text-gray-800 leading-relaxed text-[13px]">
+                                      <div key={lineIndex} className="text-foreground leading-relaxed text-[13px]">
                                         {line.trim()}
                                       </div>
                                     ))}
                                     {blockIndex < detailViewData.text.split('//').length - 1 && (
-                                      <div className="border-t border-blue-300 my-3"></div>
+                                      <div className="border-t border-border my-3"></div>
                                     )}
                                   </div>
                                 ))}
@@ -1744,9 +1744,9 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           {/* Comment Section */}
                           {detailViewData.comment && (
                             <div>
-                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">Comments</h5>
-                              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[13px]">
+                              <h5 className="font-semibold text-foreground mb-3 text-[14px]">Comments</h5>
+                              <div className="bg-muted rounded-lg p-4 border border-border">
+                                <p className="text-foreground leading-relaxed whitespace-pre-wrap text-[13px]">
                                   {detailViewData.comment}
                                 </p>
                               </div>
@@ -1756,7 +1756,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       </div>
                     )}
                     {detailViewLoading && (
-                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <div className="mt-4 p-4 bg-muted border border-border rounded-lg">
                         <p className="text-[14px] text-[#666]">Inscriptions Loading data...</p>
                       </div>
                     )}
@@ -1770,7 +1770,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       />
                     )}
                     {networkLoading && (
-                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <div className="mt-4 p-4 bg-muted border border-border rounded-lg">
                         <p className="text-[14px] text-[#666]">NetworkLoading data...</p>
                       </div>
                     )}
@@ -1799,7 +1799,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     <h3 className="text-[18px] font-semibold mb-4 text-[#333]">
                       Selected area
                     </h3>
-                    <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                    <div className="bg-muted p-4 rounded-lg mb-4">
                       {inscriptionData.loading ? (
                         <p className="text-[14px] text-[#666]">
                           Inscriptions Loading data...
@@ -1830,7 +1830,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                     (window as any).loadInscriptionsForPlace(selectedPlace.placeId, selectedPlace.placeName)
                                   }
                                 }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-[14px] text-[#555] bg-white"
+                                className="w-full px-3 py-2 border border-input rounded-md text-[14px] text-[#555] bg-card"
                               >
                                 {inscriptionData.places.map((place, index) => (
                                   <option key={index} value={index}>
@@ -1846,13 +1846,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                     {/* Sub tabs for multiple places */}
                     {!networkEdcsId && !networkLoading && (
-                      <div className="mb-3 flex gap-2 border-b border-gray-200">
+                      <div className="mb-3 flex gap-2 border-b border-border">
                         <button
                           onClick={() => setInfoSubTab('inscriptions')}
                           className={`px-4 py-2 text-[14px] font-medium transition-colors ${
                             infoSubTab === 'inscriptions'
-                              ? 'text-blue-600 border-b-2 border-blue-600'
-                              : 'text-gray-600 hover:text-gray-800'
+                              ? 'text-primary border-b-2 border-primary'
+                              : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           Inscriptions
@@ -1861,8 +1861,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           onClick={() => setInfoSubTab('statistics')}
                           className={`px-4 py-2 text-[14px] font-medium transition-colors ${
                             infoSubTab === 'statistics'
-                              ? 'text-blue-600 border-b-2 border-blue-600'
-                              : 'text-gray-600 hover:text-gray-800'
+                              ? 'text-primary border-b-2 border-primary'
+                              : 'text-muted-foreground hover:text-foreground'
                           }`}
                         >
                           Statistics
@@ -1873,7 +1873,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             className={`px-4 py-2 text-[14px] font-medium transition-colors ${
                               infoSubTab === 'rag'
                                 ? 'text-purple-600 border-b-2 border-purple-600'
-                                : 'text-gray-600 hover:text-gray-800'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
                             RAG
@@ -1887,10 +1887,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       <div className="mt-4">
                         {/* Statistics filter indicator */}
                         {statisticsFilter.type && statisticsFilter.value && (
-                          <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded flex items-center justify-between">
+                          <div className="mb-3 p-2 bg-accent border border-border rounded flex items-center justify-between">
                             <div className="text-[13px]">
-                              <span className="text-gray-600">StatisticsFilter: </span>
-                              <span className="font-medium text-gray-900">
+                              <span className="text-muted-foreground">StatisticsFilter: </span>
+                              <span className="font-medium text-foreground">
                                 {statisticsFilter.type === 'nomen' && `Clan Names: ${statisticsFilter.value}`}
                                 {statisticsFilter.type === 'benefactionType' && `Benefactions Type: ${statisticsFilter.value}`}
                                 {statisticsFilter.type === 'objectType' && `Object Type: ${statisticsFilter.value}`}
@@ -1907,14 +1907,14 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 })()}
                               </span>
                               {statisticsFilterLoading && (
-                                <span className="ml-2 text-gray-500">Loading...</span>
+                                <span className="ml-2 text-muted-foreground">Loading...</span>
                               )}
                             </div>
                             <button
                               onClick={() => {
                                 setStatisticsFilter({ type: null, value: null })
                               }}
-                              className="px-2 py-1 text-[12px] text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded"
+                              className="px-2 py-1 text-[12px] text-primary hover:text-primary/80 hover:bg-accent rounded"
                             >
                               Clear
                             </button>
@@ -1929,12 +1929,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             <div
                               key={index}
                               ref={(el) => { inscriptionRefs.current[inscription.edcsId] = el }}
-                              className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+                              className="bg-card border border-border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
                             >
                               <div className="mb-2">
                                 <button
                                   onClick={() => handleShowInscriptionDetail(inscription.edcsId)}
-                                  className="text-[13px] font-semibold text-blue-600 hover:text-blue-800 no-underline cursor-pointer bg-transparent border-none p-0"
+                                  className="text-[13px] font-semibold text-primary hover:text-primary/80 no-underline cursor-pointer bg-transparent border-none p-0"
                                 >
                                   {inscription.edcsId}
                                 </button>
@@ -1955,7 +1955,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                   </p>
                                   <button
                                     onClick={() => toggleDescription(inscription.edcsId)}
-                                    className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                                    className="text-[11px] text-primary hover:text-primary/80 hover:underline mt-1"
                                   >
                                     {expandedDescriptions.has(inscription.edcsId) ? 'Close' : 'Show More'}
                                   </button>
@@ -1973,7 +1973,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               <div className="flex gap-1">
                                 <button
                                   onClick={() => handleShowNetwork(inscription.edcsId)}
-                                  className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+                                  className="p-1 text-primary hover:text-primary/80 hover:bg-accent rounded transition-colors"
                                   title="Network View"
                                   aria-label="Network View"
                                 >
@@ -2028,13 +2028,13 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                     {infoSubTab === 'statistics' && !networkEdcsId && !networkLoading && (
                       <div>
                         {/* Statistics sub-tabs */}
-                        <div className="mb-3 flex gap-2 border-b border-gray-200">
+                        <div className="mb-3 flex gap-2 border-b border-border">
                           <button
                             onClick={() => setStatisticsTab('age')}
                             className={`px-4 py-2 text-[13px] font-medium transition-colors ${
                               statisticsTab === 'age'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-600 hover:text-gray-800'
+                                ? 'text-primary border-b-2 border-primary'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
                             Age
@@ -2043,8 +2043,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             onClick={() => setStatisticsTab('clan')}
                             className={`px-4 py-2 text-[13px] font-medium transition-colors ${
                               statisticsTab === 'clan'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-600 hover:text-gray-800'
+                                ? 'text-primary border-b-2 border-primary'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
                             Clan Names
@@ -2053,8 +2053,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             onClick={() => setStatisticsTab('benefaction')}
                             className={`px-4 py-2 text-[13px] font-medium transition-colors ${
                               statisticsTab === 'benefaction'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-600 hover:text-gray-800'
+                                ? 'text-primary border-b-2 border-primary'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
                             Benefactions
@@ -2063,8 +2063,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             onClick={() => setStatisticsTab('divinity')}
                             className={`px-4 py-2 text-[13px] font-medium transition-colors ${
                               statisticsTab === 'divinity'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-600 hover:text-gray-800'
+                                ? 'text-primary border-b-2 border-primary'
+                                : 'text-muted-foreground hover:text-foreground'
                             }`}
                           >
                             Divinities
@@ -2078,15 +2078,15 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               <p className="text-[14px] text-[#666]">Loading data...</p>
                             ) : ageAtDeathData ? (
                               <div className="space-y-3">
-                                <div className="p-3 bg-gray-50 rounded">
-                                  <p className="text-[13px] text-gray-600 mb-1">Average death Age</p>
-                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.averageAge.toFixed(1)} years old</p>
-                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.count} items)</p>
+                                <div className="p-3 bg-muted rounded">
+                                  <p className="text-[13px] text-muted-foreground mb-1">Average death Age</p>
+                                  <p className="text-[24px] font-bold text-foreground">{ageAtDeathData.averageAge.toFixed(1)} years old</p>
+                                  <p className="text-[12px] text-muted-foreground">({ageAtDeathData.count} items)</p>
                                 </div>
-                                <div className="p-3 bg-gray-50 rounded">
-                                  <p className="text-[13px] text-gray-600 mb-1">Percentage under 10 years old</p>
-                                  <p className="text-[24px] font-bold text-gray-900">{ageAtDeathData.under10Percentage.toFixed(1)}%</p>
-                                  <p className="text-[12px] text-gray-500">({ageAtDeathData.under10Count} items)</p>
+                                <div className="p-3 bg-muted rounded">
+                                  <p className="text-[13px] text-muted-foreground mb-1">Percentage under 10 years old</p>
+                                  <p className="text-[24px] font-bold text-foreground">{ageAtDeathData.under10Percentage.toFixed(1)}%</p>
+                                  <p className="text-[12px] text-muted-foreground">({ageAtDeathData.under10Count} items)</p>
                                 </div>
                               </div>
                             ) : (
@@ -2103,10 +2103,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                             ) : nomenFrequencyData.length > 0 ? (
                               <div>
                                 <div className="mb-3">
-                                  <p className="text-[13px] text-gray-600">Clan NamesFrequency of（Top20 items, click to filter）</p>
-                                  <p className="text-[12px] text-gray-500 mt-1">All{nomenFrequencyData.length}items</p>
+                                  <p className="text-[13px] text-muted-foreground">Clan NamesFrequency of（Top20 items, click to filter）</p>
+                                  <p className="text-[12px] text-muted-foreground mt-1">All{nomenFrequencyData.length}items</p>
                                 </div>
-                                <div className="bg-white border border-gray-200 rounded-lg p-3 max-h-[400px] overflow-y-auto">
+                                <div className="bg-card border border-border rounded-lg p-3 max-h-[400px] overflow-y-auto">
                                   <div className="space-y-2">
                                     {nomenFrequencyData.slice(0, 20).map((item, index) => {
                                       const totalCount = nomenFrequencyData.reduce((sum, d) => sum + d.count, 0)
@@ -2132,10 +2132,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                           }}
                                         >
                                           <div className="flex items-center justify-between mb-1">
-                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-blue-700' : 'text-gray-800'}`}>
+                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-blue-700' : 'text-foreground'}`}>
                                               {label}
                                             </span>
-                                            <span className={`text-[12px] font-medium ${isActive ? 'text-blue-600' : 'text-gray-600'}`}>
+                                            <span className={`text-[12px] font-medium ${isActive ? 'text-blue-600' : 'text-muted-foreground'}`}>
                                               {item.count}items ({percentage.toFixed(1)}%)
                                             </span>
                                           </div>
@@ -2192,31 +2192,31 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       <p className="text-[13px] font-semibold text-green-800 mb-2">CostStatisticsOverview</p>
                                       <div className="grid grid-cols-2 gap-2 text-[12px]">
                                         <div>
-                                          <span className="text-gray-600">Total Benefactions Count:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{totalBenefactions.toLocaleString()} items</span>
+                                          <span className="text-muted-foreground">Total Benefactions Count:</span>
+                                          <span className="ml-1 font-semibold text-foreground">{totalBenefactions.toLocaleString()} items</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">With Cost Data:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{totalWithCost.toLocaleString()} items</span>
+                                          <span className="text-muted-foreground">With Cost Data:</span>
+                                          <span className="ml-1 font-semibold text-foreground">{totalWithCost.toLocaleString()} items</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">Total Cost:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{Math.round(grandTotal).toLocaleString()} HS</span>
+                                          <span className="text-muted-foreground">Total Cost:</span>
+                                          <span className="ml-1 font-semibold text-foreground">{Math.round(grandTotal).toLocaleString()} HS</span>
                                         </div>
                                         <div>
-                                          <span className="text-gray-600">Average Cost:</span>
-                                          <span className="ml-1 font-semibold text-gray-900">{Math.round(overallAvg).toLocaleString()} HS</span>
+                                          <span className="text-muted-foreground">Average Cost:</span>
+                                          <span className="ml-1 font-semibold text-foreground">{Math.round(overallAvg).toLocaleString()} HS</span>
                                         </div>
                                         {minCost !== null && (
                                           <div>
-                                            <span className="text-gray-600">Min:</span>
-                                            <span className="ml-1 font-semibold text-gray-900">{Math.round(minCost).toLocaleString()} HS</span>
+                                            <span className="text-muted-foreground">Min:</span>
+                                            <span className="ml-1 font-semibold text-foreground">{Math.round(minCost).toLocaleString()} HS</span>
                                           </div>
                                         )}
                                         {maxCost !== null && (
                                           <div>
-                                            <span className="text-gray-600">Max:</span>
-                                            <span className="ml-1 font-semibold text-gray-900">{Math.round(maxCost).toLocaleString()} HS</span>
+                                            <span className="text-muted-foreground">Max:</span>
+                                            <span className="ml-1 font-semibold text-foreground">{Math.round(maxCost).toLocaleString()} HS</span>
                                           </div>
                                         )}
                                       </div>
@@ -2225,23 +2225,23 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 })()}
 
                                 {/* Cost range filter */}
-                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                                  <p className="text-[13px] font-semibold text-blue-800 mb-2">Filter by Cost Range</p>
+                                <div className="bg-accent p-3 rounded-lg border border-border">
+                                  <p className="text-[13px] font-semibold text-primary mb-2">Filter by Cost Range</p>
                                   <div className="flex gap-2 items-center">
                                     <input
                                       type="number"
                                       placeholder="Min (HS)"
                                       value={costFilter.min ?? ''}
                                       onChange={(e) => setCostFilter(prev => ({ ...prev, min: e.target.value ? Number(e.target.value) : null }))}
-                                      className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
+                                      className="flex-1 px-2 py-1 text-[12px] border border-input rounded"
                                     />
-                                    <span className="text-gray-500">〜</span>
+                                    <span className="text-muted-foreground">〜</span>
                                     <input
                                       type="number"
                                       placeholder="Max (HS)"
                                       value={costFilter.max ?? ''}
                                       onChange={(e) => setCostFilter(prev => ({ ...prev, max: e.target.value ? Number(e.target.value) : null }))}
-                                      className="flex-1 px-2 py-1 text-[12px] border border-gray-300 rounded"
+                                      className="flex-1 px-2 py-1 text-[12px] border border-input rounded"
                                     />
                                     <button
                                       onClick={() => {
@@ -2253,7 +2253,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         }
                                       }}
                                       disabled={costFilter.min === null && costFilter.max === null}
-                                      className="px-3 py-1 text-[12px] bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                      className="px-3 py-1 text-[12px] bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
                                     >
                                       Apply
                                     </button>
@@ -2263,14 +2263,14 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                           setStatisticsFilter({ type: null, value: null })
                                           setCostFilter({ min: null, max: null })
                                         }}
-                                        className="px-3 py-1 text-[12px] bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                                        className="px-3 py-1 text-[12px] bg-secondary text-secondary-foreground rounded hover:bg-secondary/80 transition-colors"
                                       >
                                         Clear
                                       </button>
                                     )}
                                   </div>
                                   {statisticsFilter.type === 'costRange' && (
-                                    <p className="text-[11px] text-blue-700 mt-1">
+                                    <p className="text-[11px] text-primary mt-1">
                                       Filtering: {costFilter.min ?? 'MinNo value'} 〜 {costFilter.max ?? 'MaxNo value'} HS
                                     </p>
                                   )}
@@ -2279,7 +2279,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 {/* Top benefactions ranking */}
                                 {topBenefactionsLoading ? (
                                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-                                    <p className="text-[13px] text-gray-600">Loading top Benefactions...</p>
+                                    <p className="text-[13px] text-muted-foreground">Loading top Benefactions...</p>
                                   </div>
                                 ) : topBenefactionsData.length > 0 ? (
                                   <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
@@ -2298,17 +2298,17 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                   onClick={() => {
                                                     handleShowInscriptionDetail(item.edcsId)
                                                   }}
-                                                  className="text-[12px] text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                                                  className="text-[12px] text-primary hover:text-primary/80 hover:underline font-medium"
                                                 >
                                                   {item.edcsId}
                                                 </button>
-                                                <span className="text-[11px] text-gray-600">{item.personName}</span>
+                                                <span className="text-[11px] text-muted-foreground">{item.personName}</span>
                                               </div>
-                                              <div className="text-[11px] text-gray-600 mt-0.5">
+                                              <div className="text-[11px] text-muted-foreground mt-0.5">
                                                 {item.benefactionType} → {item.objectType}
                                               </div>
                                               {item.description && (
-                                                <div className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">
+                                                <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
                                                   {item.description}
                                                 </div>
                                               )}
@@ -2318,7 +2318,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                 {Math.round(item.cost).toLocaleString()} HS
                                               </div>
                                               {item.costOriginalText && (
-                                                <div className="text-[10px] text-gray-500">
+                                                <div className="text-[10px] text-muted-foreground">
                                                   ({item.costOriginalText})
                                                 </div>
                                               )}
@@ -2331,7 +2331,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                 ) : null}
 
                                 <div>
-                                  <p className="text-[13px] text-gray-600 mb-3">Distribution of Benefactions Types（Click for details）</p>
+                                  <p className="text-[13px] text-muted-foreground mb-3">Distribution of Benefactions Types（Click for details）</p>
                                   {/* Pie chart and legend side by side */}
                                   <div className="flex gap-4 items-center mb-3">
                                     {/* Pie chart */}
@@ -2414,12 +2414,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                   className="w-3 h-3 rounded-sm flex-shrink-0"
                                                   style={{ backgroundColor: colors[index % colors.length] }}
                                                 />
-                                                <span className="text-[13px] font-medium text-gray-900">{item.benefactionType}</span>
+                                                <span className="text-[13px] font-medium text-foreground">{item.benefactionType}</span>
                                               </div>
-                                              <span className="text-[12px] text-gray-600">{item.count}items ({percentage.toFixed(1)}%)</span>
+                                              <span className="text-[12px] text-muted-foreground">{item.count}items ({percentage.toFixed(1)}%)</span>
                                             </div>
                                             {costData && costData.countWithCost > 0 && (
-                                              <div className="ml-5 text-[11px] text-gray-500">
+                                              <div className="ml-5 text-[11px] text-muted-foreground">
                                                 Average: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
                                                 {costData.totalCost && ` (Total: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
                                                 <span className="ml-1">({costData.countWithCost}itemswith data)</span>
@@ -2437,7 +2437,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                         setStatisticsFilter({ type: 'benefactionType', value: selectedBenefactionType })
                                         setInfoSubTab('inscriptions')
                                       }}
-                                      className="w-full px-3 py-2 text-[13px] bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                      className="w-full px-3 py-2 text-[13px] bg-accent text-primary hover:bg-accent rounded transition-colors"
                                     >
                                       Filter by this Benefactions type
                                     </button>
@@ -2447,7 +2447,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                       onClick={() => {
                                         setStatisticsFilter({ type: null, value: null })
                                       }}
-                                      className="w-full px-3 py-2 text-[13px] bg-gray-50 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                      className="w-full px-3 py-2 text-[13px] bg-muted text-muted-foreground hover:bg-muted rounded transition-colors"
                                     >
                                       Clear Filter
                                     </button>
@@ -2456,8 +2456,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                                 {/* Object types for selected benefaction type */}
                                 {selectedBenefactionType && (
-                                  <div className="pt-3 border-t border-gray-200">
-                                    <p className="text-[13px] text-gray-600 mb-3">
+                                  <div className="pt-3 border-t border-border">
+                                    <p className="text-[13px] text-muted-foreground mb-3">
                                       {selectedBenefactionType}Object Types for（Click to filter）
                                     </p>
                                     {benefactionObjectTypeLoading ? (
@@ -2548,12 +2548,12 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                                       className="w-3 h-3 rounded-sm flex-shrink-0"
                                                       style={{ backgroundColor: colors[index % colors.length] }}
                                                     />
-                                                    <span className="text-[13px] font-medium text-gray-900">{item.objectType}</span>
+                                                    <span className="text-[13px] font-medium text-foreground">{item.objectType}</span>
                                                   </div>
-                                                  <span className="text-[12px] text-gray-600">{item.count}items ({percentage.toFixed(1)}%)</span>
+                                                  <span className="text-[12px] text-muted-foreground">{item.count}items ({percentage.toFixed(1)}%)</span>
                                                 </div>
                                                 {costData && costData.countWithCost > 0 && (
-                                                  <div className="ml-5 text-[11px] text-gray-500">
+                                                  <div className="ml-5 text-[11px] text-muted-foreground">
                                                     Average: {costData.avgCost ? `${Math.round(costData.avgCost).toLocaleString()} HS` : '-'}
                                                     {costData.totalCost && ` (Total: ${Math.round(costData.totalCost).toLocaleString()} HS)`}
                                                     <span className="ml-1">({costData.countWithCost}itemswith data)</span>
@@ -2583,8 +2583,8 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                               <p className="text-[14px] text-[#666]">Loading data...</p>
                             ) : divinityTypeData.length > 0 ? (
                               <div>
-                                <p className="text-[13px] text-gray-600 mb-3">Distribution of Divinities Types（Click to filter）</p>
-                                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                                <p className="text-[13px] text-muted-foreground mb-3">Distribution of Divinities Types（Click to filter）</p>
+                                <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
                                   <div className="space-y-2">
                                     {divinityTypeData.map((item, index) => {
                                       const totalCount = divinityTypeData.reduce((sum, d) => sum + d.count, 0)
@@ -2610,10 +2610,10 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                                           }}
                                         >
                                           <div className="flex items-center justify-between mb-1.5">
-                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-green-700' : 'text-gray-800'}`}>
+                                            <span className={`text-[13px] font-semibold ${isActive ? 'text-green-700' : 'text-foreground'}`}>
                                               {label}
                                             </span>
-                                            <span className={`text-[12px] font-semibold ${isActive ? 'text-green-600' : 'text-gray-600'}`}>
+                                            <span className={`text-[12px] font-semibold ${isActive ? 'text-green-600' : 'text-muted-foreground'}`}>
                                               {item.count} items ({percentage.toFixed(1)}%)
                                             </span>
                                           </div>
@@ -2665,7 +2665,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           <h4 className="text-[16px] font-semibold text-[#333]">InscriptionsDetails</h4>
                           <button
                             onClick={handleCloseInscriptionDetail}
-                            className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded transition-colors text-[13px]"
+                            className="px-3 py-1 bg-muted hover:bg-muted text-foreground rounded transition-colors text-[13px]"
                           >
                             Back to List
                           </button>
@@ -2673,18 +2673,18 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                         <div className="space-y-4">
                           {/* Metadata Section */}
-                          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                            <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">Metadata</h5>
+                          <div className="bg-muted rounded-lg p-4 space-y-2">
+                            <h5 className="font-semibold text-foreground mb-3 text-[14px]">Metadata</h5>
 
                             <div className="flex text-[13px]">
-                              <span className="font-medium text-gray-700 w-24">EDCS ID:</span>
-                              <span className="text-gray-600">{detailViewData.edcsId}</span>
+                              <span className="font-medium text-foreground w-24">EDCS ID:</span>
+                              <span className="text-muted-foreground">{detailViewData.edcsId}</span>
                             </div>
 
                             {detailViewData.datingFrom !== null && detailViewData.datingTo !== null && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Dating:</span>
-                                <span className="text-gray-600">
+                                <span className="font-medium text-foreground w-24">Dating:</span>
+                                <span className="text-muted-foreground">
                                   {detailViewData.datingFrom} - {detailViewData.datingTo}
                                 </span>
                               </div>
@@ -2692,22 +2692,22 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
 
                             {detailViewData.province && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Province:</span>
-                                <span className="text-gray-600">{detailViewData.province}</span>
+                                <span className="font-medium text-foreground w-24">Province:</span>
+                                <span className="text-muted-foreground">{detailViewData.province}</span>
                               </div>
                             )}
 
                             {detailViewData.place && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Place:</span>
-                                <span className="text-gray-600">{detailViewData.place}</span>
+                                <span className="font-medium text-foreground w-24">Place:</span>
+                                <span className="text-muted-foreground">{detailViewData.place}</span>
                               </div>
                             )}
 
                             {detailViewData.bibliographicCitation && (
                               <div className="flex text-[13px]">
-                                <span className="font-medium text-gray-700 w-24">Source:</span>
-                                <span className="text-gray-600">{detailViewData.bibliographicCitation}</span>
+                                <span className="font-medium text-foreground w-24">Source:</span>
+                                <span className="text-muted-foreground">{detailViewData.bibliographicCitation}</span>
                               </div>
                             )}
                           </div>
@@ -2715,17 +2715,17 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           {/* Text Section */}
                           {detailViewData.text && (
                             <div>
-                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">InscriptionsText</h5>
-                              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                              <h5 className="font-semibold text-foreground mb-3 text-[14px]">InscriptionsText</h5>
+                              <div className="bg-accent rounded-lg p-4 border border-border">
                                 {detailViewData.text.split('//').map((block: string, blockIndex: number) => (
                                   <div key={blockIndex} className="mb-4 last:mb-0">
                                     {block.split('/').map((line: string, lineIndex: number) => (
-                                      <div key={lineIndex} className="text-gray-800 leading-relaxed text-[13px]">
+                                      <div key={lineIndex} className="text-foreground leading-relaxed text-[13px]">
                                         {line.trim()}
                                       </div>
                                     ))}
                                     {blockIndex < detailViewData.text.split('//').length - 1 && (
-                                      <div className="border-t border-blue-300 my-3"></div>
+                                      <div className="border-t border-border my-3"></div>
                                     )}
                                   </div>
                                 ))}
@@ -2736,9 +2736,9 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                           {/* Comment Section */}
                           {detailViewData.comment && (
                             <div>
-                              <h5 className="font-semibold text-gray-900 mb-3 text-[14px]">Comments</h5>
-                              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[13px]">
+                              <h5 className="font-semibold text-foreground mb-3 text-[14px]">Comments</h5>
+                              <div className="bg-muted rounded-lg p-4 border border-border">
+                                <p className="text-foreground leading-relaxed whitespace-pre-wrap text-[13px]">
                                   {detailViewData.comment}
                                 </p>
                               </div>
@@ -2748,7 +2748,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       </div>
                     )}
                     {detailViewLoading && (
-                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <div className="mt-4 p-4 bg-muted border border-border rounded-lg">
                         <p className="text-[14px] text-[#666]">Inscriptions Loading data...</p>
                       </div>
                     )}
@@ -2766,7 +2766,7 @@ export default function ControlPanel({ inscriptionData }: ControlPanelProps) {
                       />
                     )}
                     {networkLoading && (
-                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <div className="mt-4 p-4 bg-muted border border-border rounded-lg">
                         <p className="text-[14px] text-[#666]">NetworkLoading data...</p>
                       </div>
                     )}
