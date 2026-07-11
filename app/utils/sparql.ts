@@ -971,15 +971,16 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
 // ---------------------------------------------------------------------------
 // ATAG annotated text
 //
-// The ATAG endpoint stores each inscription as an ex:Text with:
-//   - ex:textContent            the raw string
-//   - ex:firstChar → ex:next*   a linked list of per-character nodes, each with
-//                               an ex:offset and its own URI
-//   - ex:hasAnnotation          spans over the text (line numbers, expansions,
-//                               abbreviations, supplied/gap markup)
+// The ATAG endpoint stores each inscription as a p:Text (p: =
+// urn:himiko:ontology:physical:) with:
+//   - p:textContent            the raw string
+//   - p:firstChar → p:next*    a linked list of per-character nodes, each with
+//                              a p:offset and its own URI
+//   - p:hasAnnotation          spans over the text (line numbers, expansions,
+//                              abbreviations, supplied/gap markup)
 // This mirrors the data the standalone viewer_epigraph.html consumes, so we can
 // render the same annotated-text view inside the network dialog. Text URIs are
-// http://example.org/atag#text/<EDCS-ID>.
+// urn:himiko:resource:text:<EDCS-ID>.
 // ---------------------------------------------------------------------------
 
 // One annotation span. `kind` drives the styling ("line", "expan", "abbr",
@@ -1003,42 +1004,42 @@ export interface AtagText {
 /**
  * Query the ATAG annotated text for an inscription by EDCS ID: the raw text,
  * the per-character URI list, and every annotation span. Returns null when the
- * inscription has no ex:Text record in the ATAG graph (many EDCS ids won't).
+ * inscription has no p:Text record in the ATAG graph (many EDCS ids won't).
  *
  * Goes through the /api/sparql proxy with dataset="atag" so the plain-HTTP
  * endpoint isn't hit directly from an https client (CORS / mixed content).
  */
 export async function queryAtagText(edcsId: string): Promise<AtagText | null> {
-  const textUri = `http://example.org/atag#text/${edcsId}`
+  const textUri = `urn:himiko:resource:text:${edcsId}`
 
   const PREFIX = `
-    PREFIX ex: <http://example.org/atag#>
+    PREFIX p: <urn:himiko:ontology:physical:>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
   `
 
   const contentQuery = PREFIX + `
-    SELECT ?content WHERE { <${textUri}> ex:textContent ?content . }
+    SELECT ?content WHERE { <${textUri}> p:textContent ?content . }
   `
 
   const charQuery = PREFIX + `
     SELECT ?char ?offset WHERE {
-      <${textUri}> ex:firstChar ?firstChar .
-      ?firstChar ex:next* ?char .
-      ?char ex:offset ?offset .
+      <${textUri}> p:firstChar ?firstChar .
+      ?firstChar p:next* ?char .
+      ?char p:offset ?offset .
     }
     ORDER BY xsd:integer(?offset)
   `
 
   const annotQuery = PREFIX + `
     SELECT ?annot ?kind ?n ?start ?end ?annotText WHERE {
-      <${textUri}> ex:hasAnnotation ?annot .
-      ?annot a ex:Annotation ;
-             ex:kind ?kind ;
-             ex:start ?start ;
-             ex:end ?end .
-      OPTIONAL { ?annot ex:n ?n }
-      OPTIONAL { ?annot ex:annotatedText ?annotText }
+      <${textUri}> p:hasAnnotation ?annot .
+      ?annot a p:Annotation ;
+             p:kind ?kind ;
+             p:start ?start ;
+             p:end ?end .
+      OPTIONAL { ?annot p:n ?n }
+      OPTIONAL { ?annot p:annotatedText ?annotText }
     }
     ORDER BY xsd:integer(?start)
   `
@@ -1072,7 +1073,7 @@ export async function queryAtagText(edcsId: string): Promise<AtagText | null> {
 
     clearTimeout(timeoutId)
 
-    // No ex:Text for this inscription → nothing annotated to show.
+    // No p:Text for this inscription → nothing annotated to show.
     if (contentRows.length === 0) {
       return null
     }
