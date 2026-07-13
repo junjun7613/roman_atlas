@@ -798,23 +798,33 @@ export async function queryInscriptionsFilterData(edcsIds: string[]): Promise<{ 
  * Query inscription network data (persons, communities, relationships, careers, benefactions) from SPARQL endpoint
  */
 export async function queryInscriptionNetwork(edcsId: string): Promise<InscriptionNetworkData[]> {
-  // The network data lives on the Fuseki endpoint (full 51,941-inscription
-  // dataset), which is plain HTTP and stores everything in per-inscription
-  // named graphs. We go through the /api/sparql server-side proxy to avoid
-  // CORS / mixed-content issues, and to keep the endpoint URL off the client.
+  // The network data lives on the himiko Fuseki endpoint (full 51,941-inscription
+  // dataset), which is plain HTTP. We go through the /api/sparql server-side
+  // proxy to avoid CORS / mixed-content issues, and to keep the endpoint URL off
+  // the client.
   //
-  // Schema (epig: = http://epigraphic-careers.org/ontology#):
-  //   Inscription      <.../inscription/EDCS-ID>
-  //   Person           epig:mentionedIn ?inscription ; epig:personName / rdfs:label / epig:socialStatus->SocialStatus(rdfs:label)
-  //   CareerPosition   ?person epig:hasCareerPosition ?career
-  //   Benefaction      epig:byPerson ?person
-  //   Community        epig:mentionedIn ?inscription
-  //   PersonRelationship  ?inscription epig:mentionsRelationship ?rel ; ?rel epig:source/epig:target ->person
+  // himiko schema (epig: = http://epigraphic-careers.org/ontology#,
+  //                p:   = urn:himiko:ontology:physical:,
+  //                intr: = urn:himiko:ontology:intrinsic:):
+  //   Inscription     <.../inscription/EDCS-ID>  p:mentions ?statement
+  //   PersonReference <.../entityref/EDCS-ID/person/N> ; epig:personName /
+  //                   intr:surfaceForm / epig:socialStatus (all direct literals)
+  //   CareerStatement       epig:subject ?person ; epig:position*/order
+  //   BenefactionStatement  epig:agent ?person ; epig:benefactionType/objectText/objectType
+  //   RelationshipStatement epig:source/epig:target ?person ; epig:relationshipType/Property
+  //   CommunityReference    intr:surfaceForm ; epig:communityType
+  //
+  // IMPORTANT graph layout: himiko has union-default-graph DISABLED and splits
+  // triples across named graphs by source — the `p:mentions` edge lives in the
+  // `edcs`-source graph while statement bodies and PersonReferences live in the
+  // `claude`-source graph. So EVERY triple pattern must sit in its OWN
+  // `GRAPH ?gN {}`; wrapping the whole thing in one graph returns nothing.
   const inscriptionUri = `http://epigraphic-careers.org/inscription/${edcsId}`
 
   const query = `
     PREFIX epig: <http://epigraphic-careers.org/ontology#>
-    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX p: <urn:himiko:ontology:physical:>
+    PREFIX intr: <urn:himiko:ontology:intrinsic:>
 
     SELECT DISTINCT
         ?inscription
@@ -844,49 +854,52 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
     WHERE {
         BIND(<${inscriptionUri}> AS ?inscription)
         {
+            # PersonReferences for this inscription. They aren't linked back to
+            # the inscription by a triple, so match on the id embedded in the URI
+            # (.../entityref/EDCS-ID/person/N).
             GRAPH ?pg {
-                ?person a epig:Person ;
-                        epig:mentionedIn ?inscription .
+                ?person a epig:PersonReference .
+                FILTER(STRSTARTS(STR(?person), "http://epigraphic-careers.org/entityref/${edcsId}/"))
                 OPTIONAL { ?person epig:personName ?person_name . }
-                OPTIONAL { ?person rdfs:label ?person_label . }
+                OPTIONAL { ?person intr:surfaceForm ?person_label . }
                 OPTIONAL { ?person epig:normalizedName ?normalized_name . }
-                OPTIONAL {
-                    ?person epig:socialStatus ?ss .
-                    GRAPH ?ssg { ?ss rdfs:label ?social_status . }
-                }
-            }
-            OPTIONAL {
-                GRAPH ?cg {
-                    ?person epig:hasCareerPosition ?career_position .
-                    OPTIONAL { ?career_position epig:position ?position . }
-                    OPTIONAL { ?career_position epig:positionAbstract ?position_abstract . }
-                    OPTIONAL { ?career_position epig:positionNormalized ?position_normalized . }
-                    OPTIONAL { ?career_position epig:positionType ?position_type . }
-                    OPTIONAL { ?career_position epig:order ?position_order . }
-                    OPTIONAL { ?career_position epig:positionDescription ?position_desc . }
-                }
-            }
-            OPTIONAL {
-                GRAPH ?bg {
-                    ?benefaction a epig:Benefaction ;
-                                 epig:byPerson ?person .
-                    OPTIONAL { ?benefaction epig:benefactionType ?benef_type . }
-                    OPTIONAL { ?benefaction epig:object ?benef_object . }
-                    OPTIONAL { ?benefaction epig:objectType ?benef_objectType . }
-                }
+                OPTIONAL { ?person epig:socialStatus ?social_status . }
             }
         }
         UNION {
+            GRAPH ?mg { ?inscription p:mentions ?career_position . }
+            GRAPH ?cg {
+                ?career_position a epig:CareerStatement ;
+                                 epig:subject ?person .
+                OPTIONAL { ?career_position epig:positionText ?position . }
+                OPTIONAL { ?career_position epig:positionAbstract ?position_abstract . }
+                OPTIONAL { ?career_position epig:positionNormalized ?position_normalized . }
+                OPTIONAL { ?career_position epig:positionType ?position_type . }
+                OPTIONAL { ?career_position epig:order ?position_order . }
+                OPTIONAL { ?career_position epig:positionDescription ?position_desc . }
+            }
+        }
+        UNION {
+            GRAPH ?mg { ?inscription p:mentions ?benefaction . }
+            GRAPH ?bg {
+                ?benefaction a epig:BenefactionStatement ;
+                             epig:agent ?person .
+                OPTIONAL { ?benefaction epig:benefactionType ?benef_type . }
+                OPTIONAL { ?benefaction epig:objectText ?benef_object . }
+                OPTIONAL { ?benefaction epig:objectType ?benef_objectType . }
+            }
+        }
+        UNION {
+            GRAPH ?mg { ?inscription p:mentions ?community . }
             GRAPH ?commg {
-                ?community a epig:Community ;
-                           epig:mentionedIn ?inscription .
-                OPTIONAL { ?community rdfs:label ?community_label . }
+                ?community a epig:CommunityReference .
+                OPTIONAL { ?community intr:surfaceForm ?community_label . }
             }
         }
         UNION {
-            GRAPH ?ig { ?inscription epig:mentionsRelationship ?relationship . }
+            GRAPH ?mg { ?inscription p:mentions ?relationship . }
             GRAPH ?rg {
-                ?relationship a epig:PersonRelationship ;
+                ?relationship a epig:RelationshipStatement ;
                               epig:source ?rel_source ;
                               epig:target ?rel_target .
                 OPTIONAL { ?relationship epig:relationshipType ?rel_type . }

@@ -47,6 +47,17 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
     const nodes: any[] = []
     const edges: any[] = []
     const nodeMap = new Map()
+    // Track edges we've already added so the same person→statement link isn't
+    // duplicated across rows. A single statement (e.g. a benefaction) can now
+    // carry several agents/subjects, arriving as multiple rows that share the
+    // statement URI — each distinct (from,to) pair must still get its own edge.
+    const edgeSet = new Set<string>()
+    const addEdge = (edge: any) => {
+      const key = `${edge.from}|${edge.to}|${edge.label ?? ''}`
+      if (edgeSet.has(key)) return
+      edgeSet.add(key)
+      edges.push(edge)
+    }
 
     // Add inscription node (center)
     const inscriptionId = `inscription_${edcsId}`
@@ -76,7 +87,7 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
           })
           nodeMap.set(personId, true)
 
-          edges.push({
+          addEdge({
             from: inscriptionId,
             to: personId,
             label: 'mentions',
@@ -86,7 +97,8 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
           })
         }
 
-        // Career nodes
+        // Career nodes. Create the node once, but connect the edge for every
+        // person the statement names (a statement may have several subjects).
         if (row.career_position) {
           const careerId = row.career_position
           if (!nodeMap.has(careerId)) {
@@ -112,19 +124,21 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
               data: careerData
             })
             nodeMap.set(careerId, true)
-
-            edges.push({
-              from: personId,
-              to: careerId,
-              label: 'hasCareer',
-              arrows: 'to',
-              color: { color: '#9b59b6' },
-              font: { size: 9 }
-            })
           }
+
+          addEdge({
+            from: personId,
+            to: careerId,
+            label: 'hasCareer',
+            arrows: 'to',
+            color: { color: '#9b59b6' },
+            font: { size: 9 }
+          })
         }
 
-        // Benefaction nodes
+        // Benefaction nodes. A benefaction can now be a single statement shared
+        // by several agents (arriving as multiple rows with the same URI): make
+        // the node once, then draw an edge from each agent to it.
         if (row.benefaction) {
           const benefId = row.benefaction
           if (!nodeMap.has(benefId)) {
@@ -147,16 +161,16 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
               data: benefData
             })
             nodeMap.set(benefId, true)
-
-            edges.push({
-              from: personId,
-              to: benefId,
-              label: 'hasBenefaction',
-              arrows: 'to',
-              color: { color: '#f39c12' },
-              font: { size: 9 }
-            })
           }
+
+          addEdge({
+            from: personId,
+            to: benefId,
+            label: 'hasBenefaction',
+            arrows: 'to',
+            color: { color: '#f39c12' },
+            font: { size: 9 }
+          })
         }
       }
 
@@ -176,7 +190,7 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
           })
           nodeMap.set(commId, true)
 
-          edges.push({
+          addEdge({
             from: inscriptionId,
             to: commId,
             label: 'mentions',
@@ -192,7 +206,7 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
         const relType = extractLabelFromUri(row.rel_type) || 'relationship'
         const relProperty = extractLabelFromUri(row.rel_property)
         const edgeLabel = relProperty ? `${relType} (${relProperty})` : relType
-        edges.push({
+        addEdge({
           from: row.rel_source,
           to: row.rel_target,
           label: edgeLabel,

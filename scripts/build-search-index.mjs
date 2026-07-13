@@ -44,7 +44,7 @@ const OUT_DIR = join(__dirname, "..", "public", "data", "index");
 // the empty string to skip external-link enrichment (rows then carry none).
 const SPARQL_ENDPOINT =
   process.env.EPIGRAPHY_SPARQL_ENDPOINT ??
-  "http://54.92.185.36/ai_epigraphy/sparql";
+  "http://54.92.185.36/himiko_epigraphy/sparql";
 
 // Fetch every external-database link and group them by EDCS-ID. Each inscription
 // has one or more o:externalLink resources, each carrying a database name, the
@@ -132,17 +132,45 @@ function careerSummary(p) {
     .filter(Boolean);
 }
 
-function benefactionSummary(p) {
-  if (!Array.isArray(p.benefactions)) return [];
-  const name = p.person_name_readable || p.person_name_normalized || p.person_name || "?";
-  return p.benefactions.map((b) => {
-    const parts = [name, ": ", b.benefaction_type || "?"];
-    const objSegments = [];
-    if (b.object_type) objSegments.push(b.object_type);
-    if (b.object) objSegments.push(b.object);
-    if (objSegments.length > 0) parts.push(" / ", objSegments.join(" "));
-    return parts.join("");
-  });
+// The right-hand side of a benefaction line: "type / objectType object". This
+// is what identifies the benefaction *statement* itself, independent of who
+// performed it.
+function benefactionBody(b) {
+  const parts = [b.benefaction_type || "?"];
+  const objSegments = [];
+  if (b.object_type) objSegments.push(b.object_type);
+  if (b.object) objSegments.push(b.object);
+  if (objSegments.length > 0) parts.push(" / " + objSegments.join(" "));
+  return parts.join("");
+}
+
+// Build the inscription's benefaction lines at STATEMENT granularity, matching
+// the himiko model where one benefaction can be shared by several agents (the
+// merge that collapsed benefaction/0 + benefaction/1 into a single benefaction/0
+// with two epig:agent triples). Persons whose benefaction has the same body
+// (type + object) are folded into one line — "Name A, Name B: type / object" —
+// so the count here agrees with the network graph's single shared node instead
+// of counting one line per person.
+function benefactionSummary(persons) {
+  // Preserve first-seen order of statements while grouping agents under each.
+  const order = [];
+  const byBody = new Map();
+  for (const p of persons) {
+    if (!Array.isArray(p.benefactions)) continue;
+    const name =
+      p.person_name_readable || p.person_name_normalized || p.person_name || "?";
+    for (const b of p.benefactions) {
+      const body = benefactionBody(b);
+      let names = byBody.get(body);
+      if (!names) {
+        names = [];
+        byBody.set(body, names);
+        order.push(body);
+      }
+      if (!names.includes(name)) names.push(name);
+    }
+  }
+  return order.map((body) => `${byBody.get(body).join(", ")}: ${body}`);
 }
 
 function relationshipSummary(rels, persons) {
@@ -254,7 +282,7 @@ async function main() {
 
       const personLabels = persons.map(personSummary);
       const careerLines = persons.flatMap(careerSummary);
-      const benefLines = persons.flatMap(benefactionSummary);
+      const benefLines = benefactionSummary(persons);
       const relLines = relationshipSummary(rels, persons);
       const commLines = communitySummary(comms);
 
@@ -332,8 +360,19 @@ async function main() {
       );
       // Each benefaction with a parseable numeric cost, paired with its type
       // so the panel can break cost stats down by benefaction type.
+      // Cost stats are per benefaction STATEMENT, not per agent. A benefaction
+      // shared by several agents (himiko's merged benefaction) must be counted
+      // once, else its cost is double-summed. Dedupe on the same statement body
+      // (type + object) used for the benefaction lines above.
+      const seenBenefBodies = new Set();
       const benefactionCosts = persons.flatMap((p) =>
         (p.benefactions || [])
+          .filter((b) => {
+            const body = benefactionBody(b);
+            if (seenBenefBodies.has(body)) return false;
+            seenBenefBodies.add(body);
+            return true;
+          })
           .map((b) => ({
             type: b.benefaction_type || undefined,
             cost: num(b.cost_numeric),
