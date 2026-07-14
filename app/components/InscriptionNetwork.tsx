@@ -163,7 +163,10 @@ export default function InscriptionNetwork({
         if (row.benefaction) {
           const benefId = row.benefaction
           if (!nodeMap.has(benefId)) {
-            const benefLabel = row.benef_type || '恵与'
+            // Label with the concrete object of the benefaction (e.g. the thing
+            // built / given); fall back to the benefaction type, then a generic
+            // label when neither is present.
+            const benefLabel = row.benef_object || row.benef_type || '恵与'
             const benefData = {
               type: 'benefaction',
               label: benefLabel,
