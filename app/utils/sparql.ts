@@ -1151,7 +1151,6 @@ export interface AtagLinking {
 }
 
 const INTERPRETATION_GRAPH = 'urn:himiko:graph:interpretation'
-const HUMAN_AGENT_URI = 'urn:himiko:agent:human:viewer'
 
 /**
  * Query every (non-deleted) text↔entity linking for an inscription, by EDCS ID.
@@ -1161,14 +1160,23 @@ const HUMAN_AGENT_URI = 'urn:himiko:agent:human:viewer'
 export async function queryAtagLinkings(edcsId: string): Promise<AtagLinking[]> {
   const textUri = `urn:himiko:resource:text:${edcsId}`
 
-  const query = `
+  // Split into two lightweight queries instead of one heavy join. The original
+  // single query combined the default-graph linkings with a `FILTER NOT EXISTS
+  // { GRAPH <interpretation> { ... } }` and two GRAPH-crossing OPTIONALs; that
+  // pushed it from ~0.6s to ~2.5s locally and timed out (504) on Vercel's
+  // function budget. Here:
+  //   1. `bodyQuery`     — the linkings themselves (fast, ~0.6s), no GRAPH.
+  //   2. `deletedQuery`  — which of this text's acts were deleted (a deletion
+  //                        critique in the interpretation graph). ~0.3s.
+  // We DROP the old `matcher` derivation (criterion / agent): measuring showed
+  // that GRAPH-crossing OPTIONAL alone cost ~2s and blew the Vercel budget, and
+  // matcher is display-only (a "[manual]" tag) — irrelevant to the read-only
+  // highlight this component provides. Linkings now report matcher = "".
+  const bodyQuery = `
     PREFIX hmkp:  <urn:himiko:ontology:physical:>
-    PREFIX hmkia: <urn:himiko:ontology:interpretation:>
     PREFIX prov:  <http://www.w3.org/ns/prov#>
-    SELECT ?linking ?node ?startOffset ?endOffset
+    SELECT ?linking ?node ?startOffset ?endOffset ?act
            (SAMPLE(?rangeTextV) AS ?rangeText)
-           (SAMPLE(?criterionV) AS ?criterion)
-           (SAMPLE(?agentV) AS ?agent)
     WHERE {
       <${textUri}> hmkp:hasAnnotation ?linking .
       ?linking hmkp:refersToEntity ?node ;
@@ -1176,65 +1184,77 @@ export async function queryAtagLinkings(edcsId: string): Promise<AtagLinking[]> 
                hmkp:end ?endOffset ;
                prov:wasGeneratedBy ?act .
       OPTIONAL { ?linking hmkp:annotatedText ?rangeTextV . }
-      GRAPH <${INTERPRETATION_GRAPH}> {
-        OPTIONAL { ?act hmkia:hasCriterion ?criterionV . }
-        OPTIONAL { ?act hmkia:associatedWith ?agentV . }
-      }
-      FILTER NOT EXISTS {
-        GRAPH <${INTERPRETATION_GRAPH}> {
-          ?critique hmkia:critiques ?act ; hmkia:hasType "deletion" .
-        }
-      }
     }
-    GROUP BY ?linking ?node ?startOffset ?endOffset
+    GROUP BY ?linking ?node ?startOffset ?endOffset ?act
   `
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 30000)
+  // Acts (that generated this text's linkings) which have been deleted. Scoped
+  // to this text via prov:wasGeneratedBy so it stays small and fast.
+  const deletedQuery = `
+    PREFIX hmkp:  <urn:himiko:ontology:physical:>
+    PREFIX hmkia: <urn:himiko:ontology:interpretation:>
+    PREFIX prov:  <http://www.w3.org/ns/prov#>
+    SELECT DISTINCT ?act WHERE {
+      <${textUri}> hmkp:hasAnnotation ?linking .
+      ?linking prov:wasGeneratedBy ?act .
+      GRAPH <${INTERPRETATION_GRAPH}> {
+        ?critique hmkia:critiques ?act ; hmkia:hasType "deletion" .
+      }
+    }
+  `
+
+  const runQuery = async (query: string): Promise<any[]> => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 20000)
+    try {
+      const response = await fetch('/api/sparql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/sparql-results+json',
+        },
+        body: JSON.stringify({ query, dataset: 'linking' }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      if (!response.ok) {
+        throw new Error(`Linking SPARQL query failed: ${response.status} ${response.statusText}`)
+      }
+      const data = await response.json()
+      return data.results?.bindings ?? []
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
 
   try {
-    const response = await fetch('/api/sparql', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/sparql-results+json',
-      },
-      body: JSON.stringify({ query, dataset: 'linking' }),
-      signal: controller.signal,
-    })
-    clearTimeout(timeoutId)
-    if (!response.ok) {
-      throw new Error(`Linking SPARQL query failed: ${response.status} ${response.statusText}`)
-    }
-    const data = await response.json()
-    const rows = data.results?.bindings ?? []
+    const [bodyRows, deletedRows] = await Promise.all([
+      runQuery(bodyQuery),
+      runQuery(deletedQuery),
+    ])
 
-    // De-dupe by linking URI (the GROUP BY should already collapse rows, but be
-    // defensive) and derive the matcher the same way the viewer does.
+    // Acts whose linkings have been deleted — filter these out below.
+    const deletedActs = new Set<string>(
+      deletedRows.map((b) => b.act.value as string),
+    )
+
+    // De-dupe by linking URI, dropping any whose generating act was deleted.
     const byId = new Map<string, AtagLinking>()
-    for (const b of rows) {
+    for (const b of bodyRows) {
       const id = b.linking.value as string
       if (byId.has(id)) continue
-      let matcher = ''
-      if (b.criterion?.value) {
-        const m = /matcher=([^;]+)/.exec(b.criterion.value)
-        if (m) matcher = m[1].trim()
-      }
-      if (!matcher && b.agent?.value === HUMAN_AGENT_URI) {
-        matcher = 'manual'
-      }
+      if (b.act && deletedActs.has(b.act.value)) continue
       byId.set(id, {
         id,
         nodeUri: b.node.value,
         startOffset: parseInt(b.startOffset.value, 10),
         endOffset: parseInt(b.endOffset.value, 10),
         rangeText: b.rangeText ? b.rangeText.value : '',
-        matcher,
+        matcher: '',
       })
     }
     return Array.from(byId.values())
   } catch (error) {
-    clearTimeout(timeoutId)
     if (error instanceof Error && error.name === 'AbortError') {
       console.error(`Timeout querying linkings for EDCS ID ${edcsId}`)
     } else {
