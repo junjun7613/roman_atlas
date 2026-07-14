@@ -201,45 +201,6 @@ export default function NetworkDialog({
                   <div className="flex-1 min-h-0 overflow-y-auto bg-muted p-3 rounded">
                     <AnnotatedText data={atag} highlightOffsets={highlightOffsets} />
                   </div>
-
-                  {/* Linkings list: hover to preview the text range + graph node,
-                      matching the standalone viewer. Read-only. */}
-                  {linkings.length > 0 && (
-                    <div className="mt-3 shrink-0">
-                      <div className="text-xs text-muted-foreground mb-1">
-                        テキスト範囲とノードの紐付け ({linkings.length})
-                      </div>
-                      <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                        {linkings.map((l) => (
-                          <button
-                            key={l.id}
-                            type="button"
-                            onMouseEnter={() => setActiveNode(l.nodeUri)}
-                            onMouseLeave={() =>
-                              setActiveNode((cur) =>
-                                cur === l.nodeUri ? null : cur,
-                              )
-                            }
-                            onClick={() => setActiveNode(l.nodeUri)}
-                            className={`text-left text-xs px-2 py-1 rounded border transition-colors ${
-                              activeNode === l.nodeUri
-                                ? "border-primary bg-primary/10"
-                                : "border-border hover:bg-muted"
-                            }`}
-                          >
-                            <span className="font-semibold">
-                              &ldquo;{l.rangeText}&rdquo;
-                            </span>
-                            {l.matcher && (
-                              <span className="ml-1 text-muted-foreground">
-                                [{l.matcher}]
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               ) : atagLoading ? (
                 <div className="flex-1 min-h-0 flex flex-col">
