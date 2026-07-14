@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// The Fuseki endpoints live in ap-northeast-1 (Tokyo) while this function runs
+// in iad1 (US East, see vercel.json): a single round-trip already costs ~150ms,
+// and cold Fuseki queries can take a few seconds. Vercel's default function
+// timeout (10s on some plans) can fire before the 25s proxy abort below, which
+// surfaces to the client as a 504. Raise the ceiling so the proxy's own timeout
+// is the one that governs. (Capped at the plan's max; Hobby allows up to 60s.)
+export const maxDuration = 60;
+
 // Server-side proxy to the Fuseki SPARQL endpoints. The endpoints are plain
 // HTTP, so calling them directly from the browser would be blocked by CORS /
 // mixed content on an https deployment — we proxy them here instead. The

@@ -1160,22 +1160,23 @@ const INTERPRETATION_GRAPH = 'urn:himiko:graph:interpretation'
 export async function queryAtagLinkings(edcsId: string): Promise<AtagLinking[]> {
   const textUri = `urn:himiko:resource:text:${edcsId}`
 
-  // Split into two lightweight queries instead of one heavy join. The original
-  // single query combined the default-graph linkings with a `FILTER NOT EXISTS
-  // { GRAPH <interpretation> { ... } }` and two GRAPH-crossing OPTIONALs; that
-  // pushed it from ~0.6s to ~2.5s locally and timed out (504) on Vercel's
-  // function budget. Here:
-  //   1. `bodyQuery`     — the linkings themselves (fast, ~0.6s), no GRAPH.
-  //   2. `deletedQuery`  — which of this text's acts were deleted (a deletion
-  //                        critique in the interpretation graph). ~0.3s.
-  // We DROP the old `matcher` derivation (criterion / agent): measuring showed
-  // that GRAPH-crossing OPTIONAL alone cost ~2s and blew the Vercel budget, and
-  // matcher is display-only (a "[manual]" tag) — irrelevant to the read-only
-  // highlight this component provides. Linkings now report matcher = "".
-  const bodyQuery = `
+  // One round-trip. The endpoint is in Tokyo while the Vercel function runs in
+  // iad1 (US East) — every extra request pays the cross-region RTT, so a second
+  // parallel query was making the pair time out (504). We combine the linkings
+  // with the deletion filter into a single query.
+  //
+  // Cost breakdown from measurement: the bare linkings (~0.5s) plus the
+  // `FILTER NOT EXISTS { GRAPH <interpretation> { ...deletion... } }` (~0.3s)
+  // stay well under a second. What we DELIBERATELY OMIT is the old `matcher`
+  // derivation (per-act hmkia:hasCriterion / associatedWith): those two
+  // GRAPH-crossing OPTIONALs alone cost ~2s and were what blew the budget.
+  // matcher is display-only (a "[manual]" tag) and irrelevant to this
+  // read-only highlight, so linkings now always report matcher = "".
+  const query = `
     PREFIX hmkp:  <urn:himiko:ontology:physical:>
+    PREFIX hmkia: <urn:himiko:ontology:interpretation:>
     PREFIX prov:  <http://www.w3.org/ns/prov#>
-    SELECT ?linking ?node ?startOffset ?endOffset ?act
+    SELECT ?linking ?node ?startOffset ?endOffset
            (SAMPLE(?rangeTextV) AS ?rangeText)
     WHERE {
       <${textUri}> hmkp:hasAnnotation ?linking .
@@ -1184,66 +1185,50 @@ export async function queryAtagLinkings(edcsId: string): Promise<AtagLinking[]> 
                hmkp:end ?endOffset ;
                prov:wasGeneratedBy ?act .
       OPTIONAL { ?linking hmkp:annotatedText ?rangeTextV . }
-    }
-    GROUP BY ?linking ?node ?startOffset ?endOffset ?act
-  `
-
-  // Acts (that generated this text's linkings) which have been deleted. Scoped
-  // to this text via prov:wasGeneratedBy so it stays small and fast.
-  const deletedQuery = `
-    PREFIX hmkp:  <urn:himiko:ontology:physical:>
-    PREFIX hmkia: <urn:himiko:ontology:interpretation:>
-    PREFIX prov:  <http://www.w3.org/ns/prov#>
-    SELECT DISTINCT ?act WHERE {
-      <${textUri}> hmkp:hasAnnotation ?linking .
-      ?linking prov:wasGeneratedBy ?act .
-      GRAPH <${INTERPRETATION_GRAPH}> {
-        ?critique hmkia:critiques ?act ; hmkia:hasType "deletion" .
+      FILTER NOT EXISTS {
+        GRAPH <${INTERPRETATION_GRAPH}> {
+          ?critique hmkia:critiques ?act ; hmkia:hasType "deletion" .
+        }
       }
     }
+    GROUP BY ?linking ?node ?startOffset ?endOffset
   `
 
-  const runQuery = async (query: string): Promise<any[]> => {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 20000)
-    try {
-      const response = await fetch('/api/sparql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/sparql-results+json',
-        },
-        body: JSON.stringify({ query, dataset: 'linking' }),
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
-      if (!response.ok) {
-        throw new Error(`Linking SPARQL query failed: ${response.status} ${response.statusText}`)
-      }
-      const data = await response.json()
-      return data.results?.bindings ?? []
-    } finally {
-      clearTimeout(timeoutId)
-    }
-  }
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 20000)
 
   try {
-    const [bodyRows, deletedRows] = await Promise.all([
-      runQuery(bodyQuery),
-      runQuery(deletedQuery),
-    ])
+    const response = await fetch('/api/sparql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/sparql-results+json',
+      },
+      body: JSON.stringify({ query, dataset: 'linking' }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    if (!response.ok) {
+      // Surface the proxy's error detail (timeout vs unreachable) rather than a
+      // bare status — helps diagnose cross-region failures.
+      let detail = ''
+      try {
+        detail = JSON.stringify(await response.json())
+      } catch {
+        /* body not JSON */
+      }
+      throw new Error(
+        `Linking SPARQL query failed: ${response.status} ${response.statusText} ${detail}`,
+      )
+    }
+    const data = await response.json()
+    const rows = data.results?.bindings ?? []
 
-    // Acts whose linkings have been deleted — filter these out below.
-    const deletedActs = new Set<string>(
-      deletedRows.map((b) => b.act.value as string),
-    )
-
-    // De-dupe by linking URI, dropping any whose generating act was deleted.
+    // De-dupe by linking URI (GROUP BY should already collapse, but be safe).
     const byId = new Map<string, AtagLinking>()
-    for (const b of bodyRows) {
+    for (const b of rows) {
       const id = b.linking.value as string
       if (byId.has(id)) continue
-      if (b.act && deletedActs.has(b.act.value)) continue
       byId.set(id, {
         id,
         nodeUri: b.node.value,
@@ -1255,6 +1240,7 @@ export async function queryAtagLinkings(edcsId: string): Promise<AtagLinking[]> 
     }
     return Array.from(byId.values())
   } catch (error) {
+    clearTimeout(timeoutId)
     if (error instanceof Error && error.name === 'AbortError') {
       console.error(`Timeout querying linkings for EDCS ID ${edcsId}`)
     } else {
