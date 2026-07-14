@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import type { IndexRow } from "@/app/lib/epigraphy/local-search";
 import {
   buildEdcsUrl,
   queryAtagText,
+  queryAtagLinkings,
   type InscriptionNetworkData,
   type AtagText,
+  type AtagLinking,
 } from "@/app/utils/sparql";
 
 const InscriptionNetwork = dynamic(
@@ -76,6 +78,42 @@ export default function NetworkDialog({
       cancelled = true;
     };
   }, [row.id]);
+
+  // Text↔node linkings for this inscription (read-only). Drive the highlight
+  // between a network node and the text range that refers to it.
+  const [linkings, setLinkings] = useState<AtagLinking[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    setLinkings([]);
+    setActiveNode(null);
+    queryAtagLinkings(row.id).then((result) => {
+      if (!cancelled) setLinkings(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [row.id]);
+
+  // The node whose linked text range is currently highlighted (set by clicking
+  // a graph node or hovering a linking in the list). null → nothing highlighted.
+  const [activeNode, setActiveNode] = useState<string | null>(null);
+
+  // Character offsets covered by the active node's linking(s).
+  const highlightOffsets = useMemo(() => {
+    if (!activeNode) return null;
+    const s = new Set<number>();
+    for (const l of linkings) {
+      if (l.nodeUri !== activeNode) continue;
+      for (let i = l.startOffset; i < l.endOffset; i++) s.add(i);
+    }
+    return s;
+  }, [activeNode, linkings]);
+
+  // Distinct node URIs that have a linking — used to ring them in the graph.
+  const linkedNodeUris = useMemo(
+    () => [...new Set(linkings.map((l) => l.nodeUri))],
+    [linkings],
+  );
 
   // Split orientation: side-by-side on desktop (≥768px), stacked on narrow
   // screens. Track the viewport so the divider drags along the right axis.
@@ -161,8 +199,47 @@ export default function NetworkDialog({
                     Annotated text
                   </div>
                   <div className="flex-1 min-h-0 overflow-y-auto bg-muted p-3 rounded">
-                    <AnnotatedText data={atag} />
+                    <AnnotatedText data={atag} highlightOffsets={highlightOffsets} />
                   </div>
+
+                  {/* Linkings list: hover to preview the text range + graph node,
+                      matching the standalone viewer. Read-only. */}
+                  {linkings.length > 0 && (
+                    <div className="mt-3 shrink-0">
+                      <div className="text-xs text-muted-foreground mb-1">
+                        テキスト範囲とノードの紐付け ({linkings.length})
+                      </div>
+                      <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                        {linkings.map((l) => (
+                          <button
+                            key={l.id}
+                            type="button"
+                            onMouseEnter={() => setActiveNode(l.nodeUri)}
+                            onMouseLeave={() =>
+                              setActiveNode((cur) =>
+                                cur === l.nodeUri ? null : cur,
+                              )
+                            }
+                            onClick={() => setActiveNode(l.nodeUri)}
+                            className={`text-left text-xs px-2 py-1 rounded border transition-colors ${
+                              activeNode === l.nodeUri
+                                ? "border-primary bg-primary/10"
+                                : "border-border hover:bg-muted"
+                            }`}
+                          >
+                            <span className="font-semibold">
+                              &ldquo;{l.rangeText}&rdquo;
+                            </span>
+                            {l.matcher && (
+                              <span className="ml-1 text-muted-foreground">
+                                [{l.matcher}]
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : atagLoading ? (
                 <div className="flex-1 min-h-0 flex flex-col">
@@ -206,6 +283,9 @@ export default function NetworkDialog({
                   networkData={networkData}
                   onClose={onClose}
                   variant="dialog"
+                  onNodeSelect={setActiveNode}
+                  activeNodeUri={activeNode}
+                  linkedNodeUris={linkedNodeUris}
                 />
               )}
             </div>

@@ -177,34 +177,44 @@
   min-width: 25px;
 }
 
-.atag-annotation {
-  transition: background-color 0.2s;
+/* Each character is its own span (see AnnotatedText.tsx). Annotation kinds are
+   styled on the char span directly; adjacent same-kind chars read as one run. */
+.atag-char {
+  transition: background-color 0.15s;
 }
 
-.atag-annotation.atag-expan {
+.atag-char.atag-expan {
   border-bottom: 2px solid #3498db;
   background-color: rgba(52, 152, 219, 0.08);
 }
 
-.atag-annotation.atag-abbr {
+.atag-char.atag-abbr {
   font-weight: bold;
   color: #2c3e50;
 }
 
-.atag-annotation.atag-ex {
+.atag-char.atag-ex {
   color: #7f8c8d;
   font-style: italic;
 }
 
-.atag-annotation.atag-supplied {
+.atag-char.atag-supplied {
   border-bottom: 2px dotted #e67e22;
   background-color: rgba(230, 126, 34, 0.08);
 }
 
-.atag-annotation.atag-gap {
+.atag-char.atag-gap {
   color: #95a5a6;
   font-style: italic;
   background-color: rgba(149, 165, 166, 0.12);
+}
+
+/* Text range linked to the currently active network node. Overrides the
+   annotation background so the highlight is unambiguous. */
+.atag-char.atag-linked-highlight {
+  background-color: rgba(52, 152, 219, 0.45);
+  border-bottom: 3px solid #3498db;
+  font-weight: bold;
 }
 
 /* Stats row + legend under the annotated text. */

@@ -11,10 +11,15 @@ import { NextRequest, NextResponse } from "next/server";
 //   "atag"              → ATAG_SPARQL_ENDPOINT (annotated text: ex:Text, the
 //                         per-character list, and annotations — for the
 //                         annotated-text pane in the network dialog)
+//   "linking"           → LINKING_SPARQL_ENDPOINT (himiko_atag_linking:
+//                         Annotations tying a text range to a network entity —
+//                         drives the text↔node highlight in the dialog; the
+//                         viewer only reads these, never writes them)
 const ENDPOINTS: Record<string, string | undefined> = {
   network: process.env.FUSEKI_SPARQL_ENDPOINT,
   "inscription-ref": process.env.INSCRIPTION_REF_SPARQL_ENDPOINT,
   atag: process.env.ATAG_SPARQL_ENDPOINT,
+  linking: process.env.LINKING_SPARQL_ENDPOINT,
 };
 
 export async function POST(req: NextRequest) {

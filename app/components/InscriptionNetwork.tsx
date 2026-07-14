@@ -12,13 +12,34 @@ interface InscriptionNetworkProps {
   // used in legacy panels. "dialog": chrome-less, graph fills the parent so a
   // surrounding modal controls the layout/header.
   variant?: 'inline' | 'dialog'
+  // Called with a node's URI when the user clicks it in the graph (null when
+  // they click empty canvas). Lets the parent highlight the linked text range.
+  onNodeSelect?: (nodeUri: string | null) => void
+  // Node URIs that have at least one text linking. These get a ring so the user
+  // can tell which nodes will highlight text when clicked.
+  linkedNodeUris?: string[]
+  // Programmatically select/focus a node (e.g. when the user hovers a text
+  // range). null clears the selection.
+  activeNodeUri?: string | null
 }
 
-export default function InscriptionNetwork({ edcsId, networkData, onClose, variant = 'inline' }: InscriptionNetworkProps) {
+export default function InscriptionNetwork({
+  edcsId,
+  networkData,
+  onClose,
+  variant = 'inline',
+  onNodeSelect,
+  linkedNodeUris,
+  activeNodeUri,
+}: InscriptionNetworkProps) {
   const isDialog = variant === 'dialog'
   const containerRef = useRef<HTMLDivElement>(null)
   const networkRef = useRef<Network | null>(null)
   const nodeInfoRef = useRef<HTMLDivElement>(null)
+  // Latest onNodeSelect, read from the vis click handler without making the
+  // network-building effect depend on it (which would rebuild the graph).
+  const onNodeSelectRef = useRef(onNodeSelect)
+  onNodeSelectRef.current = onNodeSelect
 
   console.log('InscriptionNetwork rendered:', { edcsId, networkDataLength: networkData.length })
 
@@ -218,6 +239,20 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
       }
     })
 
+    // Mark nodes that have a text linking with a colored ring so the user can
+    // see which nodes will highlight text when clicked.
+    if (linkedNodeUris && linkedNodeUris.length > 0) {
+      const linkedSet = new Set(linkedNodeUris)
+      for (const n of nodes) {
+        if (linkedSet.has(n.id)) {
+          n.borderWidth = 3
+          n.borderWidthSelected = 4
+          n.color = { ...(n.color ?? {}), border: '#f39c12' }
+          n.shadow = { enabled: true, color: 'rgba(243,156,18,0.6)', size: 12, x: 0, y: 0 }
+        }
+      }
+    }
+
     // Create network
     const data = { nodes, edges }
     const options = {
@@ -263,12 +298,16 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
 
     // Node click handler
     network.on('click', function(params) {
-      if (params.nodes.length > 0 && nodeInfoRef.current) {
-        const nodeId = params.nodes[0]
+      if (params.nodes.length > 0) {
+        const nodeId = params.nodes[0] as string
         const node = nodes.find(n => n.id === nodeId)
-        if (node) {
+        if (node && nodeInfoRef.current) {
           showNodeInfo(node)
         }
+        onNodeSelectRef.current?.(nodeId)
+      } else {
+        // Clicked empty canvas → clear the text highlight.
+        onNodeSelectRef.current?.(null)
       }
     })
 
@@ -290,8 +329,26 @@ export default function InscriptionNetwork({ edcsId, networkData, onClose, varia
     return () => {
       ro.disconnect()
       network.destroy()
+      networkRef.current = null
     }
-  }, [edcsId, networkData])
+  }, [edcsId, networkData, linkedNodeUris])
+
+  // Reflect the parent's activeNodeUri (e.g. hovering a linked text range) into
+  // the graph's selection, without rebuilding the network.
+  useEffect(() => {
+    const network = networkRef.current
+    if (!network) return
+    if (!activeNodeUri) {
+      network.unselectAll()
+      return
+    }
+    try {
+      network.selectNodes([activeNodeUri], false)
+    } catch {
+      // Node may not exist in this graph (linking points to an entity the KG
+      // query didn't surface) — ignore.
+    }
+  }, [activeNodeUri])
 
   const showNodeInfo = (node: any) => {
     if (!nodeInfoRef.current) return

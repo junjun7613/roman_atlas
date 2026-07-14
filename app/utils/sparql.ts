@@ -1118,6 +1118,132 @@ export async function queryAtagText(edcsId: string): Promise<AtagText | null> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Text ↔ network-node linkings (himiko_atag_linking)
+//
+// A linking is a p:Annotation on the inscription's p:Text whose p:refersToEntity
+// points at a node in the network graph, with p:start / p:end marking the
+// character range it covers. The standalone viewer_epigraph.html uses these to
+// highlight the text span when its node is clicked (and vice-versa). Here we
+// only READ them — no create / edit / delete.
+//
+// Linkings carry a provenance chain (prov:wasGeneratedBy an interpretation Act
+// in the interpretation graph); a linking is "deleted" when its Act has been
+// critiqued by a deletion Act. We filter those out so removed linkings don't
+// reappear. `matcher` ("manual" vs an automatic matcher id) is derived from the
+// Act's criterion / agent, mirroring the viewer.
+// ---------------------------------------------------------------------------
+
+export interface AtagLinking {
+  // Annotation URI — stable id for this linking.
+  id: string
+  // The network node it points at (matches InscriptionNetworkData person /
+  // career / benefaction / community URIs, i.e. vis-network node ids).
+  nodeUri: string
+  // Character range in the text: [startOffset, endOffset).
+  startOffset: number
+  endOffset: number
+  // The linked substring (for tooltips / list display).
+  rangeText: string
+  // "manual" for human-authored, otherwise the automatic matcher id ("" if
+  // unknown).
+  matcher: string
+}
+
+const INTERPRETATION_GRAPH = 'urn:himiko:graph:interpretation'
+const HUMAN_AGENT_URI = 'urn:himiko:agent:human:viewer'
+
+/**
+ * Query every (non-deleted) text↔entity linking for an inscription, by EDCS ID.
+ * Returns [] when the inscription has no linkings. Read-only; goes through the
+ * /api/sparql proxy with dataset="linking".
+ */
+export async function queryAtagLinkings(edcsId: string): Promise<AtagLinking[]> {
+  const textUri = `urn:himiko:resource:text:${edcsId}`
+
+  const query = `
+    PREFIX hmkp:  <urn:himiko:ontology:physical:>
+    PREFIX hmkia: <urn:himiko:ontology:interpretation:>
+    PREFIX prov:  <http://www.w3.org/ns/prov#>
+    SELECT ?linking ?node ?startOffset ?endOffset
+           (SAMPLE(?rangeTextV) AS ?rangeText)
+           (SAMPLE(?criterionV) AS ?criterion)
+           (SAMPLE(?agentV) AS ?agent)
+    WHERE {
+      <${textUri}> hmkp:hasAnnotation ?linking .
+      ?linking hmkp:refersToEntity ?node ;
+               hmkp:start ?startOffset ;
+               hmkp:end ?endOffset ;
+               prov:wasGeneratedBy ?act .
+      OPTIONAL { ?linking hmkp:annotatedText ?rangeTextV . }
+      GRAPH <${INTERPRETATION_GRAPH}> {
+        OPTIONAL { ?act hmkia:hasCriterion ?criterionV . }
+        OPTIONAL { ?act hmkia:associatedWith ?agentV . }
+      }
+      FILTER NOT EXISTS {
+        GRAPH <${INTERPRETATION_GRAPH}> {
+          ?critique hmkia:critiques ?act ; hmkia:hasType "deletion" .
+        }
+      }
+    }
+    GROUP BY ?linking ?node ?startOffset ?endOffset
+  `
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+  try {
+    const response = await fetch('/api/sparql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/sparql-results+json',
+      },
+      body: JSON.stringify({ query, dataset: 'linking' }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    if (!response.ok) {
+      throw new Error(`Linking SPARQL query failed: ${response.status} ${response.statusText}`)
+    }
+    const data = await response.json()
+    const rows = data.results?.bindings ?? []
+
+    // De-dupe by linking URI (the GROUP BY should already collapse rows, but be
+    // defensive) and derive the matcher the same way the viewer does.
+    const byId = new Map<string, AtagLinking>()
+    for (const b of rows) {
+      const id = b.linking.value as string
+      if (byId.has(id)) continue
+      let matcher = ''
+      if (b.criterion?.value) {
+        const m = /matcher=([^;]+)/.exec(b.criterion.value)
+        if (m) matcher = m[1].trim()
+      }
+      if (!matcher && b.agent?.value === HUMAN_AGENT_URI) {
+        matcher = 'manual'
+      }
+      byId.set(id, {
+        id,
+        nodeUri: b.node.value,
+        startOffset: parseInt(b.startOffset.value, 10),
+        endOffset: parseInt(b.endOffset.value, 10),
+        rangeText: b.rangeText ? b.rangeText.value : '',
+        matcher,
+      })
+    }
+    return Array.from(byId.values())
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Timeout querying linkings for EDCS ID ${edcsId}`)
+    } else {
+      console.error('Error querying linkings from SPARQL endpoint:', error)
+    }
+    return []
+  }
+}
+
 /**
  * Query the literature references for an inscription, grouped by the research
  * publication that cites it: which work mentions the inscription, and through
