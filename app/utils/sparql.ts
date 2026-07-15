@@ -990,7 +990,9 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
 //   - p:firstChar → p:next*    a linked list of per-character nodes, each with
 //                              a p:offset and its own URI
 //   - p:hasAnnotation          spans over the text (line numbers, expansions,
-//                              abbreviations, supplied/gap markup)
+//                              abbreviations, supplied/gap markup); the kind and
+//                              line number sit under the tei: namespace
+//                              (tei:kind / tei:n), start/end stay on p:
 // This mirrors the data the standalone viewer_epigraph.html consumes, so we can
 // render the same annotated-text view inside the network dialog. Text URIs are
 // urn:himiko:resource:text:<EDCS-ID>.
@@ -1027,6 +1029,7 @@ export async function queryAtagText(edcsId: string): Promise<AtagText | null> {
 
   const PREFIX = `
     PREFIX p: <urn:himiko:ontology:physical:>
+    PREFIX tei: <urn:himiko:ontology:physical:tei:>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
     PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
   `
@@ -1044,15 +1047,18 @@ export async function queryAtagText(edcsId: string): Promise<AtagText | null> {
     ORDER BY xsd:integer(?offset)
   `
 
+  // The kind / line-number predicates moved under the tei: namespace
+  // (p:kind → tei:kind, p:n → tei:n). The old p:annotatedText (the covered
+  // substring) is gone from structural annotations — that text now lives only
+  // on the himiko_atag_linking annotations — so annotText is always null here.
   const annotQuery = PREFIX + `
-    SELECT ?annot ?kind ?n ?start ?end ?annotText WHERE {
+    SELECT ?annot ?kind ?n ?start ?end WHERE {
       <${textUri}> p:hasAnnotation ?annot .
       ?annot a p:Annotation ;
-             p:kind ?kind ;
+             tei:kind ?kind ;
              p:start ?start ;
              p:end ?end .
-      OPTIONAL { ?annot p:n ?n }
-      OPTIONAL { ?annot p:annotatedText ?annotText }
+      OPTIONAL { ?annot tei:n ?n }
     }
     ORDER BY xsd:integer(?start)
   `
@@ -1103,7 +1109,8 @@ export async function queryAtagText(edcsId: string): Promise<AtagText | null> {
       n: r.n ? r.n.value : null,
       start: parseInt(r.start.value, 10),
       end: parseInt(r.end.value, 10),
-      annotText: r.annotText ? r.annotText.value : null,
+      // No longer carried by structural annotations in the updated ATAG data.
+      annotText: null,
     }))
 
     return { edcsId, content, charURIs, annotations }
@@ -1127,7 +1134,7 @@ export async function queryAtagText(edcsId: string): Promise<AtagText | null> {
 // highlight the text span when its node is clicked (and vice-versa). Here we
 // only READ them — no create / edit / delete.
 //
-// Linkings carry a provenance chain (prov:wasGeneratedBy an interpretation Act
+// Linkings carry a provenance chain (hmkia:generatedBy an interpretation Act
 // in the interpretation graph); a linking is "deleted" when its Act has been
 // critiqued by a deletion Act. We filter those out so removed linkings don't
 // reappear. `matcher` ("manual" vs an automatic matcher id) is derived from the
@@ -1175,7 +1182,6 @@ export async function queryAtagLinkings(edcsId: string): Promise<AtagLinking[]> 
   const query = `
     PREFIX hmkp:  <urn:himiko:ontology:physical:>
     PREFIX hmkia: <urn:himiko:ontology:interpretation:>
-    PREFIX prov:  <http://www.w3.org/ns/prov#>
     SELECT ?linking ?node ?startOffset ?endOffset
            (SAMPLE(?rangeTextV) AS ?rangeText)
     WHERE {
@@ -1183,7 +1189,7 @@ export async function queryAtagLinkings(edcsId: string): Promise<AtagLinking[]> 
       ?linking hmkp:refersToEntity ?node ;
                hmkp:start ?startOffset ;
                hmkp:end ?endOffset ;
-               prov:wasGeneratedBy ?act .
+               hmkia:generatedBy ?act .
       OPTIONAL { ?linking hmkp:annotatedText ?rangeTextV . }
       FILTER NOT EXISTS {
         GRAPH <${INTERPRETATION_GRAPH}> {
