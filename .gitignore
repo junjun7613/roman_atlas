@@ -52,3 +52,6 @@ scrips/add_dates_to_places.py
 
 # Legacy roman_atlas map view — kept locally, excluded from push/deploy
 /app/atlas/
+
+# Fuseki ops runbook — contains the EC2 endpoint host; keep out of git
+docs/fuseki-setup.md
