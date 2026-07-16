@@ -23,11 +23,17 @@ export const maxDuration = 60;
 //                         Annotations tying a text range to a network entity —
 //                         drives the text↔node highlight in the dialog; the
 //                         viewer only reads these, never writes them)
+//   "unified"           → UNIFIED_SPARQL_ENDPOINT (read-only virtual view that
+//                         merges all four datasets as named graphs
+//                         urn:unified:{himiko,ref,atag,linking}, so a single
+//                         query can JOIN across them with plain GRAPH — no
+//                         SPARQL SERVICE needed)
 const ENDPOINTS: Record<string, string | undefined> = {
   network: process.env.FUSEKI_SPARQL_ENDPOINT,
   "inscription-ref": process.env.INSCRIPTION_REF_SPARQL_ENDPOINT,
   atag: process.env.ATAG_SPARQL_ENDPOINT,
   linking: process.env.LINKING_SPARQL_ENDPOINT,
+  unified: process.env.UNIFIED_SPARQL_ENDPOINT,
 };
 
 export async function POST(req: NextRequest) {
@@ -44,6 +50,20 @@ export async function POST(req: NextRequest) {
   }
   if (!query || typeof query !== "string") {
     return NextResponse.json({ error: "missing query" }, { status: 400 });
+  }
+
+  // This proxy is read-only: the /sparql query page lets anyone on the public
+  // deployment run arbitrary SPARQL, so we refuse any update operation before
+  // it reaches Fuseki. SPARQL Update keywords are matched at a statement
+  // boundary (start of query or after a `;`), ignoring case, so we don't reject
+  // a SELECT that merely contains e.g. "insert" inside a string literal.
+  const UPDATE_KEYWORDS =
+    /(^|[\s;])(INSERT|DELETE|DROP|CLEAR|CREATE|LOAD|MOVE|COPY|ADD|WITH)\b/i;
+  if (UPDATE_KEYWORDS.test(query)) {
+    return NextResponse.json(
+      { error: "only read-only queries (SELECT/ASK/CONSTRUCT/DESCRIBE) are allowed" },
+      { status: 403 },
+    );
   }
 
   const ENDPOINT = ENDPOINTS[dataset];

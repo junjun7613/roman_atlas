@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import SearchPanel from "@/app/components/epigraphy/SearchPanel";
 import ResultsList from "@/app/components/epigraphy/ResultsList";
 import ResizableSplit from "@/app/components/epigraphy/ResizableSplit";
@@ -391,6 +392,27 @@ export default function EpigraphyPage() {
           </p>
         </div>
         <div className="flex items-center gap-1.5">
+          <Link
+            href="/sparql"
+            className="mr-2 inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition-opacity hover:opacity-90"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3.5 w-3.5"
+              aria-hidden="true"
+            >
+              <ellipse cx="12" cy="5" rx="9" ry="3" />
+              <path d="M3 5V19A9 3 0 0 0 21 19V5" />
+              <path d="M3 12A9 3 0 0 0 21 12" />
+            </svg>
+            SPARQL エンドポイント
+          </Link>
           <span className="text-[11px] text-muted-foreground mr-1">Show:</span>
           <PanelToggle
             label="Search"
