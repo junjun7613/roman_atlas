@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
 // Datasets the /api/sparql proxy knows how to route to. Keep the keys in sync
@@ -143,7 +144,9 @@ export default function SparqlPage() {
         let detail = text;
         try {
           const j = JSON.parse(text);
-          detail = j.error ? `${j.error}${j.detail ? `: ${j.detail}` : ""}` : text;
+          detail = j.error
+            ? `${j.error}${j.detail ? `: ${j.detail}` : ""}`
+            : text;
         } catch {
           /* keep raw text */
         }
@@ -179,9 +182,29 @@ export default function SparqlPage() {
   }, [bindings, vars]);
 
   return (
-    <main className="flex h-screen flex-col bg-[var(--background)] text-[var(--foreground)]">
-      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-col px-6 py-8">
+    <main className="min-h-[100dvh] bg-[var(--background)] text-[var(--foreground)]">
+      <div className="mx-auto w-full max-w-[1800px] px-6 pt-8 pb-16">
         <header className="mb-6">
+          <Link
+            href="/"
+            className="mb-3 inline-flex items-center gap-1 text-sm text-[var(--primary)] hover:underline"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path d="M19 12H5" />
+              <path d="M12 19l-7-7 7-7" />
+            </svg>
+            メインページに戻る
+          </Link>
           <h1 className="font-[family-name:var(--font-eb-garamond)] text-3xl font-semibold">
             SPARQL エンドポイント
           </h1>
@@ -231,130 +254,146 @@ export default function SparqlPage() {
           </div>
         </div>
 
-        {/* Query editor */}
-        <div className="mb-3">
-          <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-            クエリ
-          </label>
-          <textarea
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              // Ctrl/Cmd+Enter to run.
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                e.preventDefault();
-                runQuery();
-              }
-            }}
-            spellCheck={false}
-            rows={14}
-            className="w-full resize-y rounded-[var(--radius)] border border-[var(--input)] bg-[var(--card)] p-3 font-[family-name:var(--font-plex-mono)] text-sm leading-relaxed text-[var(--foreground)] outline-none focus:border-[var(--ring)] focus:ring-1 focus:ring-[var(--ring)]"
-          />
-        </div>
+        {/* Query (left) + Results (right) */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Left column: query editor + controls + error */}
+          <div>
+            {/* Query editor */}
+            <div className="mb-3">
+              <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+                クエリ
+              </label>
+              <textarea
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  // Ctrl/Cmd+Enter to run.
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    runQuery();
+                  }
+                }}
+                spellCheck={false}
+                rows={14}
+                className="w-full resize-y rounded-[var(--radius)] border border-[var(--input)] bg-[var(--card)] p-3 font-[family-name:var(--font-plex-mono)] text-sm leading-relaxed text-[var(--foreground)] outline-none focus:border-[var(--ring)] focus:ring-1 focus:ring-[var(--ring)]"
+              />
+            </div>
 
-        <div className="mb-6 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={runQuery}
-            disabled={loading || !query.trim()}
-            className="rounded-[var(--radius)] bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {loading ? "実行中…" : "実行 (⌘/Ctrl + Enter)"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setQuery(SAMPLE_QUERIES[dataset] ?? "")}
-            className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm hover:bg-[var(--secondary)]"
-          >
-            サンプルに戻す
-          </button>
-          {elapsed != null && (
-            <span className="text-xs text-[var(--muted-foreground)]">
-              {bindings.length} 件 / {elapsed} ms
-            </span>
-          )}
-          {csvHref && (
-            <a
-              href={csvHref}
-              download="sparql-results.csv"
-              className="ml-auto text-sm text-[var(--primary)] underline"
-            >
-              CSV ダウンロード
-            </a>
-          )}
-        </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={runQuery}
+                disabled={loading || !query.trim()}
+                className="rounded-[var(--radius)] bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-foreground)] transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {loading ? "実行中…" : "実行 (⌘/Ctrl + Enter)"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setQuery(SAMPLE_QUERIES[dataset] ?? "")}
+                className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-sm hover:bg-[var(--secondary)]"
+              >
+                サンプルに戻す
+              </button>
+              {elapsed != null && (
+                <span className="text-xs text-[var(--muted-foreground)]">
+                  {bindings.length} 件 / {elapsed} ms
+                </span>
+              )}
+              {csvHref && (
+                <a
+                  href={csvHref}
+                  download="sparql-results.csv"
+                  className="ml-auto text-sm text-[var(--primary)] underline"
+                >
+                  CSV ダウンロード
+                </a>
+              )}
+            </div>
 
-        {/* Error */}
-        {error && (
-          <pre className="mb-6 overflow-auto rounded-[var(--radius)] border border-[var(--destructive)] bg-[var(--card)] p-3 text-sm text-[var(--destructive)]">
-            {error}
-          </pre>
-        )}
-
-        {/* Results */}
-        {results && !error && (
-          <div className="min-h-0 flex-1 overflow-auto rounded-[var(--radius)] border border-[var(--border)]">
-            {typeof results.boolean === "boolean" ? (
-              // ASK query
-              <div className="p-4 font-[family-name:var(--font-plex-mono)] text-sm">
-                {String(results.boolean)}
-              </div>
-            ) : bindings.length === 0 ? (
-              <div className="p-4 text-sm text-[var(--muted-foreground)]">
-                結果は 0 件でした。
-              </div>
-            ) : (
-              <table className="w-full border-collapse text-sm">
-                <thead className="sticky top-0 z-10 bg-[var(--secondary)]">
-                  <tr>
-                    {vars.map((v) => (
-                      <th
-                        key={v}
-                        className="border-b border-[var(--border)] px-3 py-2 text-left font-medium"
-                      >
-                        {v}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {bindings.map((b, i) => (
-                    <tr
-                      key={i}
-                      className="odd:bg-[var(--card)] even:bg-[var(--background)]"
-                    >
-                      {vars.map((v) => {
-                        const cell = b[v];
-                        const value = cell?.value ?? "";
-                        const isUri = cell?.type === "uri";
-                        return (
-                          <td
-                            key={v}
-                            className="max-w-md truncate border-b border-[var(--border)] px-3 py-1.5 align-top font-[family-name:var(--font-plex-mono)] text-xs"
-                            title={value}
-                          >
-                            {isUri ? (
-                              <a
-                                href={value}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[var(--primary)] underline"
-                              >
-                                {value}
-                              </a>
-                            ) : (
-                              value
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Error */}
+            {error && (
+              <pre className="mt-3 overflow-auto rounded-[var(--radius)] border border-[var(--destructive)] bg-[var(--card)] p-3 text-sm text-[var(--destructive)]">
+                {error}
+              </pre>
             )}
           </div>
-        )}
+
+          {/* Right column: results */}
+          <div>
+            <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+              結果
+            </label>
+            {!results && !error && (
+              <div className="rounded-[var(--radius)] border border-dashed border-[var(--border)] p-6 text-sm text-[var(--muted-foreground)]">
+                クエリを実行すると、ここに結果が表示されます。
+              </div>
+            )}
+            {results && !error && (
+              <div className="max-h-[60dvh] overflow-auto rounded-[var(--radius)] border border-[var(--border)]">
+                {typeof results.boolean === "boolean" ? (
+                  // ASK query
+                  <div className="p-4 font-[family-name:var(--font-plex-mono)] text-sm">
+                    {String(results.boolean)}
+                  </div>
+                ) : bindings.length === 0 ? (
+                  <div className="p-4 text-sm text-[var(--muted-foreground)]">
+                    結果は 0 件でした。
+                  </div>
+                ) : (
+                  <table className="w-full border-collapse text-sm">
+                    <thead className="sticky top-0 z-10 bg-[var(--secondary)]">
+                      <tr>
+                        {vars.map((v) => (
+                          <th
+                            key={v}
+                            className="border-b border-[var(--border)] px-3 py-2 text-left font-medium"
+                          >
+                            {v}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bindings.map((b, i) => (
+                        <tr
+                          key={i}
+                          className="odd:bg-[var(--card)] even:bg-[var(--background)]"
+                        >
+                          {vars.map((v) => {
+                            const cell = b[v];
+                            const value = cell?.value ?? "";
+                            const isUri = cell?.type === "uri";
+                            return (
+                              <td
+                                key={v}
+                                className="max-w-md truncate border-b border-[var(--border)] px-3 py-1.5 align-top font-[family-name:var(--font-plex-mono)] text-xs"
+                                title={value}
+                              >
+                                {isUri ? (
+                                  <a
+                                    href={value}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[var(--primary)] underline"
+                                  >
+                                    {value}
+                                  </a>
+                                ) : (
+                                  value
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </main>
   );

@@ -323,7 +323,7 @@ export default function SearchPanel({
         </div>
       </details>
 
-      <details open className="text-sm">
+      <details className="text-sm">
         <summary className="cursor-pointer font-medium">
           Benefaction, relationship & community
         </summary>
@@ -387,7 +387,7 @@ export default function SearchPanel({
 
       {/* Deities are an inscription element independent of persons, so they get
           their own top-level group rather than sitting under person attributes. */}
-      <details open className="text-sm">
+      <details className="text-sm">
         <summary className="cursor-pointer font-medium">Deity</summary>
         <div className="flex flex-col gap-2 mt-2">
           <div className="flex flex-col gap-1">
