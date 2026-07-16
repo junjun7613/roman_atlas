@@ -179,8 +179,8 @@ export default function SparqlPage() {
   }, [bindings, vars]);
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <div className="mx-auto max-w-6xl px-6 py-8">
+    <main className="flex h-screen flex-col bg-[var(--background)] text-[var(--foreground)]">
+      <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-col px-6 py-8">
         <header className="mb-6">
           <h1 className="font-[family-name:var(--font-eb-garamond)] text-3xl font-semibold">
             SPARQL エンドポイント
@@ -188,6 +188,18 @@ export default function SparqlPage() {
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
             ローマ碑文データセットに対して自由に SPARQL クエリを実行できます。
             読み取り専用（SELECT / ASK / CONSTRUCT / DESCRIBE）。
+          </p>
+          <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+            クエリ記述の参考に、データモデル（オントロジー）は{" "}
+            <a
+              href="https://junjun7613.github.io/HIMIKO_ontology/ontology/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--primary)] underline"
+            >
+              HIMIKO オントロジーページ
+            </a>{" "}
+            を参照してください。
           </p>
         </header>
 
@@ -281,7 +293,7 @@ export default function SparqlPage() {
 
         {/* Results */}
         {results && !error && (
-          <div className="overflow-auto rounded-[var(--radius)] border border-[var(--border)]">
+          <div className="min-h-0 flex-1 overflow-auto rounded-[var(--radius)] border border-[var(--border)]">
             {typeof results.boolean === "boolean" ? (
               // ASK query
               <div className="p-4 font-[family-name:var(--font-plex-mono)] text-sm">
@@ -293,7 +305,7 @@ export default function SparqlPage() {
               </div>
             ) : (
               <table className="w-full border-collapse text-sm">
-                <thead className="sticky top-0 bg-[var(--secondary)]">
+                <thead className="sticky top-0 z-10 bg-[var(--secondary)]">
                   <tr>
                     {vars.map((v) => (
                       <th
