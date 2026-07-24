@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Pinecone } from '@pinecone-database/pinecone'
 import OpenAI from 'openai'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { queryLiteratureReferencesBatch } from '@/app/utils/sparql'
+import {
+  formatLiteratureForRag,
+  type RefLink,
+} from '@/app/lib/epigraphy/literature-rag'
 
 // RAG over the current epigraphy search result set.
 //
@@ -44,6 +49,11 @@ export async function POST(request: NextRequest) {
       // pass refLinks straight back through — the model never sees it.
       literatureContext,
       refLinks,
+      // Multi-inscription mode signals "fold in literature too" with this flag
+      // (rather than pre-fetching client-side): the client can't know which
+      // inscriptions survive the Pinecone top-K, so we fetch literature here,
+      // after the matches are known, for just those top-K ids.
+      includeLiterature,
     } = await request.json()
 
     if (!query || !Array.isArray(edcsIds)) {
@@ -125,13 +135,63 @@ Commentary: ${m.comment || 'No commentary available'}
       })
       .join('\n\n')
 
-    // Append the scholarly literature block when the client provided one
-    // (single-inscription mode). This lets the model ground its answer in how
-    // modern research has discussed the inscription, not just its raw text.
-    const context =
+    // Resolve the scholarly literature block. Two paths converge here:
+    //   - single-inscription mode: the client already fetched + formatted it
+    //     and passed `literatureContext` (+ its `refLinks`).
+    //   - multi-inscription mode: the client set `includeLiterature` and left
+    //     the block empty; we now fetch literature for exactly the inscriptions
+    //     that made the Pinecone top-K, batched into one SPARQL query, and
+    //     format them with continuous [REF-N] tokens across inscriptions.
+    let effectiveLiterature: string | undefined =
       typeof literatureContext === 'string' && literatureContext.trim()
-        ? `${inscriptionContext}\n\n=== Modern scholarly references discussing the inscription(s) above ===\n\n${literatureContext.trim()}`
-        : inscriptionContext
+        ? literatureContext.trim()
+        : undefined
+    let effectiveRefLinks: Record<string, RefLink> | undefined =
+      refLinks ?? undefined
+
+    if (!effectiveLiterature && includeLiterature) {
+      const endpoint = process.env.INSCRIPTION_REF_SPARQL_ENDPOINT
+      if (endpoint) {
+        // Only the matched (top-K) ids — never the whole result set — so cost
+        // stays bounded by the number of inscriptions actually in the context.
+        const matchedIds = Array.from(
+          new Set(
+            matches
+              .map((m) => (m.metadata as any)?.edcs_id as string | undefined)
+              .filter((id): id is string => !!id),
+          ),
+        )
+        const byId = await queryLiteratureReferencesBatch(matchedIds, endpoint)
+        const blocks: string[] = []
+        const mergedRefLinks: Record<string, RefLink> = {}
+        let token = 0
+        // Iterate in matched order so the block mirrors the inscription list.
+        for (const id of matchedIds) {
+          const refs = byId.get(id)
+          if (!refs || refs.length === 0) continue
+          const formatted = formatLiteratureForRag(refs, token)
+          if (!formatted.context) continue
+          token = formatted.nextToken
+          Object.assign(mergedRefLinks, formatted.refLinks)
+          blocks.push(`For inscription ${id}:\n${formatted.context}`)
+        }
+        if (blocks.length > 0) {
+          effectiveLiterature = blocks.join('\n\n')
+          effectiveRefLinks = mergedRefLinks
+        }
+      } else {
+        console.warn(
+          'includeLiterature requested but INSCRIPTION_REF_SPARQL_ENDPOINT is not configured',
+        )
+      }
+    }
+
+    // Append the scholarly literature block when we have one. This lets the
+    // model ground its answer in how modern research has discussed the
+    // inscriptions, not just their raw text.
+    const context = effectiveLiterature
+      ? `${inscriptionContext}\n\n=== Modern scholarly references discussing the inscription(s) above ===\n\n${effectiveLiterature}`
+      : inscriptionContext
 
     const systemPrompt = `You are an expert in Roman epigraphy and ancient history. Answer questions about Roman inscriptions based ONLY on the provided context, which is restricted to the inscriptions the user is currently viewing.
 
@@ -159,6 +219,7 @@ Each scholarly work in that section is labelled with a reference token like [REF
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
       const geminiModel = genAI.getGenerativeModel({
         model: 'gemini-3-flash-preview',
+        generationConfig: { maxOutputTokens: 2000 },
       })
       const result = await geminiModel.generateContent(
         `${systemPrompt}\n\nContext from inscriptions:\n\n${context}\n\nQuestion: ${query}`,
@@ -175,7 +236,7 @@ Each scholarly work in that section is labelled with a reference token like [REF
           },
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_tokens: 2000,
       })
       answer = completion.choices[0].message.content
     }
@@ -193,9 +254,10 @@ Each scholarly work in that section is labelled with a reference token like [REF
       answer,
       sources,
       searchableCount: matches.length,
-      // Pass the client's reference-link map straight back so it can resolve
-      // the [REF-N] tokens the model emitted into deep links.
-      refLinks: refLinks ?? null,
+      // The reference-link map for resolving the [REF-N] tokens the model
+      // emitted into deep links. In single mode this is the client's own map
+      // passed straight back; in multi mode it's the one we built server-side.
+      refLinks: effectiveRefLinks ?? null,
     })
   } catch (error) {
     console.error('RAG (by-edcs) API Error:', error)

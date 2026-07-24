@@ -1454,6 +1454,208 @@ export async function queryLiteratureReferences(edcsId: string): Promise<Literat
   }
 }
 
+// Batched variant of queryLiteratureReferences: fetches the literature for
+// several inscriptions in a SINGLE SPARQL query and returns them grouped by the
+// EDCS id each was matched on. This is what the multi-inscription RAG path uses,
+// so that feeding literature for the top-N inscriptions costs one round trip
+// instead of N (avoiding an N+1 of 30s-timeout queries against Fuseki).
+//
+// `endpoint` selects how the query is sent:
+//   - omitted → POST to the relative /api/sparql proxy (browser / client use)
+//   - a URL   → POST directly to that Fuseki endpoint (server / route-handler
+//               use, where relative URLs don't resolve)
+//
+// The extra ?edcsId projection carries which requested id each row belongs to,
+// so results can be regrouped per inscription. Ids are matched with the same
+// CONTAINS-on-owl:sameAs logic as the single-id query, batched via VALUES.
+export async function queryLiteratureReferencesBatch(
+  edcsIds: string[],
+  endpoint?: string,
+): Promise<Map<string, LiteratureReference[]>> {
+  const result = new Map<string, LiteratureReference[]>()
+  const ids = Array.from(new Set(edcsIds.filter(Boolean)))
+  if (ids.length === 0) return result
+
+  const values = ids.map((id) => `"${id.replace(/"/g, '')}"`).join(' ')
+  const query = `
+    PREFIX ns: <https://example.org/inscription-ref/ns#>
+    PREFIX oa: <http://www.w3.org/ns/oa#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX owl: <http://www.w3.org/2002/07/owl#>
+    PREFIX dct: <http://purl.org/dc/terms/>
+    PREFIX bibo: <http://purl.org/ontology/bibo/>
+
+    SELECT DISTINCT ?edcsId ?doc ?title ?creator ?pages ?source ?doi ?containerTitle
+                    ?mention ?rawRef ?locationType ?startParagraph ?endParagraph
+                    ?noteNumber ?noteParentParagraph ?relType ?val
+    WHERE {
+      VALUES ?edcsId { ${values} }
+      ?insc a ns:Inscription ;
+            owl:sameAs ?edcs .
+      FILTER(CONTAINS(STR(?edcs), ?edcsId))
+      ?mention ns:refersTo ?insc .
+      OPTIONAL { ?mention ns:rawRef ?rawRef . }
+      OPTIONAL { ?mention ns:locationType ?locationType . }
+      OPTIONAL { ?mention ns:startParagraph ?startParagraph . }
+      OPTIONAL { ?mention ns:endParagraph ?endParagraph . }
+      OPTIONAL { ?mention ns:noteNumber ?noteNumber . }
+      OPTIONAL {
+        ?mention ns:inFootnote ?footnote .
+        ?parentPara ns:containsFootnote ?footnote ;
+                    ns:paragraphNumber ?noteParentParagraph .
+      }
+      OPTIONAL {
+        ?mention ns:hasRelation ?rel .
+        ?rel ns:relationType ?relTypeUri ;
+             oa:hasBody ?b .
+        ?b rdf:value ?val .
+        BIND(REPLACE(STR(?relTypeUri), "^.*#rel_", "") AS ?relType)
+      }
+      OPTIONAL {
+        ?mention dct:isPartOf ?doc .
+        ?doc a bibo:BookSection .
+        OPTIONAL { ?doc dct:title ?title }
+        OPTIONAL { ?doc dct:creator ?creator }
+        OPTIONAL { ?doc bibo:pages ?pages }
+        OPTIONAL { ?doc dct:source ?source }
+        OPTIONAL { ?doc bibo:doi ?docDoi }
+        OPTIONAL {
+          ?doc dct:isPartOf ?container .
+          OPTIONAL { ?container dct:title ?containerTitle }
+          OPTIONAL { ?container bibo:doi ?containerDoi }
+        }
+        BIND(COALESCE(?docDoi, ?containerDoi) AS ?doi)
+      }
+    }
+    ORDER BY ?edcsId ?doc ?mention
+  `
+
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+    let data: any
+    if (endpoint) {
+      // Server-side: hit Fuseki directly (relative URLs don't resolve there).
+      const form = new URLSearchParams({ query })
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/sparql-results+json',
+        },
+        body: form.toString(),
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      if (!response.ok) {
+        throw new Error(`SPARQL query failed: ${response.status} ${response.statusText}`)
+      }
+      data = await response.json()
+    } else {
+      const response = await fetch('/api/sparql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/sparql-results+json',
+        },
+        body: JSON.stringify({ query, dataset: 'inscription-ref' }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      if (!response.ok) {
+        throw new Error(`SPARQL query failed: ${response.status} ${response.statusText}`)
+      }
+      data = await response.json()
+    }
+
+    // Group per requested id, then per document within that id — same excerpt
+    // dedup as the single-id path, kept independent per inscription.
+    const UNKNOWN = '__unknown__'
+    const byId = new Map<string, Map<string, LiteratureReference>>()
+    if (data.results?.bindings?.length > 0) {
+      for (const b of data.results.bindings) {
+        const edcsId: string | undefined = b.edcsId?.value
+        if (!edcsId) continue
+        let byDoc = byId.get(edcsId)
+        if (!byDoc) {
+          byDoc = new Map<string, LiteratureReference>()
+          byId.set(edcsId, byDoc)
+        }
+        const docUri: string = b.doc?.value || UNKNOWN
+        let entry = byDoc.get(docUri)
+        if (!entry) {
+          entry = {
+            uri: docUri,
+            title: b.title?.value,
+            creator: b.creator?.value,
+            containerTitle: b.containerTitle?.value,
+            pages: b.pages?.value,
+            source: b.source?.value,
+            doi: b.doi?.value,
+            excerpts: [],
+          }
+          byDoc.set(docUri, entry)
+        }
+        const relType = b.relType?.value
+        const text = b.val?.value
+        const rawRef = b.rawRef?.value
+        const lt = b.locationType?.value
+        const locationType = lt === 'body' || lt === 'note' ? lt : undefined
+        const startParagraph = b.startParagraph?.value
+          ? parseInt(b.startParagraph.value, 10)
+          : undefined
+        const endParagraph = b.endParagraph?.value
+          ? parseInt(b.endParagraph.value, 10)
+          : undefined
+        const noteNumber = b.noteNumber?.value
+          ? parseInt(b.noteNumber.value, 10)
+          : undefined
+        const noteParentParagraph = b.noteParentParagraph?.value
+          ? parseInt(b.noteParentParagraph.value, 10)
+          : undefined
+        if (
+          relType &&
+          text &&
+          !entry.excerpts.some(
+            (e) =>
+              e.relType === relType &&
+              e.text === text &&
+              e.rawRef === rawRef &&
+              e.startParagraph === startParagraph &&
+              e.endParagraph === endParagraph &&
+              e.noteNumber === noteNumber,
+          )
+        ) {
+          entry.excerpts.push({
+            relType,
+            text,
+            rawRef,
+            locationType,
+            startParagraph,
+            endParagraph,
+            noteNumber,
+            noteParentParagraph,
+          })
+        }
+      }
+    }
+
+    for (const [edcsId, byDoc] of byId) {
+      result.set(edcsId, Array.from(byDoc.values()))
+    }
+    return result
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error('Timeout querying batched literature references')
+    } else {
+      console.error('Error querying batched literature references from SPARQL endpoint:', error)
+    }
+    return result
+  }
+}
+
 /**
  * Query mosaics by Pleiades ID from SPARQL endpoint
  * This function retrieves mosaic IIIF manifests linked to a specific place

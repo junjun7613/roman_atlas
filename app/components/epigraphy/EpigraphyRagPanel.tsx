@@ -3,90 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { queryLiteratureReferences } from "@/app/utils/sparql";
 import {
-  queryLiteratureReferences,
-  type LiteratureReference,
-} from "@/app/utils/sparql";
-import {
-  openEditionBase,
-  openEditionLink,
-} from "@/app/lib/epigraphy/openedition";
-
-// A resolved reference link the model can cite via its [REF-N] token.
-interface RefLink {
-  url: string;
-  label: string;
-}
-
-// Relation-type local names → readable labels for the literature passed to RAG.
-const REL_TYPE_LABELS: Record<string, string> = {
-  transcription: "transcription",
-  translation: "translation",
-  contentDescription: "content description",
-  detailedAnalysis: "detailed analysis",
-  dating: "dating",
-  provenance: "provenance",
-  citationOnly: "citation only",
-  discovererPublisher: "discoverer/publisher",
-  textualCriticism: "textual criticism",
-  crossCorpusIdentification: "cross-corpus identification",
-  figureReference: "figure reference",
-};
-
-// Flattens the literature references for one inscription into a plain-text
-// block for the RAG context, plus a map of [REF-N] tokens → deep links.
-//
-// Each citing work gets a stable [REF-N] token the model is told to cite. The
-// token's link is the work's most specific OpenEdition anchor: the paragraph or
-// footnote of its first positioned excerpt, else the work's base URL, else its
-// raw source URL. The client later turns the tokens the model emitted back into
-// clickable links.
-function formatLiteratureForRag(refs: LiteratureReference[]): {
-  context: string;
-  refLinks: Record<string, RefLink>;
-} {
-  const refLinks: Record<string, RefLink> = {};
-  if (refs.length === 0) return { context: "", refLinks };
-
-  const blocks = refs.map((ref, i) => {
-    const token = `REF-${i + 1}`;
-    const header = [
-      ref.title,
-      ref.creator,
-      ref.containerTitle ? `in: ${ref.containerTitle}` : null,
-      ref.pages ? `pp. ${ref.pages}` : null,
-    ]
-      .filter(Boolean)
-      .join(" / ");
-
-    // Pick the deepest available link for this work: first excerpt with a
-    // resolvable OpenEdition position, else the base page, else the source.
-    let url: string | undefined;
-    for (const ex of ref.excerpts) {
-      const deep = openEditionLink(ref.source, ex);
-      if (deep) {
-        url = deep;
-        break;
-      }
-    }
-    if (!url) url = openEditionBase(ref.source) ?? ref.source;
-    if (url) {
-      refLinks[token] = { url, label: header || ref.title || token };
-    }
-
-    const excerpts = ref.excerpts
-      .map((ex) => {
-        const label = REL_TYPE_LABELS[ex.relType] ?? ex.relType;
-        const ref_ = ex.rawRef ? ` (${ex.rawRef})` : "";
-        return `  - [${label}]${ref_} ${ex.text}`;
-      })
-      .join("\n");
-
-    return `[${token}] Work: ${header || "(no bibliographic info)"}\n${excerpts}`;
-  });
-
-  return { context: blocks.join("\n\n"), refLinks };
-}
+  formatLiteratureForRag,
+  type RefLink,
+} from "@/app/lib/epigraphy/literature-rag";
 
 // Turns the model's bare citation tokens into Markdown links before rendering:
 //   [EDCS-12345678] → in-app anchor "#edcs-12345678" (handled by the renderer)
@@ -185,10 +106,13 @@ export default function EpigraphyRagPanel({
     setIsLoading(true);
 
     try {
-      // In single-inscription mode, optionally pull the inscription's
-      // scholarly literature and feed it into the RAG context. We fetch at
-      // send time (not eagerly) so it only costs a SPARQL query when the user
-      // actually asks something in this mode.
+      // Fold the inscription's scholarly literature into the RAG context when
+      // the user opted in. The two scopes fetch it differently:
+      //   - single mode: we fetch + format here (one known id, bounded cost)
+      //     and pass the block to the server.
+      //   - multi mode: the surviving inscriptions aren't known until the
+      //     server runs the Pinecone top-K, so we just set the flag and let the
+      //     server fetch literature for those ids (one batched SPARQL query).
       let literatureContext: string | undefined;
       let refLinks: Record<string, RefLink> | undefined;
       if (
@@ -219,6 +143,9 @@ export default function EpigraphyRagPanel({
           model,
           literatureContext,
           refLinks,
+          // In multi mode the server does the fetching; flag it so it knows to.
+          includeLiterature:
+            includeLiterature && effectiveScope === "all",
         }),
       });
       if (!response.ok) {
@@ -338,20 +265,22 @@ export default function EpigraphyRagPanel({
             </>
           )}
         </div>
-        {/* Single-inscription mode: let the user fold the inscription's
-            scholarly literature into the RAG context. */}
-        {effectiveScope === "single" && selectedEdcsId && (
-          <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
-            <input
-              type="checkbox"
-              checked={includeLiterature}
-              onChange={(e) => setIncludeLiterature(e.target.checked)}
-              disabled={isLoading}
-              className="cursor-pointer"
-            />
-            Include related scholarly literature in the analysis
-          </label>
-        )}
+        {/* Let the user fold the inscriptions' scholarly literature into the
+            RAG context. In "This inscription" mode it covers the one selected
+            inscription; in "Result set" mode it covers the inscriptions that
+            make the top matches (fetched server-side). */}
+        <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+          <input
+            type="checkbox"
+            checked={includeLiterature}
+            onChange={(e) => setIncludeLiterature(e.target.checked)}
+            disabled={isLoading}
+            className="cursor-pointer"
+          />
+          {effectiveScope === "single"
+            ? "Include related scholarly literature in the analysis"
+            : "Include related scholarly literature (for the top matches)"}
+        </label>
       </div>
 
       {/* Messages */}
