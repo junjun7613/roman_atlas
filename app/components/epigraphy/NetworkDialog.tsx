@@ -8,6 +8,7 @@ import {
   buildEdcsUrl,
   queryAtagText,
   queryAtagLinkings,
+  statementBaseUri,
   type InscriptionNetworkData,
   type AtagText,
   type AtagLinking,
@@ -24,6 +25,7 @@ const AnnotatedText = dynamic(
 );
 
 import ResizableSplit from "./ResizableSplit";
+import EntityHistory from "./EntityHistory";
 
 type Props = {
   row: IndexRow;
@@ -81,18 +83,40 @@ export default function NetworkDialog({
 
   // Text↔node linkings for this inscription (read-only). Drive the highlight
   // between a network node and the text range that refers to it.
-  const [linkings, setLinkings] = useState<AtagLinking[]>([]);
+  const [rawLinkings, setRawLinkings] = useState<AtagLinking[]>([]);
   useEffect(() => {
     let cancelled = false;
-    setLinkings([]);
+    setRawLinkings([]);
     setActiveNode(null);
     queryAtagLinkings(row.id).then((result) => {
-      if (!cancelled) setLinkings(result);
+      if (!cancelled) setRawLinkings(result);
     });
     return () => {
       cancelled = true;
     };
   }, [row.id]);
+
+  // Linkings may point at a superseded statement version (…/0_v0) while the
+  // graph shows the latest (…/0_v1). Re-point each linking at the displayed
+  // node with the same version-less base URI so highlights line up.
+  const linkings = useMemo(() => {
+    const byBase = new Map<string, string>();
+    for (const d of networkData) {
+      for (const uri of [
+        d.person,
+        d.career_position,
+        d.benefaction,
+        d.community,
+        d.relationship,
+      ]) {
+        if (uri) byBase.set(statementBaseUri(uri), uri);
+      }
+    }
+    return rawLinkings.map((l) => {
+      const current = byBase.get(statementBaseUri(l.nodeUri));
+      return current && current !== l.nodeUri ? { ...l, nodeUri: current } : l;
+    });
+  }, [rawLinkings, networkData]);
 
   // The node whose linked text range is currently highlighted (set by clicking
   // a graph node or hovering a linking in the list). null → nothing highlighted.
@@ -247,6 +271,18 @@ export default function NetworkDialog({
                   onNodeSelect={setActiveNode}
                   activeNodeUri={activeNode}
                   linkedNodeUris={linkedNodeUris}
+                  footer={
+                    // History of the selected entity across runs / versions.
+                    // Skip the synthetic inscription node (not an RDF entity).
+                    activeNode?.startsWith("http") ? (
+                      <EntityHistory
+                        key={activeNode}
+                        edcsId={row.id}
+                        uri={activeNode}
+                        currentGraph={networkData[0]?.latest_graph}
+                      />
+                    ) : null
+                  }
                 />
               )}
             </div>

@@ -54,12 +54,19 @@ export async function POST(req: NextRequest) {
 
   // This proxy is read-only: the /sparql query page lets anyone on the public
   // deployment run arbitrary SPARQL, so we refuse any update operation before
-  // it reaches Fuseki. SPARQL Update keywords are matched at a statement
-  // boundary (start of query or after a `;`), ignoring case, so we don't reject
-  // a SELECT that merely contains e.g. "insert" inside a string literal.
+  // it reaches Fuseki. Update keywords are bare words, so string literals,
+  // IRIs and `#` comments are stripped first — otherwise a SELECT whose
+  // comment says "shared with another run" was rejected as a WITH update.
+  // What's left can only contain the keywords as SPARQL tokens (variables are
+  // `?add`, prefixed names `ex:Add`, neither preceded by whitespace).
   const UPDATE_KEYWORDS =
-    /(^|[\s;])(INSERT|DELETE|DROP|CLEAR|CREATE|LOAD|MOVE|COPY|ADD|WITH)\b/i;
-  if (UPDATE_KEYWORDS.test(query)) {
+    /(^|[\s;{}])(INSERT|DELETE|DROP|CLEAR|CREATE|LOAD|MOVE|COPY|ADD|WITH)\b/i;
+  const stripped = query
+    .replace(/"""[\s\S]*?"""|'''[\s\S]*?'''/g, " ") // long strings
+    .replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/g, " ") // short strings
+    .replace(/<[^<>"{}|^`\\\s]*>/g, " ") // IRIs (may contain '#')
+    .replace(/#[^\n]*/g, " "); // comments
+  if (UPDATE_KEYWORDS.test(stripped)) {
     return NextResponse.json(
       { error: "only read-only queries (SELECT/ASK/CONSTRUCT/DESCRIBE) are allowed" },
       { status: 403 },
@@ -80,9 +87,8 @@ export async function POST(req: NextRequest) {
   // most reasonable Fuseki queries.
   const t = setTimeout(() => controller.abort(), 25_000);
 
-  let upstream: Response;
-  try {
-    upstream = await fetch(ENDPOINT, {
+  const send = () =>
+    fetch(ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -92,6 +98,19 @@ export async function POST(req: NextRequest) {
       cache: "no-store",
       signal: controller.signal,
     });
+
+  let upstream: Response;
+  try {
+    try {
+      upstream = await send();
+    } catch (e) {
+      // A connection-level failure (undici "fetch failed": reset / refused /
+      // stale keep-alive socket) is usually transient. Queries are read-only
+      // (enforced above), so one retry is safe. Timeouts are not retried.
+      if (controller.signal.aborted) throw e;
+      await new Promise((r) => setTimeout(r, 500));
+      upstream = await send();
+    }
   } catch (e) {
     clearTimeout(t);
     const reason = e instanceof Error ? e.message : String(e);

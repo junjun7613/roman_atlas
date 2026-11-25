@@ -60,6 +60,10 @@ export interface InscriptionNetworkData {
   benef_type?: string
   benef_object?: string
   benef_objectType?: string
+  // The claude graph (extraction run) every value above was read from — see
+  // LATEST RUN in queryInscriptionNetwork. Lets the history view mark which
+  // version is the one on screen.
+  latest_graph?: string
 }
 
 // A single excerpt from a publication describing the inscription, keyed by the
@@ -819,12 +823,46 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
   // `edcs`-source graph while statement bodies and PersonReferences live in the
   // `claude`-source graph. So EVERY triple pattern must sit in its OWN
   // `GRAPH ?gN {}`; wrapping the whole thing in one graph returns nothing.
+  //
+  // LATEST RUN: ~4,800 inscriptions sit in more than one place file (place-name
+  // searches overlap, e.g. "Sid" also catches every "Sidi …" site), and each
+  // file's run left its own `claude/{extract-date}` graph. All runs are kept on
+  // purpose so their history stays traceable (inscription_llm
+  // docs/WORK_LOG_2026-10-06.md §6). They share the single `edcs` graph, so its
+  // `p:mentions` point into every run, and the same statement URI can carry
+  // different values in different runs — so every body pattern is pinned to
+  // ONE run, ?latest.
+  //
+  // ?latest is the run with the most recent interpretation act of its own: the
+  // newest prov:generatedAtTime among the acts that generated it
+  // (prov:wasGeneratedBy = extract) or later touched it (prov:wasInfluencedBy =
+  // enrich / reextract …). Acts shared with another run of the same inscription
+  // are ignored — those are corpus-wide passes (schema_fix, classify_*) that
+  // give every run the same time. The extract date alone isn't enough: an
+  // older run may have had its relationships re-extracted after a newer run
+  // was extracted. Still a heuristic — run order follows place-file processing
+  // order, not interpretation quality (~53% of multi-run inscriptions land on
+  // the run whose place file matches the EDCS findspot). Duplicates inside ONE
+  // place file share one graph and can't be separated here.
+  //
+  // VERSIONING: within a run, statements are versioned by URI suffix
+  // (.../relationship/0_v0, 0_v1, ...) and a newer version points at the one it
+  // replaces with `prov:wasRevisionOf`. Each statement branch drops versions
+  // revised in the latest graph. The check must stay scoped to ?latest: a run
+  // without re-extraction holds only _v0, which an OLDER run may have revised.
+  //
+  // PERF: the inscription URI is written inline into each `p:mentions` pattern
+  // and ?inscription is BIND-ed only at the END. A leading
+  // `BIND(<uri> AS ?inscription)` is not pushed into the UNION branches by ARQ
+  // when the PersonReference branch is present, so every branch scanned all
+  // graphs (~22s vs ~0.6s — measured 2026-10-18).
   const inscriptionUri = `http://epigraphic-careers.org/inscription/${edcsId}`
 
   const query = `
     PREFIX epig: <http://epigraphic-careers.org/ontology#>
     PREFIX p: <urn:himiko:ontology:physical:>
     PREFIX intr: <urn:himiko:ontology:intrinsic:>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
 
     SELECT DISTINCT
         ?inscription
@@ -851,13 +889,37 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
         ?benef_type
         ?benef_object
         ?benef_objectType
+        ?latest
     WHERE {
-        BIND(<${inscriptionUri}> AS ?inscription)
+        # Run with the most recent interpretation of its own (see LATEST RUN above).
+        {
+            SELECT ?latest (MAX(?actTime) AS ?lastTime) WHERE {
+                GRAPH ?lm {
+                    ?latest epig:interpretsInscription <${inscriptionUri}> .
+                    { ?latest prov:wasGeneratedBy ?act } UNION { ?latest prov:wasInfluencedBy ?act }
+                }
+                FILTER(CONTAINS(STR(?latest), "/claude/"))
+                GRAPH ?la { ?act prov:generatedAtTime ?actTime . }
+                # Ignore acts shared with another run (corpus-wide passes such
+                # as schema_fix / classify_*): they carry the same time for
+                # every run and can't tell runs apart.
+                FILTER NOT EXISTS {
+                    GRAPH ?lo {
+                        ?otherRun epig:interpretsInscription <${inscriptionUri}> .
+                        { ?otherRun prov:wasGeneratedBy ?act } UNION { ?otherRun prov:wasInfluencedBy ?act }
+                    }
+                    FILTER(?otherRun != ?latest && CONTAINS(STR(?otherRun), "/claude/"))
+                }
+            }
+            GROUP BY ?latest
+            ORDER BY DESC(?lastTime) DESC(STR(?latest))
+            LIMIT 1
+        }
         {
             # PersonReferences for this inscription. They aren't linked back to
             # the inscription by a triple, so match on the id embedded in the URI
             # (.../entityref/EDCS-ID/person/N).
-            GRAPH ?pg {
+            GRAPH ?latest {
                 ?person a epig:PersonReference .
                 FILTER(STRSTARTS(STR(?person), "http://epigraphic-careers.org/entityref/${edcsId}/"))
                 OPTIONAL { ?person epig:personName ?person_name . }
@@ -867,8 +929,10 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
             }
         }
         UNION {
-            GRAPH ?mg { ?inscription p:mentions ?career_position . }
-            GRAPH ?cg {
+            GRAPH ?mg { <${inscriptionUri}> p:mentions ?career_position . }
+            # Skip versions revised within the latest graph (see VERSIONING above).
+            FILTER NOT EXISTS { GRAPH ?latest { ?newer prov:wasRevisionOf ?career_position } }
+            GRAPH ?latest {
                 ?career_position a epig:CareerStatement ;
                                  epig:subject ?person .
                 OPTIONAL { ?career_position epig:positionText ?position . }
@@ -880,8 +944,10 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
             }
         }
         UNION {
-            GRAPH ?mg { ?inscription p:mentions ?benefaction . }
-            GRAPH ?bg {
+            GRAPH ?mg { <${inscriptionUri}> p:mentions ?benefaction . }
+            # Skip versions revised within the latest graph (see VERSIONING above).
+            FILTER NOT EXISTS { GRAPH ?latest { ?newer prov:wasRevisionOf ?benefaction } }
+            GRAPH ?latest {
                 ?benefaction a epig:BenefactionStatement ;
                              epig:agent ?person .
                 OPTIONAL { ?benefaction epig:benefactionType ?benef_type . }
@@ -890,15 +956,17 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
             }
         }
         UNION {
-            GRAPH ?mg { ?inscription p:mentions ?community . }
-            GRAPH ?commg {
+            GRAPH ?mg { <${inscriptionUri}> p:mentions ?community . }
+            GRAPH ?latest {
                 ?community a epig:CommunityReference .
                 OPTIONAL { ?community intr:surfaceForm ?community_label . }
             }
         }
         UNION {
-            GRAPH ?mg { ?inscription p:mentions ?relationship . }
-            GRAPH ?rg {
+            GRAPH ?mg { <${inscriptionUri}> p:mentions ?relationship . }
+            # Skip versions revised within the latest graph (see VERSIONING above).
+            FILTER NOT EXISTS { GRAPH ?latest { ?newer prov:wasRevisionOf ?relationship } }
+            GRAPH ?latest {
                 ?relationship a epig:RelationshipStatement ;
                               epig:source ?rel_source ;
                               epig:target ?rel_target .
@@ -906,6 +974,7 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
                 OPTIONAL { ?relationship epig:relationshipProperty ?rel_property . }
             }
         }
+        BIND(<${inscriptionUri}> AS ?inscription)
     }
   `
 
@@ -962,7 +1031,8 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
         benefaction: binding.benefaction?.value,
         benef_type: binding.benef_type?.value,
         benef_object: binding.benef_object?.value,
-        benef_objectType: binding.benef_objectType?.value
+        benef_objectType: binding.benef_objectType?.value,
+        latest_graph: binding.latest?.value
       }))
       console.log('Inscription network data count:', networkData.length)
       return networkData
@@ -978,6 +1048,182 @@ export async function queryInscriptionNetwork(edcsId: string): Promise<Inscripti
     }
     // Return empty array to avoid breaking the UI
     return []
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Entity / statement history
+//
+// The network shows ONE run (see LATEST RUN in queryInscriptionNetwork) and,
+// within it, the newest version of each statement. This reads every version
+// of one entity across ALL runs of the inscription, so the UI can show what
+// the other runs / earlier versions said:
+//   - other runs: the same URI in another `claude/{date}` graph
+//   - versions:   .../0_v0 → 0_v1 → … (prov:wasRevisionOf), each stamped with
+//                 the act that produced it (hmkia:generatedBy)
+// PersonReference / CommunityReference have no _vN versions — only the per-run
+// values. (In-run enrich overwrites of person attributes aren't kept in RDF.)
+// ---------------------------------------------------------------------------
+
+export interface EntityVersionField {
+  // Predicate local name, e.g. "relationshipType".
+  property: string
+  // Display values: literals as-is; resources as "Name (person/1)" when the
+  // same run gives them a personName, else the last two URI segments.
+  values: string[]
+}
+
+export interface EntityVersion {
+  // claude graph (extraction run) this version lives in.
+  graph: string
+  // Run date from the graph URI (YYYY-MM-DD).
+  runDate: string
+  // When the run's extract act ran.
+  runTime?: string
+  // Version URI (…/0_v1) — or the plain URI for persons / communities.
+  uri: string
+  // The act that produced this version (extract / reextract_relationships /
+  // enrich_* …) and when. Absent for persons / communities.
+  actType?: string
+  actTime?: string
+  // The version this one revises, if any.
+  revisionOf?: string
+  fields: EntityVersionField[]
+}
+
+// Bookkeeping predicates that are shown separately (act, revision) or add
+// nothing in a per-version comparison.
+const HISTORY_SKIP_PREDICATES = new Set([
+  'http://www.w3.org/1999/02/22-rdf-syntax-ns#type',
+  'urn:himiko:ontology:interpretation:generatedBy',
+  'http://www.w3.org/ns/prov#wasRevisionOf',
+  'urn:himiko:ontology:intrinsic:references',
+])
+
+// Highest _vN suffix probed. Observed data goes up to _v3.
+const HISTORY_MAX_VERSION = 9
+
+/**
+ * Every version of one network entity (statement, person or community) across
+ * all extraction runs of the inscription, oldest run first. Read-only; goes
+ * through the /api/sparql proxy to the himiko dataset.
+ */
+export async function queryEntityHistory(edcsId: string, uri: string): Promise<EntityVersion[]> {
+  const base = statementBaseUri(uri)
+  // Exact candidate URIs (base + _v0.._vN) instead of a STRSTARTS filter, so
+  // each lookup is an index hit rather than a scan of the run graphs.
+  const candidates = [base, ...Array.from({ length: HISTORY_MAX_VERSION + 1 }, (_, i) => `${base}_v${i}`)]
+    .map((u) => `<${u}>`)
+    .join(' ')
+
+  const query = `
+    PREFIX epig: <http://epigraphic-careers.org/ontology#>
+    PREFIX prov: <http://www.w3.org/ns/prov#>
+    PREFIX hmkia: <urn:himiko:ontology:interpretation:>
+
+    SELECT ?g ?runTime ?s ?p ?o ?oLabel ?actType ?actTime ?revOf WHERE {
+      GRAPH ?lm {
+        ?g epig:interpretsInscription <http://epigraphic-careers.org/inscription/${edcsId}> ;
+           prov:wasGeneratedBy ?runAct .
+      }
+      FILTER(CONTAINS(STR(?g), "/claude/"))
+      OPTIONAL { GRAPH ?lt { ?runAct prov:generatedAtTime ?runTime . } }
+      VALUES ?s { ${candidates} }
+      GRAPH ?g {
+        ?s ?p ?o .
+        OPTIONAL { ?o epig:personName ?oLabel . }
+      }
+      OPTIONAL {
+        GRAPH ?g { ?s hmkia:generatedBy ?act . }
+        OPTIONAL { GRAPH ?at { ?act hmkia:hasType ?actType . } }
+        OPTIONAL { GRAPH ?am { ?act prov:generatedAtTime ?actTime . } }
+      }
+      OPTIONAL { GRAPH ?g { ?s prov:wasRevisionOf ?revOf . } }
+    }
+  `
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 20000)
+
+  try {
+    const response = await fetch('/api/sparql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/sparql-results+json',
+      },
+      body: JSON.stringify({ query }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    if (!response.ok) {
+      throw new Error(`History SPARQL query failed: ${response.status} ${response.statusText}`)
+    }
+    const data = await response.json()
+    const rows = data.results?.bindings ?? []
+
+    const shortUri = (u: string) => u.split('/').slice(-2).join('/')
+    const localName = (u: string) => u.split(/[#/:]/).pop() || u
+
+    // Group rows into one version per (run graph, version URI).
+    const byKey = new Map<string, EntityVersion & { fieldMap: Map<string, Set<string>> }>()
+    for (const b of rows) {
+      const graph = b.g.value as string
+      const s = b.s.value as string
+      const key = `${graph}|${s}`
+      let v = byKey.get(key)
+      if (!v) {
+        v = {
+          graph,
+          runDate: graph.split('/').pop() || '',
+          runTime: b.runTime?.value,
+          uri: s,
+          actType: b.actType?.value,
+          actTime: b.actTime?.value,
+          revisionOf: b.revOf?.value,
+          fields: [],
+          fieldMap: new Map(),
+        }
+        byKey.set(key, v)
+      }
+      const p = b.p.value as string
+      if (HISTORY_SKIP_PREDICATES.has(p)) continue
+      const o = b.o
+      const display =
+        o.type === 'uri'
+          ? b.oLabel
+            ? `${b.oLabel.value} (${shortUri(o.value)})`
+            : shortUri(o.value)
+          : (o.value as string)
+      const prop = localName(p)
+      if (!v.fieldMap.has(prop)) v.fieldMap.set(prop, new Set())
+      v.fieldMap.get(prop)!.add(display)
+    }
+
+    const versionNo = (u: string) => {
+      const m = u.match(/_v(\d+)$/)
+      return m ? parseInt(m[1], 10) : -1
+    }
+    return Array.from(byKey.values())
+      .map(({ fieldMap, ...v }) => ({
+        ...v,
+        fields: Array.from(fieldMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([property, values]) => ({ property, values: Array.from(values).sort() })),
+      }))
+      .sort(
+        (a, b) =>
+          (a.runTime ?? a.runDate).localeCompare(b.runTime ?? b.runDate) ||
+          versionNo(a.uri) - versionNo(b.uri),
+      )
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Timeout querying history for ${uri}`)
+    } else {
+      console.error('Error querying entity history:', error)
+    }
+    throw error
   }
 }
 
@@ -1157,6 +1403,18 @@ export interface AtagLinking {
   matcher: string
 }
 
+/**
+ * Strip the version suffix from a himiko statement URI
+ * (.../relationship/0_v1 → .../relationship/0). Every prov:wasRevisionOf in
+ * himiko links URIs sharing this base, so it identifies a version chain.
+ * Linkings often still point at a superseded version (_v0) while the network
+ * shows the latest one — match the two by this base. URIs without a suffix
+ * (persons, communities) are returned unchanged.
+ */
+export function statementBaseUri(uri: string): string {
+  return uri.replace(/_v\d+$/, '')
+}
+
 const INTERPRETATION_GRAPH = 'urn:himiko:graph:interpretation'
 
 /**
@@ -1300,9 +1558,11 @@ export async function queryLiteratureReferences(edcsId: string): Promise<Literat
                     ?mention ?rawRef ?locationType ?startParagraph ?endParagraph
                     ?noteNumber ?noteParentParagraph ?relType ?val
     WHERE {
+      # Exact IRI match: every linked inscription carries this sameAs (verified
+      # 2026-11-14). A CONTAINS on the id would also match longer ids sharing
+      # the prefix (EDCS-3460005 ⊂ EDCS-34600052).
       ?insc a ns:Inscription ;
-            owl:sameAs ?edcs .
-      FILTER(CONTAINS(STR(?edcs), "${edcsId}"))
+            owl:sameAs <http://epigraphic-careers.org/inscription/${edcsId}> .
       ?mention ns:refersTo ?insc .
       OPTIONAL { ?mention ns:rawRef ?rawRef . }
       # Where the mention occurs — "body" (running text, has paragraph numbers)
@@ -1471,7 +1731,7 @@ export async function queryLiteratureReferences(edcsId: string): Promise<Literat
 //
 // The extra ?edcsId projection carries which requested id each row belongs to,
 // so results can be regrouped per inscription. Ids are matched with the same
-// CONTAINS-on-owl:sameAs logic as the single-id query, batched via VALUES.
+// exact owl:sameAs IRI match as the single-id query, batched via VALUES.
 export async function queryLiteratureReferencesBatch(
   edcsIds: string[],
   endpoint?: string,
@@ -1480,7 +1740,12 @@ export async function queryLiteratureReferencesBatch(
   const ids = Array.from(new Set(edcsIds.filter(Boolean)))
   if (ids.length === 0) return result
 
-  const values = ids.map((id) => `"${id.replace(/"/g, '')}"`).join(' ')
+  // Exact IRI match (see queryLiteratureReferences); ?edcsId stays a literal
+  // so results can be regrouped per requested id.
+  const values = ids
+    .map((id) => id.replace(/[^A-Za-z0-9-]/g, ''))
+    .map((id) => `("${id}" <http://epigraphic-careers.org/inscription/${id}>)`)
+    .join(' ')
   const query = `
     PREFIX ns: <https://example.org/inscription-ref/ns#>
     PREFIX oa: <http://www.w3.org/ns/oa#>
@@ -1493,10 +1758,9 @@ export async function queryLiteratureReferencesBatch(
                     ?mention ?rawRef ?locationType ?startParagraph ?endParagraph
                     ?noteNumber ?noteParentParagraph ?relType ?val
     WHERE {
-      VALUES ?edcsId { ${values} }
+      VALUES (?edcsId ?edcs) { ${values} }
       ?insc a ns:Inscription ;
             owl:sameAs ?edcs .
-      FILTER(CONTAINS(STR(?edcs), ?edcsId))
       ?mention ns:refersTo ?insc .
       OPTIONAL { ?mention ns:rawRef ?rawRef . }
       OPTIONAL { ?mention ns:locationType ?locationType . }

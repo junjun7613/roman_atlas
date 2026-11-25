@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { Network } from 'vis-network/standalone'
 import type { InscriptionNetworkData } from '../utils/sparql'
 
@@ -21,6 +21,9 @@ interface InscriptionNetworkProps {
   // Programmatically select/focus a node (e.g. when the user hovers a text
   // range). null clears the selection.
   activeNodeUri?: string | null
+  // Dialog variant only: rendered under the selection details (e.g. the
+  // selected entity's version history).
+  footer?: ReactNode
 }
 
 export default function InscriptionNetwork({
@@ -31,6 +34,7 @@ export default function InscriptionNetwork({
   onNodeSelect,
   linkedNodeUris,
   activeNodeUri,
+  footer,
 }: InscriptionNetworkProps) {
   const isDialog = variant === 'dialog'
   const containerRef = useRef<HTMLDivElement>(null)
@@ -225,12 +229,22 @@ export default function InscriptionNetwork({
         }
       }
 
-      // Relationship edges
+      // Relationship edges. The edge id is the RelationshipStatement URI so a
+      // click can select it (details, history, text linking) like a node.
       if (row.relationship && row.rel_source && row.rel_target) {
         const relType = extractLabelFromUri(row.rel_type) || 'relationship'
         const relProperty = extractLabelFromUri(row.rel_property)
         const edgeLabel = relProperty ? `${relType} (${relProperty})` : relType
         addEdge({
+          id: row.relationship,
+          data: {
+            type: 'relationship',
+            uri: row.relationship,
+            relationshipType: row.rel_type,
+            relationshipProperty: row.rel_property,
+            source: row.rel_source,
+            target: row.rel_target
+          },
           from: row.rel_source,
           to: row.rel_target,
           label: edgeLabel,
@@ -308,6 +322,16 @@ export default function InscriptionNetwork({
           showNodeInfo(node)
         }
         onNodeSelectRef.current?.(nodeId)
+      } else if (params.edges.length > 0) {
+        // Only relationship edges are selectable entities; structural edges
+        // (mentions / hasCareer …) clear the selection like empty canvas.
+        const edge = edges.find(e => e.id === params.edges[0] && e.data?.type === 'relationship')
+        if (edge) {
+          showEdgeInfo(edge, nodes)
+          onNodeSelectRef.current?.(edge.id)
+        } else {
+          onNodeSelectRef.current?.(null)
+        }
       } else {
         // Clicked empty canvas → clear the text highlight.
         onNodeSelectRef.current?.(null)
@@ -348,8 +372,13 @@ export default function InscriptionNetwork({
     try {
       network.selectNodes([activeNodeUri], false)
     } catch {
-      // Node may not exist in this graph (linking points to an entity the KG
-      // query didn't surface) — ignore.
+      // Not a node — may be a relationship edge, or an entity the KG query
+      // didn't surface (ignore).
+      try {
+        network.selectEdges([activeNodeUri])
+      } catch {
+        /* not in this graph */
+      }
     }
   }, [activeNodeUri])
 
@@ -403,6 +432,25 @@ export default function InscriptionNetwork({
     nodeInfoRef.current.style.display = 'block'
   }
 
+  const showEdgeInfo = (edge: any, nodes: any[]) => {
+    if (!nodeInfoRef.current) return
+    const d = edge.data
+    const nameOf = (uri: string) => nodes.find(n => n.id === uri)?.label || uri.split('/').slice(-2).join('/')
+    let html = `<h4 class="text-[14px] font-semibold mb-2 text-[#2c3e50]">${edge.label}</h4><dl class="text-[12px]">`
+    html += `<dt class="font-bold text-[#34495e] mt-1">タイプ</dt><dd class="ml-3 text-[#555]">relationship</dd>`
+    html += `<dt class="font-bold text-[#34495e] mt-1">URI</dt><dd class="ml-3 text-[#555] text-[11px] break-all">${d.uri}</dd>`
+    html += `<dt class="font-bold text-[#34495e] mt-1">Source → Target</dt><dd class="ml-3 text-[#555]">${nameOf(d.source)} → ${nameOf(d.target)}</dd>`
+    if (d.relationshipType) {
+      html += `<dt class="font-bold text-[#34495e] mt-1">Relationship Type</dt><dd class="ml-3 text-[#555]">${d.relationshipType}</dd>`
+    }
+    if (d.relationshipProperty) {
+      html += `<dt class="font-bold text-[#34495e] mt-1">Property</dt><dd class="ml-3 text-[#555]">${d.relationshipProperty}</dd>`
+    }
+    html += '</dl>'
+    nodeInfoRef.current.innerHTML = html
+    nodeInfoRef.current.style.display = 'block'
+  }
+
   console.log('InscriptionNetwork render decision:', networkData.length === 0 ? 'No data' : 'Has data')
 
   if (networkData.length === 0) {
@@ -440,6 +488,7 @@ export default function InscriptionNetwork({
           className="mt-2 p-3 bg-muted border border-border rounded text-[13px] max-h-[200px] overflow-y-auto shrink-0"
           style={{ display: 'none' }}
         />
+        {footer}
       </div>
     )
   }
