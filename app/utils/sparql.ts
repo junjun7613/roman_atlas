@@ -1232,17 +1232,25 @@ export async function queryEntityHistory(edcsId: string, uri: string): Promise<E
 //
 // Everything lives in ONE named graph, ASSESSMENT_GRAPH (hmkia: =
 // urn:himiko:ontology:interpretation:):
-//   ?x hmkia:assessmentStatus hmkia:status_unassessed | status_llm_judged
-//        on every Inscription and on judged entities — PersonReference /
+//   ?x hmkia:assessmentStatus hmkia:status_{unassessed | llm_judged |
+//        human_reviewed | human_corrected}  — HOW FAR the value was checked.
+//        On every Inscription and on assessed entities — PersonReference /
 //        CommunityReference (no version suffix) and statements on their exact
 //        versioned URI (…/relationship/0_v1).
-//   ?x hmkia:staleAssessmentStatus <old status>
-//        a judgement that no longer holds (e.g. re-extracted afterwards); the
-//        current status has been reset to unassessed.
-//   hmkia:AssessmentAct (one per judged inscription so far):
+//   ?x hmkia:judgeOutcome hmkia:outcome_{major_incorrect | major_mixed |
+//        major_omission | major_uncertain | major_single | minor | no_finding}
+//        — WHAT the judges said (most severe class under the resource).
+//   ?x hmkia:staleAssessmentStatus <status>
+//        highest status that lapsed because the value changed afterwards
+//        (only when above the current status).
+//   hmkia:AssessmentAct (one per judge run / human review):
 //        assesses <inscription> ; hasType "llm_judge" ; hasCriterion ;
 //        hasDate ; associatedWith <agent> (×N judges) ; assessmentCurrent ;
-//        assessmentOutcome (optional: single / agree_all / agree_2 / audit …)
+//        judgeOutcome (most severe class in the act) ;
+//        assessmentOutcome (optional review-queue tier: agree_all / agree_2 …)
+// Labels and definitions live in hmk_ontology himiko_interpretation.ttl and
+// are NOT loaded into Fuseki — see AssessmentBadge.tsx. Spec:
+// inscription_llm docs/ASSESSMENT_STATUS_SPEC.md (v1.1, 2026-11-25).
 // Entity URIs are matched by prefix with a trailing "/" so EDCS-3460005 does
 // not pick up EDCS-34600052's entities. ~0.3s.
 // ---------------------------------------------------------------------------
@@ -1254,12 +1262,17 @@ export interface AssessmentStatus {
   // Local name without the "status_" prefix: "unassessed", "llm_judged", …
   status: string
   stale?: string
+  // judgeOutcome local name without "outcome_": "major_incorrect", "minor", …
+  outcome?: string
 }
 
 export interface AssessmentAct {
   uri: string
   type?: string
-  outcome?: string
+  // hmkia:judgeOutcome of the act (most severe class), without "outcome_"
+  judgeOutcome?: string
+  // hmkia:assessmentOutcome: review-queue tier (agree_all / agree_2 / …)
+  tier?: string
   current: boolean
   date?: string
   criterion?: string
@@ -1279,11 +1292,12 @@ export async function queryAssessment(edcsId: string): Promise<InscriptionAssess
   const insc = `http://epigraphic-careers.org/inscription/${id}`
   const query = `
     PREFIX hmkia: <${HMKIA}>
-    SELECT ?s ?status ?stale ?act ?p ?o WHERE {
+    SELECT ?s ?status ?stale ?judge ?act ?p ?o WHERE {
       GRAPH <${ASSESSMENT_GRAPH}> {
         {
           ?s hmkia:assessmentStatus ?status .
           OPTIONAL { ?s hmkia:staleAssessmentStatus ?stale }
+          OPTIONAL { ?s hmkia:judgeOutcome ?judge }
           FILTER(?s = <${insc}>
                  || STRSTARTS(STR(?s), "http://epigraphic-careers.org/entityref/${id}/")
                  || STRSTARTS(STR(?s), "http://epigraphic-careers.org/mk/${id}/"))
@@ -1314,12 +1328,14 @@ export async function queryAssessment(edcsId: string): Promise<InscriptionAssess
     const rows = data.results?.bindings ?? []
 
     const statusName = (u: string) => u.replace(HMKIA, '').replace(/^status_/, '')
+    const outcomeName = (u: string) => u.replace(HMKIA, '').replace(/^outcome_/, '')
     const result: InscriptionAssessment = { inscription: null, entities: {}, acts: [] }
     const acts = new Map<string, AssessmentAct>()
     for (const b of rows) {
       if (b.s && b.status) {
         const st: AssessmentStatus = { status: statusName(b.status.value) }
         if (b.stale) st.stale = statusName(b.stale.value)
+        if (b.judge) st.outcome = outcomeName(b.judge.value)
         if (b.s.value === insc) result.inscription = st
         else result.entities[b.s.value] = st
       } else if (b.act && b.p) {
@@ -1331,7 +1347,8 @@ export async function queryAssessment(edcsId: string): Promise<InscriptionAssess
         const o = b.o.value as string
         switch (b.p.value.replace(HMKIA, '')) {
           case 'hasType': a.type = o; break
-          case 'assessmentOutcome': a.outcome = o; break
+          case 'assessmentOutcome': a.tier = o; break
+          case 'judgeOutcome': a.judgeOutcome = outcomeName(o); break
           case 'assessmentCurrent': a.current = o === 'true'; break
           case 'hasDate': a.date = o; break
           case 'hasCriterion': a.criterion = o; break
