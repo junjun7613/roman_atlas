@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { queryEntityHistory, type EntityVersion } from "@/app/utils/sparql";
 
 type Props = {
@@ -22,6 +22,13 @@ export default function EntityHistory({ edcsId, uri, currentGraph }: Props) {
   const [versions, setVersions] = useState<EntityVersion[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The panel sits in a capped, scrollable region under the selection details
+  // (see InscriptionNetwork dialog variant) — bring it into view once loaded.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (versions) panelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [versions]);
 
   const load = () => {
     setLoading(true);
@@ -57,7 +64,7 @@ export default function EntityHistory({ edcsId, uri, currentGraph }: Props) {
   const runs = new Set(versions.map((v) => v.graph)).size;
 
   return (
-    <div className="mt-2 shrink-0 max-h-[40%] overflow-y-auto border border-border rounded p-2 text-xs">
+    <div ref={panelRef} className="mt-2 border border-border rounded p-2 text-xs">
       <div className="flex items-center justify-between mb-1">
         <span className="font-semibold">
           History — {versions.length} version{versions.length === 1 ? "" : "s"} in {runs} run

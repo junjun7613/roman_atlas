@@ -483,12 +483,17 @@ export default function InscriptionNetwork({
     return (
       <div className="flex flex-col h-full min-h-0">
         <div ref={containerRef} className="flex-1 min-h-0 w-full rounded bg-card" />
-        <div
-          ref={nodeInfoRef}
-          className="mt-2 p-3 bg-muted border border-border rounded text-[13px] max-h-[200px] overflow-y-auto shrink-0"
-          style={{ display: 'none' }}
-        />
-        {footer}
+        {/* Selection details + footer (assessment, history) share ONE capped,
+            scrollable region so the graph always keeps most of the pane —
+            separately capped blocks used to add up and squeeze the canvas. */}
+        <div className="shrink-0 max-h-[40%] min-h-0 overflow-y-auto">
+          <div
+            ref={nodeInfoRef}
+            className="mt-2 p-3 bg-muted border border-border rounded text-[13px]"
+            style={{ display: 'none' }}
+          />
+          {footer}
+        </div>
       </div>
     )
   }
