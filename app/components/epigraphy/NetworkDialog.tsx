@@ -8,7 +8,9 @@ import {
   buildEdcsUrl,
   queryAtagText,
   queryAtagLinkings,
+  queryAssessment,
   statementBaseUri,
+  type InscriptionAssessment,
   type InscriptionNetworkData,
   type AtagText,
   type AtagLinking,
@@ -26,6 +28,10 @@ const AnnotatedText = dynamic(
 
 import ResizableSplit from "./ResizableSplit";
 import EntityHistory from "./EntityHistory";
+import {
+  InscriptionAssessmentBadge,
+  EntityAssessmentBadge,
+} from "./AssessmentBadge";
 
 type Props = {
   row: IndexRow;
@@ -118,6 +124,27 @@ export default function NetworkDialog({
     });
   }, [rawLinkings, networkData]);
 
+  // Assessment status of the inscription and its entities (read-only). A
+  // failure just hides the badge — it is supplementary information.
+  const [assessment, setAssessment] = useState<InscriptionAssessment | null>(null);
+  const [assessmentLoading, setAssessmentLoading] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    setAssessment(null);
+    setAssessmentLoading(true);
+    queryAssessment(row.id)
+      .then((result) => {
+        if (!cancelled) setAssessment(result);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setAssessmentLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [row.id]);
+
   // The node whose linked text range is currently highlighted (set by clicking
   // a graph node or hovering a linking in the list). null → nothing highlighted.
   const [activeNode, setActiveNode] = useState<string | null>(null);
@@ -181,6 +208,10 @@ export default function NetworkDialog({
                 (related node data: {networkData.length})
               </span>
             )}
+            <InscriptionAssessmentBadge
+              assessment={assessment}
+              loading={assessmentLoading}
+            />
           </h3>
           <button
             onClick={onClose}
@@ -275,12 +306,17 @@ export default function NetworkDialog({
                     // History of the selected entity across runs / versions.
                     // Skip the synthetic inscription node (not an RDF entity).
                     activeNode?.startsWith("http") ? (
-                      <EntityHistory
-                        key={activeNode}
-                        edcsId={row.id}
-                        uri={activeNode}
-                        currentGraph={networkData[0]?.latest_graph}
-                      />
+                      <>
+                        <EntityAssessmentBadge
+                          status={assessment?.entities[activeNode]}
+                        />
+                        <EntityHistory
+                          key={activeNode}
+                          edcsId={row.id}
+                          uri={activeNode}
+                          currentGraph={networkData[0]?.latest_graph}
+                        />
+                      </>
                     ) : null
                   }
                 />

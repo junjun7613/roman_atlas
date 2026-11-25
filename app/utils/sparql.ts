@@ -1228,6 +1228,129 @@ export async function queryEntityHistory(edcsId: string, uri: string): Promise<E
 }
 
 // ---------------------------------------------------------------------------
+// Assessment status (himiko, read-only)
+//
+// Everything lives in ONE named graph, ASSESSMENT_GRAPH (hmkia: =
+// urn:himiko:ontology:interpretation:):
+//   ?x hmkia:assessmentStatus hmkia:status_unassessed | status_llm_judged
+//        on every Inscription and on judged entities — PersonReference /
+//        CommunityReference (no version suffix) and statements on their exact
+//        versioned URI (…/relationship/0_v1).
+//   ?x hmkia:staleAssessmentStatus <old status>
+//        a judgement that no longer holds (e.g. re-extracted afterwards); the
+//        current status has been reset to unassessed.
+//   hmkia:AssessmentAct (one per judged inscription so far):
+//        assesses <inscription> ; hasType "llm_judge" ; hasCriterion ;
+//        hasDate ; associatedWith <agent> (×N judges) ; assessmentCurrent ;
+//        assessmentOutcome (optional: single / agree_all / agree_2 / audit …)
+// Entity URIs are matched by prefix with a trailing "/" so EDCS-3460005 does
+// not pick up EDCS-34600052's entities. ~0.3s.
+// ---------------------------------------------------------------------------
+
+const ASSESSMENT_GRAPH = 'http://epigraphic-careers.org/graph/assessment-status'
+const HMKIA = 'urn:himiko:ontology:interpretation:'
+
+export interface AssessmentStatus {
+  // Local name without the "status_" prefix: "unassessed", "llm_judged", …
+  status: string
+  stale?: string
+}
+
+export interface AssessmentAct {
+  uri: string
+  type?: string
+  outcome?: string
+  current: boolean
+  date?: string
+  criterion?: string
+  agents: string[]
+}
+
+export interface InscriptionAssessment {
+  inscription: AssessmentStatus | null
+  // keyed by the entity / statement URI exactly as shown in the graph
+  entities: Record<string, AssessmentStatus>
+  // current acts first, newest first
+  acts: AssessmentAct[]
+}
+
+export async function queryAssessment(edcsId: string): Promise<InscriptionAssessment> {
+  const id = edcsId.replace(/[^A-Za-z0-9-]/g, '')
+  const insc = `http://epigraphic-careers.org/inscription/${id}`
+  const query = `
+    PREFIX hmkia: <${HMKIA}>
+    SELECT ?s ?status ?stale ?act ?p ?o WHERE {
+      GRAPH <${ASSESSMENT_GRAPH}> {
+        {
+          ?s hmkia:assessmentStatus ?status .
+          OPTIONAL { ?s hmkia:staleAssessmentStatus ?stale }
+          FILTER(?s = <${insc}>
+                 || STRSTARTS(STR(?s), "http://epigraphic-careers.org/entityref/${id}/")
+                 || STRSTARTS(STR(?s), "http://epigraphic-careers.org/mk/${id}/"))
+        }
+        UNION
+        { ?act hmkia:assesses <${insc}> ; ?p ?o }
+      }
+    }
+  `
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 20000)
+  try {
+    const response = await fetch('/api/sparql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/sparql-results+json',
+      },
+      body: JSON.stringify({ query }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    if (!response.ok) {
+      throw new Error(`Assessment SPARQL query failed: ${response.status} ${response.statusText}`)
+    }
+    const data = await response.json()
+    const rows = data.results?.bindings ?? []
+
+    const statusName = (u: string) => u.replace(HMKIA, '').replace(/^status_/, '')
+    const result: InscriptionAssessment = { inscription: null, entities: {}, acts: [] }
+    const acts = new Map<string, AssessmentAct>()
+    for (const b of rows) {
+      if (b.s && b.status) {
+        const st: AssessmentStatus = { status: statusName(b.status.value) }
+        if (b.stale) st.stale = statusName(b.stale.value)
+        if (b.s.value === insc) result.inscription = st
+        else result.entities[b.s.value] = st
+      } else if (b.act && b.p) {
+        let a = acts.get(b.act.value)
+        if (!a) {
+          a = { uri: b.act.value, current: false, agents: [] }
+          acts.set(b.act.value, a)
+        }
+        const o = b.o.value as string
+        switch (b.p.value.replace(HMKIA, '')) {
+          case 'hasType': a.type = o; break
+          case 'assessmentOutcome': a.outcome = o; break
+          case 'assessmentCurrent': a.current = o === 'true'; break
+          case 'hasDate': a.date = o; break
+          case 'hasCriterion': a.criterion = o; break
+          case 'associatedWith': a.agents.push(o.split('/').pop() || o); break
+        }
+      }
+    }
+    result.acts = Array.from(acts.values())
+      .map((a) => ({ ...a, agents: a.agents.sort() }))
+      .sort((x, y) => Number(y.current) - Number(x.current) || (y.date ?? '').localeCompare(x.date ?? ''))
+    return result
+  } catch (error) {
+    clearTimeout(timeoutId)
+    console.error('Error querying assessment status:', error)
+    throw error
+  }
+}
+
+// ---------------------------------------------------------------------------
 // ATAG annotated text
 //
 // The ATAG endpoint stores each inscription as a p:Text (p: =
