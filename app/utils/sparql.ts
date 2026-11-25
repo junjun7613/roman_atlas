@@ -1340,8 +1340,12 @@ export async function queryLiteratureReferences(edcsId: string): Promise<Literat
           OPTIONAL { ?container dct:title ?containerTitle }
           OPTIONAL { ?container bibo:doi ?containerDoi }
         }
-        BIND(COALESCE(?docDoi, ?containerDoi) AS ?doi)
       }
+      # PERF: keep this BIND OUTSIDE the OPTIONAL above. Inside it, ARQ can't
+      # substitute the bound ?mention into the block and evaluates it over every
+      # document in the dataset first (~2.4s vs ~0.4s, identical results —
+      # measured 2026-11-25 after inscription_ref grew to 128k triples).
+      BIND(COALESCE(?docDoi, ?containerDoi) AS ?doi)
     }
     ORDER BY ?doc ?mention
   `
@@ -1524,8 +1528,9 @@ export async function queryLiteratureReferencesBatch(
           OPTIONAL { ?container dct:title ?containerTitle }
           OPTIONAL { ?container bibo:doi ?containerDoi }
         }
-        BIND(COALESCE(?docDoi, ?containerDoi) AS ?doi)
       }
+      # PERF: outside the OPTIONAL on purpose — see queryLiteratureReferences.
+      BIND(COALESCE(?docDoi, ?containerDoi) AS ?doi)
     }
     ORDER BY ?edcsId ?doc ?mention
   `
